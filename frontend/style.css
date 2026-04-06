@@ -1,0 +1,236 @@
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f6f8;
+}
+
+/* APP */
+
+.app {
+    display: flex;
+    height: 100vh;
+}
+
+
+/* SIDEBAR */
+
+.sidebar {
+    width: 180px;
+    background: #1e2a38;
+    color: white;
+    display: flex;
+    flex-direction: column;
+}
+
+.logo {
+    padding: 15px;
+    font-weight: bold;
+    font-size: 18px;
+    background: #16202b;
+}
+
+.sidebar button {
+    background: none;
+    border: none;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.sidebar button:hover {
+    background: #2c3e50;
+}
+
+.sidebar-section-label {
+    padding: 16px 12px 4px;
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #7f8c9a;
+}
+
+
+/* MAIN */
+
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* HEADER */
+
+.header {
+    height: 50px;
+    background: white;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    font-weight: bold;
+    justify-content: space-between;
+}
+
+
+/* CONTENT */
+
+.content {
+    flex: 1;
+    overflow: auto;
+    padding: 15px;
+}
+
+
+/* ── Estilo global de campos de formulário ──────────────────────────
+   Aplica o padrão visual do componente SearchSelect a todos os
+   inputs, selects e textareas nativos da aplicação.
+   Usamos seletores de menor especificidade (elemento apenas) para que
+   qualquer regra de classe possa sobrescrever sem precisar de !important.
+   ─────────────────────────────────────────────────────────────────── */
+
+input,
+select,
+textarea {
+    font-family: inherit;
+    font-size: 13px;
+    color: #0f172a;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+/* Restaura aparência nativa para controles que não devem ser estilizados */
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+    border: revert;
+    border-radius: revert;
+    background: revert;
+    color: revert;
+    outline: revert;
+    transition: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #94a3b8;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #94a3b8;
+}
+
+input[type="checkbox"]:focus,
+input[type="radio"]:focus {
+    outline: revert;
+    border-color: revert;
+}
+
+select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("icons/expand.svg");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 18px;
+    padding-right: 32px;
+    cursor: pointer;
+}
+
+/* Select com primeira option como placeholder: aplica cor de placeholder */
+select:has(option[value=""]:checked) {
+    color: #94a3b8;
+}
+select option[value=""] {
+    color: #94a3b8;
+}
+
+/* ── Cor do texto em inputs de data (WebKit) ────────────────────────
+   Sem isso, navegadores baseados em WebKit exibem partes da data em
+   azul por padrão (cor nativa do date-picker).
+   ─────────────────────────────────────────────────────────────────── */
+input[type="date"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+    color: #0f172a;
+    font-weight: 300;
+}
+
+
+/* ── Header action buttons (compartilhados entre todas as telas) ─────── */
+
+#headerOptionsContent {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+#headerOptionsContent .btn-primary {
+    height: 30px;
+    padding: 0 16px;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    background-color: white;
+    color: #1a1a1a;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+#headerOptionsContent .btn-primary:hover {
+    background-color: #f0f0f0;
+}
+
+#headerOptionsContent .btn-secondary {
+    height: 30px;
+    padding: 0 16px;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    background-color: white;
+    color: crimson;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+#headerOptionsContent .btn-secondary:hover {
+    background-color: #fff0f0;
+}
+
+/* Botão de navegação "Novo..." no header */
+#headerOptionsContent .btn-new {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 30px;
+    padding: 0 16px 0 10px;
+    background-color: white;
+    color: #1a1a1a;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+#headerOptionsContent .btn-new:hover {
+    background-color: #f0f0f0;
+}
+
+#headerOptionsContent .btn-new .material-symbols-outlined {
+    font-size: 18px;
+}

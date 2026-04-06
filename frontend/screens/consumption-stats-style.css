@@ -1,0 +1,597 @@
+/* ===================================================
+   CONSUMPTION STATS — Estatística de Consumo
+   =================================================== */
+
+.cstats-container {
+    width: 100%;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ---------------------------------------------------
+   Cards
+   --------------------------------------------------- */
+.cstats-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    padding: 20px;
+}
+
+.cstats-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.cstats-card-title {
+    margin: 0;
+    font-size: 34px;
+    line-height: 1;
+    color: #1f2937;
+    letter-spacing: 0.2px;
+}
+
+.cstats-card-subtitle {
+    margin: 6px 0 0;
+    font-size: 14px;
+    color: #475569;
+}
+
+/* ---------------------------------------------------
+   Refresh button
+   --------------------------------------------------- */
+.cstats-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 16px 0 10px;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    background: white;
+    color: #1a1a1a;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background-color 0.15s;
+}
+
+.cstats-btn:hover {
+    background: #f0f0f0;
+}
+
+.cstats-btn .material-symbols-outlined {
+    font-size: 18px;
+}
+
+.cstats-btn--optimize {
+    background: white;
+}
+
+.cstats-btn--optimize:hover {
+    background: #f0f0f0;
+}
+
+.cstats-btn--optimize:disabled {
+    background: #f5f5f5;
+    color: #aaa;
+    border-color: #e0e0e0;
+    cursor: not-allowed;
+}
+
+.cstats-btn--link {
+    background: white;
+}
+
+.cstats-btn--link:hover {
+    background: #f0f0f0;
+}
+
+.cstats-btn-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* ---------------------------------------------------
+   Filter rows
+   --------------------------------------------------- */
+.cstats-filters-row {
+    margin-top: 18px;
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.cstats-filter-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.cstats-filter-material {
+    width: 280px;
+    min-width: 0;
+}
+
+.cstats-filter-method {
+    width: 220px;
+    min-width: 0;
+}
+
+.cstats-filter-checks {
+    justify-content: flex-end;
+}
+
+.cstats-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.cstats-label--invisible {
+    visibility: hidden;
+}
+
+/* ---------------------------------------------------
+   Date input
+   --------------------------------------------------- */
+.cstats-date-input {
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+}
+
+.cstats-date-input:focus {
+    border-color: #94a3b8;
+}
+
+/* ---------------------------------------------------
+   Single-select dropdown with search
+   --------------------------------------------------- */
+.cstats-select-wrap {
+    position: relative;
+}
+
+.cstats-select-field {
+    width: 100%;
+    height: 36px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 8px;
+    cursor: pointer;
+    min-width: 0;
+}
+
+.cstats-select-wrap.open .cstats-select-field,
+.cstats-select-field:focus {
+    outline: none;
+    border-color: #94a3b8;
+}
+
+.cstats-select-field > span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    font-size: 13px;
+    color: #0f172a;
+}
+
+.cstats-select-placeholder {
+    color: #94a3b8 !important;
+}
+
+.cstats-caret {
+    color: #64748b;
+    flex-shrink: 0;
+    font-size: 20px;
+}
+
+/* Dropdown panel */
+.cstats-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 100%;
+    min-width: 220px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    z-index: 100;
+    overflow: hidden;
+}
+
+.cstats-select-wrap.open .cstats-dropdown {
+    display: block;
+}
+
+.cstats-dropdown-search-wrap {
+    display: flex;
+    align-items: center;
+    padding: 10px 10px 6px;
+    gap: 6px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.cstats-search-icon {
+    color: #94a3b8;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.cstats-dropdown-search {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 13px;
+    color: #0f172a;
+    background: transparent;
+}
+
+.cstats-dropdown-list {
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+.cstats-dropdown-option {
+    padding: 8px 14px;
+    font-size: 13px;
+    color: #1e293b;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.cstats-dropdown-option:hover {
+    background: #f8fafc;
+}
+
+.cstats-dropdown-option--selected {
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 500;
+}
+
+.cstats-dropdown-empty {
+    padding: 12px 14px;
+    font-size: 13px;
+    color: #94a3b8;
+    text-align: center;
+}
+
+.cstats-dropdown-section-header {
+    padding: 6px 14px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.cstats-dropdown-section-header:first-child {
+    border-top: none;
+}
+
+.cstats-group-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: #e8f5e9;
+    color: #2e7d32;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    vertical-align: middle;
+    margin-right: 5px;
+    line-height: 1.4;
+}
+
+/* ---------------------------------------------------
+   Aggregation toggle group
+   --------------------------------------------------- */
+.cstats-toggle-group {
+    display: flex;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.cstats-toggle-btn {
+    height: 36px;
+    padding: 0 14px;
+    border: none;
+    border-right: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #374151;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+
+.cstats-toggle-btn:last-child {
+    border-right: none;
+}
+
+.cstats-toggle-btn:hover:not(.cstats-toggle-btn--active) {
+    background: #f8fafc;
+}
+
+.cstats-toggle-btn--active {
+    background: #111827;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+/* ---------------------------------------------------
+   Native select (forecast method)
+   --------------------------------------------------- */
+.cstats-select-native {
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+}
+
+.cstats-select-native:focus {
+    border-color: #94a3b8;
+}
+
+/* ---------------------------------------------------
+   Checkboxes
+   --------------------------------------------------- */
+.cstats-checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cstats-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #374151;
+    height: 18px;
+    user-select: none;
+}
+
+.cstats-checkbox-label input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    accent-color: #111827;
+    flex-shrink: 0;
+}
+
+/* ---------------------------------------------------
+   Chart legend
+   --------------------------------------------------- */
+.cstats-legend {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 18px;
+    padding: 10px 0 4px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.cstats-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    color: #475569;
+}
+
+.cstats-legend-swatch {
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.cstats-legend-swatch--solid {
+    width: 28px;
+    height: 3px;
+    border-radius: 2px;
+}
+
+.cstats-legend-swatch--dashed {
+    width: 28px;
+    height: 0;
+    border-top: 2.5px dashed;
+}
+
+.cstats-legend-swatch--band {
+    width: 28px;
+    height: 12px;
+    border-radius: 3px;
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* ---------------------------------------------------
+   Chart wrap & canvas
+   --------------------------------------------------- */
+.cstats-chart-wrap {
+    position: relative;
+    margin-top: 12px;
+    width: 100%;
+}
+
+.cstats-chart-wrap canvas {
+    width: 100%;
+    display: block;
+}
+
+/* ---------------------------------------------------
+   Tooltip
+   --------------------------------------------------- */
+.cstats-tooltip {
+    display: none;
+    position: absolute;
+    background: #1e293b;
+    border-radius: 8px;
+    padding: 10px 12px;
+    pointer-events: none;
+    z-index: 10;
+    min-width: 160px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.18);
+}
+
+.cstats-tooltip-header {
+    color: #94a3b8;
+    font-size: 12px;
+    margin-bottom: 6px;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+}
+
+.cstats-tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 3px;
+}
+
+.cstats-tooltip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.cstats-tooltip-name {
+    color: #e2e8f0;
+    font-size: 12px;
+    flex: 1;
+}
+
+.cstats-tooltip-val {
+    color: #f1f5f9;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: right;
+}
+
+/* ---------------------------------------------------
+   Indicators card
+   --------------------------------------------------- */
+.cstats-indicators-title {
+    margin: 0;
+    font-size: 22px;
+    color: #1f2937;
+    font-weight: 700;
+}
+
+/* ---------------------------------------------------
+   KPI grid
+   --------------------------------------------------- */
+.cstats-kpi-grid {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.cstats-kpi-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    transition: box-shadow 0.15s;
+}
+
+.cstats-kpi-item:hover {
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.cstats-kpi-icon-wrap {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.cstats-kpi-icon {
+    font-size: 22px;
+}
+
+.cstats-kpi-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.cstats-kpi-label {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+    line-height: 1.3;
+    margin-bottom: 3px;
+}
+
+.cstats-kpi-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.1;
+    letter-spacing: -0.3px;
+}
+
+.cstats-kpi-sub {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+    line-height: 1.3;
+}
+
+.cstats-kpi-daily {
+    font-size: 12px;
+    font-weight: 600;
+    color: #8b5cf6;
+    margin-top: 2px;
+    line-height: 1.2;
+}

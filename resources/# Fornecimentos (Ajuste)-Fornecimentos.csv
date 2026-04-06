@@ -1,0 +1,116 @@
+id;nature;Code;date;Supplier;order_id
+115;C;#C115;02/03/26;Terplas;20
+114;P;#P114;01/04/26;;
+113;C;#C113;02/03/26;Chicão Reciclagem;26
+112;C;#C112;01/04/26;Marques Plastic;
+111;S;#S111;01/04/26;Green Metal;
+110;C;#C110;31/03/26;G V Brasil;29
+109;P;#P109;31/03/26;;
+108;S;#S108;30/03/26;Flávio Zarzar;
+107;C;#C107;30/03/26;Comercial Almeida;23
+106;P;#P106;30/03/26;;
+105;P;#P105;28/03/26;;
+104;C;#C104;27/03/26;Terplas;20
+103;C;#C103;27/03/26;Ric Plast;22
+102;C;#C102;27/03/26;Macicplast;24
+101;C;#C101;27/03/26;Chicão Reciclagem;21
+100;C;#C100;27/03/26;Izaltino;
+99;P;#P99;27/03/26;;
+98;C;#C98;26/03/26;G V Brasil;25
+97;P;#P97;26/03/26;;
+96;C;#C96;25/03/26;Ric Plast;22
+95;P;#P95;25/03/26;;
+94;S;#S94;24/03/26;Macicplast;9
+93;P;#P93;24/03/26;;
+92;C;#C92;23/03/26;G V Brasil;25
+91;P;#P91;23/03/26;;
+90;C;#C90;21/03/26;Terplas;12
+89;P;#P89;21/03/26;;
+88;C;#C88;20/03/26;Macicplast;18
+87;C;#C87;20/03/26;Ric Plast;17
+86;C;#C86;20/03/26;MRX Negócios;19
+85;C;#C85;20/03/26;Chicão Reciclagem;16
+84;C;#C84;20/03/26;Izaltino;
+83;P;#P83;20/03/26;;
+82;C;#C82;19/03/26;Ric Plast;15
+81;P;#P81;19/03/26;;
+80;S;#S80;18/03/26;Green Metal;
+79;P;#P79;18/03/26;;
+78;C;#C78;17/03/26;Terplas;12
+77;C;#C77;17/03/26;G V Brasil;14
+76;C;#C76;17/03/26;Marques Plastic;
+75;P;#P75;17/03/26;;
+74;S;#S74;16/03/26;Macicplast;9
+73;P;#P73;16/03/26;;
+72;P;#P72;14/03/26;;
+71;P;#P71;13/03/26;;
+70;C;#C70;12/03/26;Macicplast;
+69;C;#C69;12/03/26;Roni;
+68;S;#S68;12/03/26;Flávio Zarzar;
+67;P;#P67;12/03/26;;
+66;C;#C66;11/03/26;Ric Plast;13
+65;C;#C65;11/03/26;Comercial Almeida;7
+64;P;#P64;11/03/26;;
+63;C;#C63;10/03/26;Chicão Reciclagem;10
+62;P;#P62;10/03/26;;
+61;C;#C61;09/03/26;G V Brasil;11
+60;P;#P60;09/03/26;;
+59;P;#P59;07/03/26;;
+58;C;#C58;05/03/26;Modernize;5
+57;P;#P57;05/03/26;;
+56;C;#C56;04/03/26;Montyplast;
+55;C;#C55;04/03/26;Izaltino;
+54;P;#P54;04/03/26;;
+53;C;#C53;03/03/26;Ric Plast;8
+52;C;#C52;03/03/26;G V Brasil;6
+51;P;#P51;03/03/26;;
+50;C;#C50;27/02/26;Terplas;4
+49;S;#S49;26/02/26;Macicplast;
+48;C;#C48;26/02/26;G V Brasil;2
+47;C;#C47;26/02/26;Chicão Reciclagem;3
+46;P;#P46;02/03/26;;
+45;C;#C45;25/02/26;Marques Plastic;
+44;C;#C44;24/02/26;Ric Plast;1
+43;C;#C43;20/02/26;Roni;
+42;C;#C42;20/02/26;G V Brasil;
+41;C;#C41;20/02/26;Chicão Reciclagem;
+40;C;#C40;20/02/26;Terplas;
+39;C;#C39;20/02/26;Izaltino;
+38;C;#C38;19/02/26;Chicão Reciclagem;
+37;C;#C37;19/02/26;Ric Plast;
+36;C;#C36;19/02/26;Terplas;
+35;C;#C35;13/02/26;Comercial Almeida;
+34;C;#C34;13/02/26;Macicplast;
+33;C;#C33;12/02/26;G V Brasil;
+32;C;#C32;12/02/26;Ric Plast;
+31;C;#C31;12/02/26;Terplas;
+30;C;#C30;11/02/26;Modernize;
+29;C;#C29;10/02/26;Ric Plast;
+28;C;#C28;10/02/26;G V Brasil;
+27;C;#C27;09/02/26;Terplas;
+26;C;#C26;06/02/26;Izaltino;
+25;C;#C25;06/02/26;Terplas;
+24;C;#C24;06/02/26;Ric Plast;
+23;C;#C23;06/02/26;G V Brasil;
+22;C;#C22;06/02/26;Modernize;
+21;C;#C21;05/02/26;G V Brasil;
+20;C;#C20;05/02/26;José Ricardo;
+19;S;#S19;03/02/26;Macicplast;
+18;C;#C18;03/02/26;Chicão Reciclagem;
+17;C;#C17;03/02/26;G V Brasil;
+16;C;#C16;02/02/26;Marques Plastic;
+15;S;#S15;02/02/26;Macicplast;
+14;C;#C14;02/02/26;Terplas;
+13;C;#C13;30/01/26;Izaltino;
+12;C;#C12;29/01/26;Ric Plast;
+11;C;#C11;29/01/26;Chicão Reciclagem;
+10;C;#C10;28/01/26;Izaltino;
+9;C;#C9;28/01/26;Comercial Almeida;
+8;C;#C8;27/01/26;Ric Plast;
+7;C;#C7;27/01/26;G V Brasil;
+6;C;#C6;26/01/26;Terplas;
+5;C;#C5;23/01/26;Macicplast;
+4;C;#C4;23/01/26;Chicão Reciclagem;
+3;S;#S3;21/01/26;Macicplast;
+2;S;#S2;20/01/26;Macicplast;
+1;C;#C1;19/01/26;AB Reciclagem;

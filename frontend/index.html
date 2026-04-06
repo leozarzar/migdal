@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>WCM App</title>
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="components/search-select-style.css">
+    <link rel="stylesheet" href="components/number-input-style.css">
+    <link rel="stylesheet" href="screens/stock-units-style.css">
+    <link rel="stylesheet" href="screens/orders-style.css">
+    <link rel="stylesheet" href="screens/orders-details-style.css">
+    <link rel="stylesheet" href="screens/receipts-style.css">
+    <link rel="stylesheet" href="screens/receipts-details-style.css">
+    <link rel="stylesheet" href="screens/materials-style.css">
+    <link rel="stylesheet" href="screens/suppliers-style.css">
+    <link rel="stylesheet" href="screens/operators-style.css">
+    <link rel="stylesheet" href="screens/dashboard-style.css">
+    <link rel="stylesheet" href="screens/stock-monitor-style.css">
+    <link rel="stylesheet" href="screens/consumption-stats-style.css">
+    <link rel="stylesheet" href="screens/stock-policies-style.css">
+    <link rel="stylesheet" href="screens/stock-policies-details-style.css">
+    <link rel="stylesheet" href="screens/groups-style.css">
+    <link rel="stylesheet" href="screens/groups-details-style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- SIDEBAR -->
+
+    <div class="sidebar">
+
+        <div class="logo">
+            WCM
+        </div>
+
+        <div class="sidebar-section-label">Análises</div>
+
+        <button onclick="showScreen('dashboard')">
+            Dashboard
+        </button>
+
+        <button onclick="showScreen('stock-monitor')">
+            Monitor de Estoque
+        </button>
+
+        <button onclick="showScreen('consumption-stats')">
+            Estat. de Consumo
+        </button>
+
+        <button onclick="showScreen('stock-policies')">
+            Política de Estoque
+        </button>
+
+        <div class="sidebar-section-label">Operacional</div>
+
+        <button onclick="showScreen('stock-units')">
+            Estoque
+        </button>
+
+        <button onclick="showScreen('orders')">
+            Pedidos
+        </button>
+
+        <button onclick="showScreen('receipts')">
+            Recebimentos
+        </button>
+
+        <div class="sidebar-section-label">Cadastros</div>
+
+        <button onclick="showScreen('materials')">
+            Materiais
+        </button>
+
+        <button onclick="showScreen('suppliers')">
+            Fornecedores
+        </button>
+
+        <button onclick="showScreen('operators')">
+            Operadores
+        </button>
+
+        <button onclick="showScreen('groups')">
+            Grupos
+        </button>
+
+    </div>
+
+
+    <!-- MAIN -->
+
+    <div class="main">
+
+        <div class="header">
+
+            <div id="headerTitle">
+                Bags
+            </div>
+
+            <div id="headerOptionsContent">
+            </div>
+
+        </div>
+
+
+        <div id="content" class="content">
+
+            <!-- telas vão aparecer aqui -->
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script src="utils.js"></script>
+<script src="components/search-select.js"></script>
+<script src="components/number-input.js"></script>
+<script src="screens/stock-units.js"></script>
+<script src="screens/orders.js"></script>
+<script src="screens/orders-details.js"></script>
+<script src="screens/receipts.js"></script>
+<script src="screens/receipts-details.js"></script>
+<script src="screens/materials.js"></script>
+<script src="screens/suppliers.js"></script>
+<script src="screens/operators.js"></script>
+<script src="screens/dashboard.js"></script>
+<script src="screens/stock-monitor.js"></script>
+<script src="screens/consumption-stats.js"></script>
+<script src="screens/stock-policies.js"></script>
+<script src="screens/stock-policies-details.js"></script>
+<script src="screens/groups.js"></script>
+<script src="screens/groups-details.js"></script>
+<script src="app.js"></script>
+
+</body>
+
+</html>

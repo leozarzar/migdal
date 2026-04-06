@@ -1,0 +1,123 @@
+.stock-policies-container {
+    width: 100%;
+    padding: 10px;
+}
+
+/* Card */
+
+.stock-policies-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    padding: 16px;
+    overflow: hidden;
+}
+
+/* Toolbar */
+
+.stock-policies-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.stock-policies-btn-new {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 16px 0 10px;
+    background-color: white;
+    color: #1a1a1a;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.stock-policies-btn-new:hover {
+    background-color: #f0f0f0;
+}
+
+.stock-policies-btn-new .material-symbols-outlined {
+    font-size: 18px;
+}
+
+/* Table container */
+
+.stock-policies-table-container {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    overflow: auto;
+    max-height: 490px;
+}
+
+/* Table */
+
+.stock-policies-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.stock-policies-table thead th {
+    text-align: left;
+    font-weight: 600;
+    padding: 8px 16px;
+    background: linear-gradient(#f3f4f6, #e9ebef);
+    border-bottom: 1px solid #dcdfe4;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.stock-policies-table tbody td {
+    padding: 6px 16px;
+    border-bottom: 1px solid #eceef2;
+}
+
+.stock-policies-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.stock-policies-table tbody tr:hover {
+    background-color: #f4f6f8;
+    cursor: pointer;
+}
+
+.stock-policies-table tbody tr.selected {
+    background-color: #e3f0fb;
+}
+
+/* Columns */
+
+.stock-policies-col-actions {
+    width: 48px;
+    text-align: right;
+}
+
+.stock-policies-col-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    color: #888;
+    display: inline-flex;
+    align-items: center;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.stock-policies-col-actions button:hover {
+    background-color: #ffeaea;
+    color: #c62828;
+}
+
+.stock-policies-col-actions button .material-symbols-outlined {
+    font-size: 18px;
+}

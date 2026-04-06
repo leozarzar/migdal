@@ -1,0 +1,862 @@
+ID;receipt_id;volume_id;old_id;date_in;material;weight;supplier;operator;date_out;deduction_type
+860;115;1;#C115-001;02/04/26;Preto;1200;Terplas; ;;
+859;115;2;#C115-002;02/04/26;Preto;1200;Terplas; ;;
+858;115;3;#C115-003;02/04/26;Preto;1200;Terplas; ;;
+857;115;4;#C115-004;02/04/26;Preto;1200;Terplas; ;;
+856;115;5;#C115-005;02/04/26;Preto;1200;Terplas; ;;
+855;115;6;#C115-006;02/04/26;Preto;1200;Terplas; ;;
+854;115;7;#C115-007;02/04/26;Preto;1200;Terplas; ;;
+853;115;8;#C115-008;02/04/26;Preto;1200;Terplas; ;;
+852;113;1;#C113-001;02/04/26;Branco;956;Chicão Reciclagem; ;;
+851;113;2;#C113-002;02/04/26;Branco;949;Chicão Reciclagem; ;;
+850;113;3;#C113-003;02/04/26;Branco;1270;Chicão Reciclagem; ;;
+849;113;4;#C113-004;02/04/26;Branco;917;Chicão Reciclagem; ;;
+848;113;5;#C113-005;02/04/26;Branco;916;Chicão Reciclagem; ;;
+847;113;6;#C113-006;02/04/26;Branco;1088;Chicão Reciclagem; ;;
+846;113;7;#C113-007;02/04/26;Branco;213;Chicão Reciclagem; ;;
+845;100;1;#C30-001;27/03/26;Apara Transparente;164;Izaltino; ;;
+844;100;2;#C30-002;27/03/26;Apara Transparente;310;Izaltino; ;;
+843;100;3;#C30-003;27/03/26;Apara Transparente;292;Izaltino; ;;
+842;100;4;#C30-004;27/03/26;Apara Transparente;262;Izaltino; ;;
+841;100;5;#C30-005;27/03/26;Apara Transparente;216;Izaltino; ;;
+840;100;6;#C30-006;27/03/26;Apara Transparente;433;Izaltino; ;;
+839;100;7;#C30-007;27/03/26;Apara Transparente;330;Izaltino; ;;
+838;100;8;#C30-008;27/03/26;Apara Transparente;467;Izaltino; ;;
+837;100;9;#C30-009;27/03/26;Apara Transparente;442;Izaltino; ;;
+836;100;10;#C30-010;27/03/26;Apara Transparente;587;Izaltino; ;;
+835;100;11;#C30-011;27/03/26;Apara Transparente;399;Izaltino; ;;
+834;100;21;#C30-021;27/03/26;Apara Transparente;91;Izaltino; ;;
+833;111;1;#S7-001;01/04/26;Aglutinado Cinza;506;Green Metal; ;;
+832;111;2;#S7-002;01/04/26;Aglutinado Cinza;613;Green Metal; ;;
+831;114;1;#P26-001;01/04/26;Moído Colorido;792; ;Mauro;;
+830;114;2;#P26-002;01/04/26;Mistura Para Preto;734; ;Alberes;;
+829;114;3;#P26-003;01/04/26;Moido Rosa;392; ;Daniel;01/04/26;Uso
+828;114;4;#P26-004;01/04/26;Moído Preto;395; ;Daniel;01/04/26;Uso
+827;109;1;#P25-001;31/03/26;Mistura Para Preto;647; ;Alberes;;
+826;109;2;#P25-002;31/03/26;Mistura Para Preto;365; ;Alberes;;
+825;108;1;#S6-001;30/03/26;Preto;338;Flávio Zarzar; ;;
+824;112;1;#C37-001;01/04/26;Apara Transparente;192;Marques Plastic; ;;
+823;112;2;#C37-002;01/04/26;Apara Transparente;229;Marques Plastic; ;;
+822;112;3;#C37-003;01/04/26;Apara Transparente;186;Marques Plastic; ;;
+821;112;4;#C37-004;01/04/26;Apara Transparente;127;Marques Plastic; ;;
+820;112;5;#C37-005;01/04/26;Apara Transparente;100;Marques Plastic; ;;
+819;112;7;#C37-007;01/04/26;Apara Impressa;214;Marques Plastic; ;;
+818;112;8;#C37-008;01/04/26;Apara Impressa;186;Marques Plastic; ;;
+817;112;9;#C37-009;01/04/26;Apara Impressa;216;Marques Plastic; ;;
+816;112;10;#C37-010;01/04/26;Apara Impressa;102;Marques Plastic; ;;
+815;110;1;#C36-001;31/03/26;Azul;1104;G V Brasil; ;;
+814;110;2;#C36-002;31/03/26;Azul;1228;G V Brasil; ;;
+813;110;3;#C36-003;31/03/26;Azul;1223;G V Brasil; ;;
+812;110;4;#C36-004;31/03/26;Azul;1191;G V Brasil; ;;
+811;110;7;#C36-007;31/03/26;Verde;1116;G V Brasil; ;;
+810;110;8;#C36-008;31/03/26;Verde;1149;G V Brasil; ;;
+809;106;1;#P24-001;30/03/26;Moído Preto;633; ;Mauro;31/03/26;Uso
+808;106;2;#P24-002;30/03/26;Moído Branco;609; ;Mauro;;
+807;106;3;#P24-003;30/03/26;Mistura Para Preto;592; ;Alberes;;
+806;106;4;#P24-004;30/03/26;Mistura Para Preto;332; ;Alberes;;
+805;107;1;#C35-001;30/03/26;Vermelho;653;Comercial Almeida; ;;
+804;107;2;#C35-002;30/03/26;Vermelho;769;Comercial Almeida; ;30/03/26;Uso
+803;107;7;#C35-007;30/03/26;Azul;832;Comercial Almeida; ;;
+802;107;13;#C35-013;30/03/26;Preto;876;Comercial Almeida; ;;
+801;107;14;#C35-014;30/03/26;Preto;902;Comercial Almeida; ;;
+800;107;15;#C35-015;30/03/26;Preto;872;Comercial Almeida; ;;
+799;107;16;#C35-016;30/03/26;Preto;1011;Comercial Almeida; ;;
+798;105;3;#P23-003;28/03/26;Mistura Para Preto;690; ;Thiago;;
+797;105;2;#P23-002;28/03/26;Mistura Para Preto;455; ;Alberes;;
+796;105;1;#P23-001;28/03/26;Mistura Para Preto;379; ;Alberes;;
+795;104;1;#C34-001;27/03/26;Preto;1175;Terplas; ;;
+794;104;2;#C34-002;27/03/26;Preto;1104;Terplas; ;27/03/26;Uso
+793;104;3;#C34-003;27/03/26;Preto;1201;Terplas; ;31/03/26;Uso
+792;104;4;#C34-004;27/03/26;Preto;1203;Terplas; ;01/04/26;Uso
+791;104;5;#C34-005;27/03/26;Preto;1197;Terplas; ;;
+790;104;6;#C34-006;27/03/26;Preto;1200;Terplas; ;31/03/26;Uso
+789;104;7;#C34-007;27/03/26;Preto;1202;Terplas; ;31/03/26;Uso
+788;104;8;#C34-008;27/03/26;Preto;1330;Terplas; ;28/03/26;Uso
+787;99;1;#P22-001;27/03/26;Moído Verde Tiffany;571; ;Mauro;;
+786;99;2;#P22-002;27/03/26;Moído Colorido;754; ;Mauro;;
+785;99;3;#P22-003;27/03/26;Moido Rosa;510; ;Mauro;31/03/26;Uso
+784;99;4;#P22-004;27/03/26;Mistura Para Preto;518; ;Thiago;;
+783;99;5;#P22-005;27/03/26;Mistura Para Preto;792; ;Thiago;;
+782;99;6;#P22-006;27/03/26;Mistura Para Preto;744; ;Alberes;;
+781;97;1;#P21-001;26/03/26;Aglutinado Cinza;466; ;Alberes;26/03/26;Ajuste
+780;97;2;#P21-002;26/03/26;Mistura Para Preto;871; ;Alberes;;
+779;97;3;#P21-003;26/03/26;Mistura Para Preto;726; ;Thiago;;
+778;68;8;#S2-008;26/03/26;Azul Bebê;732;Flávio Zarzar; ;;
+777;80;9;#S4-009;26/03/26;Aglutinado Cinza;650;Green Metal; ;26/03/26;Uso
+776;80;10;#S4-010;27/03/26;Aglutinado Cinza;330;Green Metal; ;;
+775;103;1;#C33-001;27/03/26;Verde;914;Ric Plast; ;28/03/26;Uso
+774;103;2;#C33-002;27/03/26;Verde;560;Ric Plast; ;31/03/26;Uso
+773;103;7;#C33-007;27/03/26;Vermelho;492;Ric Plast; ;;
+772;103;8;#C33-008;27/03/26;Vermelho;914;Ric Plast; ;;
+771;103;9;#C33-009;27/03/26;Vermelho;767;Ric Plast; ;;
+770;103;13;#C33-013;27/03/26;Azul;633;Ric Plast; ;;
+769;103;14;#C33-014;27/03/26;Azul;878;Ric Plast; ;;
+768;103;15;#C33-015;27/03/26;Azul;633;Ric Plast; ;28/03/26;Uso
+767;103;16;#C33-016;27/03/26;Azul;597;Ric Plast; ;28/03/26;Uso
+766;103;17;#C33-017;27/03/26;Azul;1018;Ric Plast; ;;
+765;101;1;#C31-001;27/03/26;Preto;1057;Chicão Reciclagem; ;;
+764;101;2;#C31-002;27/03/26;Preto;630;Chicão Reciclagem; ;01/04/26;Uso
+763;101;3;#C31-003;27/03/26;Preto;1233;Chicão Reciclagem; ;31/03/26;Uso
+762;101;7;#C31-007;27/03/26;Branco;986;Chicão Reciclagem; ;;
+761;101;8;#C31-008;27/03/26;Branco;986;Chicão Reciclagem; ;;
+760;101;9;#C31-009;27/03/26;Branco;1056;Chicão Reciclagem; ;;
+759;101;10;#C31-010;27/03/26;Branco;527;Chicão Reciclagem; ;;
+758;101;11;#C31-011;27/03/26;Branco;1021;Chicão Reciclagem; ;27/03/26;Uso
+757;101;12;#C31-012;27/03/26;Branco;950;Chicão Reciclagem; ;;
+756;101;13;#C31-013;27/03/26;Vermelho;774;Chicão Reciclagem; ;;
+755;101;14;#C31-014;27/03/26;Vermelho;692;Chicão Reciclagem; ;;
+754;101;19;#C31-019;27/03/26;Verde;1150;Chicão Reciclagem; ;;
+753;101;25;#C31-025;27/03/26;Azul;1104;Chicão Reciclagem; ;;
+752;101;26;#C31-026;27/03/26;Azul;880;Chicão Reciclagem; ;;
+751;101;27;#C31-027;27/03/26;Azul;423;Chicão Reciclagem; ;;
+750;101;31;#C31-031;27/03/26;Branco;1126;Chicão Reciclagem; ;;
+749;102;1;#C32-001;27/03/26;Vermelho;677;Macicplast; ;;
+748;102;7;#C32-007;27/03/26;Verde;952;Macicplast; ;;
+747;102;8;#C32-008;27/03/26;Verde;431;Macicplast; ;;
+746;102;9;#C32-009;27/03/26;Verde;677;Macicplast; ;;
+745;102;10;#C32-010;27/03/26;Verde;831;Macicplast; ;;
+744;102;11;#C32-011;27/03/26;Verde;728;Macicplast; ;;
+743;102;12;#C32-012;27/03/26;Verde;538;Macicplast; ;;
+742;102;13;#C32-013;27/03/26;Azul;314;Macicplast; ;;
+741;102;14;#C32-014;27/03/26;Azul;494;Macicplast; ;;
+740;102;15;#C32-015;27/03/26;Azul;418;Macicplast; ;27/03/26;Uso
+739;102;19;#C32-019;27/03/26;Verde;753;Macicplast; ;;
+738;102;20;#C32-020;27/03/26;Verde;878;Macicplast; ;;
+737;102;21;#C32-021;27/03/26;Verde;940;Macicplast; ;;
+736;98;1;#C29-001;26/03/26;Azul Bebê;1286;G V Brasil; ;;
+735;98;2;#C29-002;26/03/26;Azul Bebê;1222;G V Brasil; ;;
+734;98;3;#C29-003;26/03/26;Azul Bebê;1074;G V Brasil; ;;
+733;98;4;#C29-004;26/03/26;Azul Bebê;1281;G V Brasil; ;;
+732;98;5;#C29-005;26/03/26;Azul Bebê;1089;G V Brasil; ;;
+731;98;6;#C29-006;26/03/26;Azul Bebê;1162;G V Brasil; ;;
+730;98;7;#C29-007;26/03/26;Azul Bebê;1368;G V Brasil; ;;
+729;98;8;#C29-008;26/03/26;Azul Bebê;795;G V Brasil; ;;
+728;80;8;#S4-008;26/03/26;Aglutinado Cinza;613;Green Metal; ;;
+727;80;7;#S4-007;26/03/26;Aglutinado Cinza;627;Green Metal; ;27/03/26;Uso
+726;80;6;#S4-006;25/03/26;Aglutinado Cinza;188;Green Metal; ;25/03/26;Uso
+725;95;1;#P20-001;25/03/26;Moído Branco;576; ;Mauro;25/03/26;Uso
+724;95;2;#P20-002;25/03/26;Moído Preto;538; ;Mauro;25/03/26;Uso
+723;95;3;#P20-003;25/03/26;Aglutinado Cinza;262; ;Thiago;25/03/26;Uso
+722;95;4;#P20-004;25/03/26;Aglutinado Cinza;382; ;Alberes;26/03/26;Ajuste
+721;95;5;#P20-005;25/03/26;Aglutinado Cinza;278; ;Thiago;26/03/26;Uso
+720;95;6;#P20-006;25/03/26;Aglutinado Cinza;112; ;Alberes;26/03/26;Uso
+719;96;1;#C28-001;25/03/26;Verde Tiffany;564;Ric Plast; ;;
+718;96;2;#C28-002;25/03/26;Verde Tiffany;1017;Ric Plast; ;;
+717;96;3;#C28-003;25/03/26;Verde Tiffany;1195;Ric Plast; ;;
+716;96;4;#C28-004;25/03/26;Verde Tiffany;1122;Ric Plast; ;;
+715;96;5;#C28-005;25/03/26;Verde Tiffany;984;Ric Plast; ;;
+714;96;6;#C28-006;25/03/26;Verde Tiffany;879;Ric Plast; ;;
+713;96;7;#C28-007;25/03/26;Verde Tiffany;1017;Ric Plast; ;;
+712;93;1;#P19-001;24/03/26;Moído Colorido;800; ;Mauro;;
+711;93;2;#P19-002;24/03/26;Aglutinado Cinza;263; ;Alberes;24/03/26;Uso
+710;93;3;#P19-003;24/03/26;Aglutinado Cinza;278; ;Thiago;24/03/26;Uso
+709;93;4;#P19-004;24/03/26;Mistura Para Preto;687; ;Alberes;;
+708;93;5;#P19-005;24/03/26;Mistura Para Preto;659; ;Thiago;;
+707;94;1;#S5-001;24/03/26;Preto;668;Macicplast; ;24/03/26;Uso
+706;94;2;#S5-002;24/03/26;Preto;793;Macicplast; ;;
+705;94;3;#S5-003;24/03/26;Preto;788;Macicplast; ;01/04/26;Uso
+704;94;4;#S5-004;24/03/26;Preto;906;Macicplast; ;27/03/26;Uso
+703;94;5;#S5-005;24/03/26;Preto;444;Macicplast; ;;
+702;94;6;#S5-006;24/03/26;Preto;773;Macicplast; ;01/04/26;Uso
+701;94;7;#S5-007;24/03/26;Preto;591;Macicplast; ;26/03/26;Uso
+700;92;1;#C27-001;24/03/26;Preto;1175;G V Brasil; ;;
+699;92;2;#C27-002;24/03/26;Preto;1212;G V Brasil; ;;
+698;92;3;#C27-003;24/03/26;Preto;1127;G V Brasil; ;;
+697;92;4;#C27-004;24/03/26;Preto;1253;G V Brasil; ;;
+696;92;5;#C27-005;24/03/26;Preto;1268;G V Brasil; ;;
+695;92;6;#C27-006;24/03/26;Preto;1199;G V Brasil; ;;
+694;80;5;#S4-005;23/03/26;Aglutinado Branco;450;Green Metal; ;;
+693;68;7;#S2-007;23/03/26;Azul Bebê;950;Flávio Zarzar; ;;
+692;91;1;#P18-001;23/03/26;Aglutinado Cinza;307; ;Thiago;23/03/26;Uso
+691;91;2;#P18-002;23/03/26;Aglutinado Branco;571; ;Alberes;27/03/26;Ajuste
+690;91;3;#P18-003;23/03/26;Aglutinado Cinza;289; ;Thiago;24/03/26;Uso
+689;89;1;#P17-001;21/03/26;Aglutinado Branco;314; ;Alberes;21/03/26;Uso
+688;89;2;#P17-002;21/03/26;Aglutinado Azul Bebê;362; ;Thiago;26/03/26;Ajuste
+687;90;1;#C26-001;21/03/26;Branco;1010;Terplas; ;;
+686;90;2;#C26-002;21/03/26;Rosa;1268;Terplas; ;23/03/26;Uso
+685;90;3;#C26-003;21/03/26;Rosa;1102;Terplas; ;25/03/26;Uso
+684;90;4;#C26-004;21/03/26;Rosa;1171;Terplas; ;25/03/26;Uso
+683;90;5;#C26-005;21/03/26;Rosa;1079;Terplas; ;24/03/26;Uso
+682;90;6;#C26-006;21/03/26;Rosa;927;Terplas; ;24/03/26;Uso
+681;80;4;#S4-004;20/03/26;Aglutinado Branco;733;Green Metal; ;24/03/26;Uso
+680;68;6;#S2-006;20/03/26;Azul Bebê;440;Flávio Zarzar; ;23/03/26;Uso
+679;83;1;#P16-001;20/03/26;Moído Colorido;800; ;Mauro;;
+678;83;2;#P16-002;20/03/26;Moído Branco;561; ;Mauro;24/03/26;Uso
+677;83;3;#P16-003;20/03/26;Moido Rosa;482; ;Mauro;01/04/26;Uso
+676;83;4;#P16-004;20/03/26;Aglutinado Branco;666; ;Alberes;;
+675;83;5;#P16-005;20/03/26;Aglutinado Azul Bebê;529; ;Thiago;26/03/26;Ajuste
+674;85;1;#C22-001;20/03/26;Branco;1376;Chicão Reciclagem; ;22/03/26;Uso
+673;85;2;#C22-002;20/03/26;Branco;917;Chicão Reciclagem; ;23/03/26;Uso
+672;85;3;#C22-003;20/03/26;Branco;845;Chicão Reciclagem; ;24/03/26;Uso
+671;85;4;#C22-004;20/03/26;Branco;1161;Chicão Reciclagem; ;23/03/26;Uso
+670;85;5;#C22-005;20/03/26;Branco;1056;Chicão Reciclagem; ;21/03/26;Uso
+669;85;6;#C22-006;20/03/26;Branco;880;Chicão Reciclagem; ;21/03/26;Uso
+668;85;13;#C22-013;20/03/26;Azul;1187;Chicão Reciclagem; ;20/03/26;Uso
+667;85;14;#C22-014;20/03/26;Azul;1196;Chicão Reciclagem; ;25/03/26;Uso
+666;85;15;#C22-015;20/03/26;Azul;911;Chicão Reciclagem; ;24/03/26;Uso
+665;85;19;#C22-019;20/03/26;Verde;927;Chicão Reciclagem; ;27/03/26;Uso
+664;85;20;#C22-020;20/03/26;Verde;1181;Chicão Reciclagem; ;;
+663;85;25;#C22-025;20/03/26;Vermelho;491;Chicão Reciclagem; ;20/03/26;Uso
+662;85;26;#C22-026;20/03/26;Vermelho;1360;Chicão Reciclagem; ;20/03/26;Uso
+661;84;1;#C21-001;20/03/26;Apara Transparente;384;Izaltino; ;23/03/26;Uso
+660;84;2;#C21-002;20/03/26;Apara Transparente;353;Izaltino; ;23/03/26;Uso
+659;84;3;#C21-003;20/03/26;Apara Transparente;327;Izaltino; ;23/03/26;Uso
+658;84;4;#C21-004;20/03/26;Apara Transparente;511;Izaltino; ;23/03/26;Uso
+657;84;5;#C21-005;20/03/26;Apara Transparente;672;Izaltino; ;23/03/26;Uso
+656;84;6;#C21-006;20/03/26;Apara Transparente;605;Izaltino; ;23/03/26;Uso
+655;84;7;#C21-007;20/03/26;Apara Transparente;424;Izaltino; ;23/03/26;Uso
+654;84;8;#C21-008;20/03/26;Apara Transparente;479;Izaltino; ;23/03/26;Uso
+653;84;9;#C21-009;20/03/26;Apara Transparente;342;Izaltino; ;23/03/26;Uso
+652;84;10;#C21-010;20/03/26;Apara Transparente;456;Izaltino; ;23/03/26;Uso
+651;84;11;#C21-011;20/03/26;Apara Transparente;555;Izaltino; ;23/03/26;Uso
+650;84;12;#C21-012;20/03/26;Apara Transparente;320;Izaltino; ;23/03/26;Uso
+649;84;40;#C21-040;20/03/26;Apara Impressa;289;Izaltino; ;;
+648;84;41;#C21-041;20/03/26;Apara Impressa;433;Izaltino; ;;
+647;84;42;#C21-042;20/03/26;Apara Impressa;484;Izaltino; ;;
+646;84;43;#C21-043;20/03/26;Apara Impressa;583;Izaltino; ;;
+645;84;44;#C21-044;20/03/26;Apara Impressa;434;Izaltino; ;;
+644;84;45;#C21-045;20/03/26;Apara Impressa;483;Izaltino; ;;
+643;84;46;#C21-046;20/03/26;Apara Impressa;371;Izaltino; ;;
+642;84;47;#C21-047;20/03/26;Apara Impressa;424;Izaltino; ;;
+641;84;48;#C21-048;20/03/26;Apara Impressa;450;Izaltino; ;;
+640;84;49;#C21-049;20/03/26;Apara Impressa;115;Izaltino; ;;
+639;84;60;#C21-060;20/03/26;Apara Transparente FIta;324;Izaltino; ;23/03/26;Uso
+638;86;1;#C23-001;20/03/26;Verde;817;MRX Negócios; ;;
+637;86;2;#C23-002;20/03/26;Verde;836;MRX Negócios; ;;
+636;86;3;#C23-003;20/03/26;Verde;853;MRX Negócios; ;;
+635;86;4;#C23-004;20/03/26;Verde;753;MRX Negócios; ;26/03/26;Uso
+634;86;5;#C23-005;20/03/26;Verde;717;MRX Negócios; ;24/03/26;Uso
+633;87;1;#C24-001;20/03/26;Verde Tiffany;1042;Ric Plast; ;;
+632;87;2;#C24-002;20/03/26;Verde Tiffany;1229;Ric Plast; ;;
+631;87;3;#C24-003;20/03/26;Verde Tiffany;1058;Ric Plast; ;20/03/26;Uso
+630;87;4;#C24-004;20/03/26;Verde Tiffany;1054;Ric Plast; ;;
+629;87;5;#C24-005;20/03/26;Verde Tiffany;1056;Ric Plast; ;;
+628;87;6;#C24-006;20/03/26;Verde Tiffany;1090;Ric Plast; ;20/03/26;Uso
+627;87;7;#C24-007;20/03/26;Verde Tiffany;562;Ric Plast; ;;
+626;88;1;#C25-001;20/03/26;Branco;774;Macicplast; ;23/03/26;Uso
+625;88;2;#C25-002;20/03/26;Branco;853;Macicplast; ;25/03/26;Ajuste
+624;88;3;#C25-003;20/03/26;Branco;823;Macicplast; ;25/03/26;Uso
+623;88;4;#C25-004;20/03/26;Branco;686;Macicplast; ;24/03/26;Uso
+622;88;5;#C25-005;20/03/26;Branco;636;Macicplast; ;24/03/26;Uso
+621;88;6;#C25-006;20/03/26;Branco;470;Macicplast; ;25/03/26;Uso
+620;68;4;#S2-004;19/03/26;Preto;915;Flávio Zarzar; ;19/03/26;Uso
+619;68;5;#S2-005;19/03/26;Preto;210;Flávio Zarzar; ;19/03/26;Uso
+618;80;3;#S4-003;19/03/26;Aglutinado Branco;815;Green Metal; ;19/03/26;Uso
+617;81;1;#P15-001;19/03/26;Aglutinado Azul Bebê;319; ;Thiago;19/03/26;Uso
+616;81;2;#P15-002;19/03/26;Moído Colorido;830; ;Mauro;;
+615;81;3;#P15-003;19/03/26;Aglutinado Azul Bebê;437; ;Thiago;19/03/26;Uso
+614;81;4;#P15-004;19/03/26;Moído Preto;826; ;Mauro;19/03/26;Uso
+613;81;5;#P15-005;19/03/26;Aglutinado Branco;518; ;Alberes;22/03/26;Uso
+612;81;6;#P15-006;19/03/26;Aglutinado Azul Bebê;374; ;Thiago;26/03/26;Ajuste
+611;82;1;#C20-001;19/03/26;Verde;1054;Ric Plast; ;;
+610;82;2;#C20-002;19/03/26;Verde;1055;Ric Plast; ;20/03/26;Uso
+609;82;3;#C20-003;19/03/26;Verde;1017;Ric Plast; ;;
+608;82;7;#C20-007;19/03/26;Azul;915;Ric Plast; ;22/03/26;Uso
+607;82;8;#C20-008;19/03/26;Azul;1055;Ric Plast; ;23/03/26;Uso
+606;82;9;#C20-009;19/03/26;Azul;880;Ric Plast; ;22/03/26;Uso
+605;82;13;#C20-013;19/03/26;Vermelho;845;Ric Plast; ;19/03/26;Uso
+604;82;14;#C20-014;19/03/26;Vermelho;878;Ric Plast; ;21/03/26;Uso
+603;82;15;#C20-015;19/03/26;Vermelho;1112;Ric Plast; ;19/03/26;Uso
+602;80;1;#S4-001;18/03/26;Aglutinado Branco;537;Green Metal; ;18/03/26;Uso
+601;80;2;#S4-002;18/03/26;Aglutinado Branco;459;Green Metal; ;18/03/26;Uso
+600;79;1;#P14-001;18/03/26;Moído Branco;544; ;Mauro;;
+599;79;2;#P14-002;18/03/26;Moído Branco;633; ;Mauro;;
+598;79;3;#P14-003;18/03/26;Aglutinado Branco;597; ;Alberes;19/03/26;Uso
+597;79;4;#P14-004;18/03/26;Aglutinado PE Colorido;226; ;Thiago;;
+596;75;1;#P13-001;17/03/26;Preto;1169; ;Thiago;20/03/26;Uso
+595;75;2;#P13-002;17/03/26;Preto;1066; ;Olavo;19/03/26;Uso
+594;75;3;#P13-003;17/03/26;Aglutinado Branco;331; ;Alberes;17/03/26;Uso
+593;75;4;#P13-004;17/03/26;Moído Colorido;842; ;Mauro;17/03/26;Uso
+592;75;5;#P13-005;17/03/26;Aglutinado Branco;255; ;Thiago;17/03/26;Uso
+591;75;6;#P13-006;17/03/26;Aglutinado Branco;254; ;Alberes;17/03/26;Uso
+590;75;7;#P13-007;17/03/26;Aglutinado Branco;188; ;Thiago;17/03/26;Uso
+589;75;8;#P13-008;17/03/26;Verde Tiffany;711; ;Olavo;19/03/26;Uso
+588;78;1;#C19-001;17/03/26;Preto;899;Terplas; ;20/03/26;Uso
+587;78;2;#C19-002;17/03/26;Preto;966;Terplas; ;01/04/26;Uso
+586;78;3;#C19-003;17/03/26;Preto;1102;Terplas; ;19/03/26;Uso
+585;78;4;#C19-004;17/03/26;Preto;1204;Terplas; ;27/03/26;Uso
+584;78;5;#C19-005;17/03/26;Preto;1197;Terplas; ;18/03/26;Uso
+583;78;6;#C19-006;17/03/26;Preto;1200;Terplas; ;19/03/26;Uso
+582;78;7;#C19-007;17/03/26;Preto;1203;Terplas; ;17/03/26;Uso
+581;78;9;#C19-009;17/03/26;Preto;1253;Terplas; ;21/03/26;Uso
+580;77;1;#C18-001;17/03/26;Azul Bebê;1177;G V Brasil; ;;
+579;77;2;#C18-002;17/03/26;Azul Bebê;1263;G V Brasil; ;;
+578;77;3;#C18-003;17/03/26;Azul Bebê;1090;G V Brasil; ;17/03/26;Uso
+577;77;4;#C18-004;17/03/26;Azul Bebê;1176;G V Brasil; ;27/03/26;Ajuste
+576;77;13;#C18-013;17/03/26;Verde;818;G V Brasil; ;18/03/26;Uso
+575;77;14;#C18-014;17/03/26;Verde;1180;G V Brasil; ;19/03/26;Uso
+574;77;15;#C18-015;17/03/26;Verde;1052;G V Brasil; ;18/03/26;Uso
+573;77;19;#C18-019;17/03/26;Vermelho;1072;G V Brasil; ;18/03/26;Uso
+572;77;20;#C18-020;17/03/26;Vermelho;993;G V Brasil; ;18/03/26;Uso
+571;77;21;#C18-021;17/03/26;Vermelho;1048;G V Brasil; ;17/03/26;Uso
+570;77;31;#C18-031;17/03/26;Azul;1097;G V Brasil; ;;
+569;77;32;#C18-032;17/03/26;Azul;1217;G V Brasil; ;;
+568;77;33;#C18-033;17/03/26;Azul;1257;G V Brasil; ;;
+567;76;1;#C17-001;17/03/26;Apara Transparente;197;Marques Plastic; ;17/03/26;Uso
+566;76;2;#C17-002;17/03/26;Apara Transparente;172;Marques Plastic; ;17/03/26;Uso
+565;76;3;#C17-003;17/03/26;Apara Transparente;153;Marques Plastic; ;17/03/26;Uso
+564;76;4;#C17-004;17/03/26;Apara Transparente;218;Marques Plastic; ;17/03/26;Uso
+563;76;5;#C17-005;17/03/26;Apara Transparente;193;Marques Plastic; ;17/03/26;Uso
+562;76;6;#C17-006;17/03/26;Apara Transparente;103;Marques Plastic; ;17/03/26;Uso
+561;76;13;#C17-013;17/03/26;Apara Impressa;200;Marques Plastic; ;;
+560;76;14;#C17-014;17/03/26;Apara Impressa;182;Marques Plastic; ;;
+559;74;1;#S3-001;16/03/26;Preto;844;Macicplast; ;20/03/26;Uso
+558;74;2;#S3-002;16/03/26;Preto;918;Macicplast; ;18/03/26;Uso
+557;74;3;#S3-003;16/03/26;Preto;307;Macicplast; ;20/03/26;Uso
+556;74;4;#S3-004;16/03/26;Preto;716;Macicplast; ;18/03/26;Uso
+555;74;5;#S3-005;16/03/26;Preto;703;Macicplast; ;20/03/26;Uso
+554;74;6;#S3-006;16/03/26;Preto;757;Macicplast; ;19/03/26;Uso
+553;74;7;#S3-007;16/03/26;Preto;807;Macicplast; ;19/03/26;Uso
+552;74;8;#S3-008;16/03/26;Preto;763;Macicplast; ;17/03/26;Uso
+551;68;3;#S2-003;16/03/26;Preto;946;Flávio Zarzar; ;18/03/26;Uso
+550;68;2;#S2-002;13/03/26;Preto;933;Flávio Zarzar; ;16/03/26;Uso
+549;73;1;#P12-001;16/03/26;Aglutinado Branco;391; ;Alberes;16/03/26;Uso
+548;73;2;#P12-002;16/03/26;Aglutinado Branco;418; ;Thiago;16/03/26;Uso
+547;73;3;#P12-003;16/03/26;Aglutinado Branco;199; ;Alberes;16/03/26;Uso
+546;72;1;#P11-001;14/03/26;Aglutinado Branco;294; ;Alberes;15/03/26;Uso
+545;72;2;#P11-002;14/03/26;Aglutinado Branco;312; ;Thiago;15/03/26;Uso
+544;71;1;#P10-001;13/03/26;Moído Colorido;761; ;Mauro;;
+543;71;2;#P10-002;13/03/26;Moído Colorido;725; ;Mauro;;
+542;71;3;#P10-003;13/03/26;Moído Branco;490; ;Mauro;;
+541;71;4;#P10-004;13/03/26;Moído Preto;534; ;Mauro;;
+540;71;5;#P10-005;13/03/26;Aglutinado Branco;625; ;Alberes;14/03/26;Uso
+539;71;6;#P10-006;13/03/26;Aglutinado Branco;630; ;Thiago;14/03/26;Uso
+538;69;1;#C15-001;12/03/26;Apara Transparente;194;Roni; ;17/03/26;Uso
+537;69;2;#C15-002;12/03/26;Apara Transparente;290;Roni; ;17/03/26;Uso
+536;69;3;#C15-003;12/03/26;Apara Transparente;357;Roni; ;17/03/26;Uso
+535;69;4;#C15-004;12/03/26;Apara Transparente;325;Roni; ;17/03/26;Uso
+534;69;5;#C15-005;12/03/26;Apara Transparente;210;Roni; ;17/03/26;Uso
+533;69;6;#C15-006;12/03/26;Apara Transparente;226;Roni; ;17/03/26;Uso
+532;69;7;#C15-007;12/03/26;Apara Transparente;218;Roni; ;17/03/26;Uso
+531;69;8;#C15-008;12/03/26;Apara Transparente;212;Roni; ;17/03/26;Uso
+530;69;13;#C15-013;12/03/26;Apara Transparente FIta;140;Roni; ;23/03/26;Uso
+529;70;1;#C16-001;12/03/26;Branco;790;Macicplast; ;;
+528;70;2;#C16-002;12/03/26;Branco;996;Macicplast; ;13/03/26;Uso
+527;70;3;#C16-003;12/03/26;Branco;877;Macicplast; ;16/03/26;Uso
+526;70;4;#C16-004;12/03/26;Branco;940;Macicplast; ;13/03/26;Uso
+525;70;5;#C16-005;12/03/26;Branco;837;Macicplast; ;25/03/26;Ajuste
+524;70;6;#C16-006;12/03/26;Branco;855;Macicplast; ;25/03/26;Ajuste
+523;70;7;#C16-007;12/03/26;Branco;808;Macicplast; ;13/03/26;Uso
+522;70;8;#C16-008;12/03/26;Branco;139;Macicplast; ;25/03/26;Ajuste
+521;67;1;#P9-001;12/03/26;Aglutinado Branco;524; ;Alberes;13/03/26;Uso
+520;67;2;#P9-002;12/03/26;Aglutinado Branco;637; ;Thiago;13/03/26;Uso
+519;68;1;#S2-001;11/03/26;Azul Bebê;642;Flávio Zarzar; ;11/03/26;Uso
+518;64;1;#P8-001;11/03/26;Aglutinado Branco;481; ;Alberes;16/03/26;Ajuste
+517;64;2;#P8-002;11/03/26;Aglutinado Branco;424; ;Thiago;11/03/26;Uso
+516;62;1;#P7-001;10/03/26;Moído Colorido;823; ;Mauro;;
+515;62;2;#P7-002;10/03/26;Aglutinado Branco;551; ;Thiago;12/03/26;Uso
+514;62;3;#P7-003;10/03/26;Aglutinado Branco;371; ;Alberes;11/03/26;Uso
+513;66;1;#C14-001;11/03/26;Azul;527;Ric Plast; ;13/03/26;Uso
+512;66;2;#C14-002;11/03/26;Azul;1052;Ric Plast; ;12/03/26;Uso
+511;66;3;#C14-003;11/03/26;Azul;527;Ric Plast; ;17/03/26;Ajuste
+510;66;4;#C14-004;11/03/26;Azul;1054;Ric Plast; ;12/03/26;Uso
+509;66;7;#C14-007;11/03/26;Verde;563;Ric Plast; ;17/03/26;Ajuste
+508;66;8;#C14-008;11/03/26;Verde;1052;Ric Plast; ;14/03/26;Uso
+507;66;9;#C14-009;11/03/26;Verde;1052;Ric Plast; ;14/03/26;Uso
+506;66;10;#C14-010;11/03/26;Verde;578;Ric Plast; ;17/03/26;Uso
+505;65;1;#C13-001;11/03/26;Verde;1004;Comercial Almeida; ;17/03/26;Uso
+504;65;7;#C13-007;11/03/26;Preto;632;Comercial Almeida; ;12/03/26;Uso
+503;65;8;#C13-008;11/03/26;Preto;553;Comercial Almeida; ;16/03/26;Ajuste
+502;65;9;#C13-009;11/03/26;Preto;917;Comercial Almeida; ;12/03/26;Uso
+501;65;13;#C13-013;11/03/26;Azul;988;Comercial Almeida; ;14/03/26;Uso
+500;65;19;#C13-019;11/03/26;Vermelho;286;Comercial Almeida; ;19/03/26;Uso
+499;63;1;#C12-001;10/03/26;Vermelho;936;Chicão Reciclagem; ;10/03/26;Uso
+498;63;2;#C12-002;10/03/26;Vermelho;882;Chicão Reciclagem; ;10/03/26;Uso
+497;63;7;#C12-007;10/03/26;Azul;1235;Chicão Reciclagem; ;16/03/26;Uso
+496;63;8;#C12-008;10/03/26;Azul;880;Chicão Reciclagem; ;17/03/26;Ajuste
+495;63;9;#C12-009;10/03/26;Azul;384;Chicão Reciclagem; ;17/03/26;Ajuste
+494;63;13;#C12-013;10/03/26;Verde;751;Chicão Reciclagem; ;16/03/26;Uso
+493;63;14;#C12-014;10/03/26;Verde;796;Chicão Reciclagem; ;17/03/26;Ajuste
+492;63;15;#C12-015;10/03/26;Verde;503;Chicão Reciclagem; ;11/03/26;Uso
+491;60;1;#P6-001;09/03/26;Aglutinado Branco;366; ;Alberes;09/03/26;Uso
+490;60;2;#P6-002;09/03/26;Moído Colorido;930; ;Mauro;;
+489;60;3;#P6-003;09/03/26;Moído Preto;638; ;Mauro;10/03/26;Uso
+488;60;4;#P6-004;09/03/26;Moído Branco;411; ;Mauro;;
+487;60;5;#P6-005;09/03/26;Aglutinado Branco;606; ;Thiago;16/03/26;Ajuste
+486;60;6;#P6-006;09/03/26;Aglutinado Branco;282; ;Alberes;10/03/26;Uso
+485;61;1;#C11-001;09/03/26;Vermelho;1020;G V Brasil; ;10/03/26;Uso
+484;61;2;#C11-002;09/03/26;Vermelho;1285;G V Brasil; ;09/03/26;Uso
+483;61;3;#C11-003;09/03/26;Vermelho;1059;G V Brasil; ;10/03/26;Uso
+482;61;7;#C11-007;09/03/26;Verde;1214;G V Brasil; ;15/03/26;Uso
+481;61;8;#C11-008;09/03/26;Verde;1234;G V Brasil; ;10/03/26;Uso
+480;61;9;#C11-009;09/03/26;Verde;1231;G V Brasil; ;09/03/26;Uso
+479;59;1;#P5-001;07/03/26;Aglutinado Branco;311; ;Thiago;07/03/26;Uso
+478;59;2;#P5-002;07/03/26;Moído Colorido;778; ;Mauro;;
+477;59;3;#P5-003;07/03/26;Aglutinado Branco;249; ;Thiago;08/03/26;Uso
+476;59;4;#P5-004;07/03/26;Aglutinado Branco;262; ;Alberes;08/03/26;Uso
+475;57;1;#P4-001;05/03/26;Moído Branco;576; ;Mauro;;
+474;57;4;#P4-004;05/03/26;Moido Rosa;633; ;Mauro;13/03/26;Ajuste
+473;57;5;#P4-005;05/03/26;Aglutinado Azul Bebê;705; ;Alberes;05/03/26;Uso
+472;57;6;#P4-006;05/03/26;Aglutinado Branco;495; ;Thiago;07/03/26;Uso
+471;58;1;#C10-001;05/03/26;Preto;1203;Modernize; ;08/03/26;Uso
+470;58;2;#C10-002;05/03/26;Preto;1203;Modernize; ;07/03/26;Uso
+469;58;3;#C10-003;05/03/26;Preto;1204;Modernize; ;06/03/26;Uso
+468;58;4;#C10-004;05/03/26;Preto;1203;Modernize; ;06/03/26;Uso
+467;58;5;#C10-005;05/03/26;Preto;1203;Modernize; ;06/03/26;Uso
+466;58;7;#C10-007;05/03/26;Verde;805;Modernize; ;06/03/26;Uso
+465;58;13;#C10-013;05/03/26;Azul;1109;Modernize; ;05/03/26;Uso
+464;57;2;#P4-002;05/03/26;Mistura Para Preto;436; ;Alberes;05/03/26;Uso
+463;57;3;#P4-003;05/03/26;Mistura Para Preto;237; ;Thiago;05/03/26;Uso
+462;54;1;#P3-001;04/03/26;Mistura Para Preto;540; ;Thiago;04/03/26;Uso
+461;54;3;#P3-003;04/03/26;Mistura Para Preto;708; ;Thiago;05/03/26;Uso
+460;54;4;#P3-004;04/03/26;Mistura Para Preto;724; ;Alberes;05/03/26;Uso
+459;56;1;#C9-001;04/03/26;Aglutinado Incolor;540;Montyplast; ;07/03/26;Uso
+458;55;1;#C8-001;04/03/26;Apara Transparente;499;Izaltino; ;;
+457;55;2;#C8-002;04/03/26;Apara Transparente;431;Izaltino; ;;
+456;55;3;#C8-003;04/03/26;Apara Transparente;310;Izaltino; ;;
+455;55;4;#C8-004;04/03/26;Apara Transparente;362;Izaltino; ;;
+454;55;5;#C8-005;04/03/26;Apara Transparente;394;Izaltino; ;;
+453;55;8;#C8-008;04/03/26;Apara Transparente;360;Izaltino; ;;
+452;55;9;#C8-009;04/03/26;Apara Transparente;454;Izaltino; ;;
+451;55;10;#C8-010;04/03/26;Apara Transparente;527;Izaltino; ;;
+450;55;11;#C8-011;04/03/26;Apara Transparente;398;Izaltino; ;;
+449;55;12;#C8-012;04/03/26;Apara Transparente;365;Izaltino; ;;
+448;55;13;#C8-013;04/03/26;Apara Transparente;454;Izaltino; ;;
+447;55;14;#C8-014;04/03/26;Apara Transparente;614;Izaltino; ;;
+446;55;60;#C8-060;04/03/26;Apara Impressa;364;Izaltino; ;;
+445;55;62;#C8-062;04/03/26;Apara Impressa;714;Izaltino; ;;
+444;55;63;#C8-063;04/03/26;Apara Impressa;457;Izaltino; ;;
+443;55;64;#C8-064;04/03/26;Apara Impressa;434;Izaltino; ;;
+442;55;65;#C8-065;04/03/26;Apara Impressa;394;Izaltino; ;;
+441;55;66;#C8-066;04/03/26;Apara Impressa;467;Izaltino; ;;
+440;55;67;#C8-067;04/03/26;Apara Impressa;426;Izaltino; ;;
+439;55;68;#C8-068;04/03/26;Apara Impressa;354;Izaltino; ;;
+438;51;1;#P2-001;03/03/26;Mistura Para Preto;564; ;Thiago;04/03/26;Uso
+437;51;2;#P2-002;03/03/26;Moido Rosa;500; ;Mauro;12/03/26;Uso
+436;51;3;#P2-003;03/03/26;Aglutinado Rosa;313; ;Alberes;26/03/26;Ajuste
+435;51;4;#P2-004;03/03/26;Mistura Para Preto;363; ;Alberes;04/03/26;Uso
+434;53;1;#C7-001;03/03/26;Azul;1019;Ric Plast; ;06/03/26;Uso
+433;53;2;#C7-002;03/03/26;Azul;1086;Ric Plast; ;06/03/26;Uso
+432;53;7;#C7-007;03/03/26;Verde;1055;Ric Plast; ;06/03/26;Uso
+431;53;8;#C7-008;03/03/26;Verde;1055;Ric Plast; ;05/03/26;Uso
+430;53;9;#C7-009;03/03/26;Verde;1024;Ric Plast; ;04/03/26;Uso
+429;53;13;#C7-013;03/03/26;Vermelho;1123;Ric Plast; ;04/03/26;Uso
+428;52;1;#C6-001;03/03/26;Preto;1176;G V Brasil; ;04/03/26;Uso
+427;52;2;#C6-002;03/03/26;Preto;1259;G V Brasil; ;11/03/26;Uso
+426;52;3;#C6-003;03/03/26;Preto;1150;G V Brasil; ;13/03/26;Uso
+425;52;4;#C6-004;03/03/26;Preto;1107;G V Brasil; ;05/03/26;Uso
+424;52;5;#C6-005;03/03/26;Preto;1170;G V Brasil; ;05/03/26;Uso
+423;52;6;#C6-006;03/03/26;Preto;1139;G V Brasil; ;03/03/26;Uso
+422;46;1;#P1-001;02/03/26;Aglutinado Azul Bebê;443; ;Alberes;04/03/26;Uso
+421;46;2;#P1-002;02/03/26;Aglutinado Azul Bebê;367; ;Alberes;05/03/26;Uso
+420;46;3;#P1-003;02/03/26;Aglutinado Azul Bebê;322; ;Alberes;;
+419;46;4;#P1-004;02/03/26;Aglutinado Rosa;309; ;Alberes;19/03/26;Uso
+418;50;1;#C5-001;27/02/26;Rosa;703;Terplas;;15/03/26;Uso
+417;50;2;#C5-002;27/02/26;Rosa;1200;Terplas;;17/03/26;Uso
+416;50;3;#C5-003;27/02/26;Rosa;1133;Terplas;;05/03/26;Uso
+415;50;4;#C5-004;27/02/26;Rosa;924;Terplas;;04/03/26;Uso
+414;50;5;#C5-005;27/02/26;Rosa;1120;Terplas;;04/03/26;Uso
+413;50;6;#C5-006;27/02/26;Rosa;1134;Terplas;;28/02/26;Uso
+412;49;1;#S1-001;26/02/26;Preto;788;Macicplast;;16/03/26;Ajuste
+411;49;2;#S1-002;26/02/26;Preto;843;Macicplast;;28/02/26;Uso
+410;49;3;#S1-003;26/02/26;Preto;800;Macicplast;;28/02/26;Uso
+409;49;4;#S1-004;26/02/26;Preto;839;Macicplast;;10/03/26;Uso
+408;49;5;#S1-005;26/02/26;Preto;840;Macicplast;;12/03/26;Uso
+407;49;6;#S1-006;26/02/26;Preto;716;Macicplast;;27/02/26;Uso
+406;49;7;#S1-007;26/02/26;Preto;388;Macicplast;;12/03/26;Uso
+405;49;8;#S1-008;26/02/26;Preto;750;Macicplast;;09/03/26;Uso
+404;49;13;#S1-013;26/02/26;Verde;753;Macicplast;;28/02/26;Uso
+403;49;19;#S1-019;26/02/26;Azul Bebê;707;Macicplast;;10/03/26;Ajuste
+402;48;1;#C4-001;26/02/26;Verde;1115;G V Brasil;;08/03/26;Uso
+401;48;2;#C4-002;26/02/26;Verde;1175;G V Brasil;;03/03/26;Uso
+400;48;13;#C4-013;26/02/26;Azul Bebê;994;G V Brasil;;17/03/26;Ajuste
+399;48;14;#C4-014;26/02/26;Azul Bebê;1278;G V Brasil;;16/03/26;Uso
+398;47;1;#C3-001;26/02/26;Azul;845;Chicão Reciclagem;;28/02/26;Uso
+397;47;7;#C3-007;26/02/26;Vermelho;761;Chicão Reciclagem;;26/02/26;Uso
+396;47;13;#C3-013;26/02/26;Verde;572;Chicão Reciclagem;;08/03/26;Uso
+395;47;19;#C3-019;26/02/26;Branco;1106;Chicão Reciclagem;;16/03/26;Uso
+394;47;20;#C3-020;26/02/26;Branco;950;Chicão Reciclagem;;27/02/26;Uso
+393;47;21;#C3-021;26/02/26;Branco;945;Chicão Reciclagem;;27/02/26;Uso
+392;47;22;#C3-022;26/02/26;Branco;1162;Chicão Reciclagem;;25/03/26;Ajuste
+391;47;23;#C3-023;26/02/26;Branco;521;Chicão Reciclagem;;25/03/26;Ajuste
+390;45;1;#C2-001;25/02/26;Apara Transparente;167;Marques Plastic;;16/03/26;Ajuste
+389;45;2;#C2-002;25/02/26;Apara Transparente;218;Marques Plastic;;16/03/26;Ajuste
+388;45;3;#C2-003;25/02/26;Apara Transparente;193;Marques Plastic;;16/03/26;Ajuste
+387;45;4;#C2-004;25/02/26;Apara Transparente;194;Marques Plastic;;16/03/26;Ajuste
+386;45;5;#C2-005;25/02/26;Apara Transparente;188;Marques Plastic;;16/03/26;Ajuste
+385;45;6;#C2-006;25/02/26;Apara Transparente;269;Marques Plastic;;16/03/26;Ajuste
+384;45;7;#C2-007;25/02/26;Apara Transparente;177;Marques Plastic;;16/03/26;Ajuste
+383;45;8;#C2-008;25/02/26;Apara Transparente;86;Marques Plastic;;16/03/26;Ajuste
+382;45;9;#C2-009;25/02/26;Apara Transparente;195;Marques Plastic;;16/03/26;Ajuste
+381;45;13;#C2-013;25/02/26;Apara Impressa;239;Marques Plastic;;04/03/26;Ajuste
+380;45;14;#C2-014;25/02/26;Apara Impressa;227;Marques Plastic;;04/03/26;Ajuste
+379;45;15;#C2-015;25/02/26;Apara Impressa;270;Marques Plastic;;04/03/26;Ajuste
+378;45;16;#C2-016;25/02/26;Apara Impressa;178;Marques Plastic;;04/03/26;Ajuste
+377;45;17;#C2-017;25/02/26;Apara Impressa;110;Marques Plastic;;04/03/26;Ajuste
+376;44;1;#C1-001;24/02/26;Verde Tiffany;527;Ric Plast;;13/03/26;Uso
+375;44;2;#C1-002;24/02/26;Verde Tiffany;528;Ric Plast;;;
+374;44;3;#C1-003;24/02/26;Verde Tiffany;598;Ric Plast;;11/03/26;Uso
+373;44;4;#C1-004;24/02/26;Verde Tiffany;473;Ric Plast;;22/03/26;Uso
+372;44;7;#C1-007;24/02/26;Verde;912;Ric Plast;;07/03/26;Uso
+371;44;13;#C1-013;24/02/26;Azul;1054;Ric Plast;;07/03/26;Uso
+370;44;14;#C1-014;24/02/26;Azul;1054;Ric Plast;;25/02/26;Uso
+369;44;19;#C1-019;24/02/26;Vermelho;1112;Ric Plast;;28/02/26;Uso
+368;43;1;#46-1;20/02/26;Apara Transparente;193;Roni;;16/03/26;Ajuste
+367;43;2;#46-2;20/02/26;Apara Transparente;210;Roni;;16/03/26;Ajuste
+366;43;3;#46-3;20/02/26;Apara Transparente;273;Roni;;16/03/26;Ajuste
+365;43;4;#46-4;20/02/26;Apara Transparente;294;Roni;;16/03/26;Ajuste
+364;43;5;#46-5;20/02/26;Apara Transparente;203;Roni;;16/03/26;Ajuste
+363;43;6;#46-6;20/02/26;Apara Transparente;165;Roni;;16/03/26;Ajuste
+362;43;7;#46-7;20/02/26;Apara Transparente;240;Roni;;16/03/26;Ajuste
+361;43;8;#46-8;20/02/26;Apara Transparente;167;Roni;;16/03/26;Ajuste
+360;42;1;#45-1;20/02/26;Azul Bebê;1144;G V Brasil;;10/03/26;Uso
+359;42;2;#45-2;20/02/26;Azul Bebê;1290;G V Brasil;;17/03/26;Uso
+358;42;3;#45-3;20/02/26;Azul Bebê;1176;G V Brasil;;10/03/26;Uso
+357;42;4;#45-4;20/02/26;Azul Bebê;1257;G V Brasil;;10/03/26;Ajuste
+356;42;5;#45-5;20/02/26;Azul Bebê;1226;G V Brasil;;10/03/26;Ajuste
+355;42;13;#45-13;20/02/26;Preto;1180;G V Brasil;;23/02/26;Uso
+354;42;14;#45-14;20/02/26;Preto;1237;G V Brasil;;24/02/26;Ajuste
+353;42;15;#45-15;20/02/26;Preto;1148;G V Brasil;;28/02/26;Uso
+352;42;16;#45-16;20/02/26;Preto;1136;G V Brasil;;21/02/26;Uso
+351;38;1;#44-1;19/02/26;Branco;904;Chicão Reciclagem;;15/03/26;Uso
+350;38;2;#44-2;19/02/26;Branco;1086;Chicão Reciclagem;;13/03/26;Uso
+349;38;3;#44-3;19/02/26;Branco;875;Chicão Reciclagem;;11/03/26;Uso
+348;38;4;#44-4;19/02/26;Branco;1020;Chicão Reciclagem;;17/03/26;Uso
+347;38;5;#44-5;19/02/26;Branco;1230;Chicão Reciclagem;;16/03/26;Uso
+346;38;6;#44-6;19/02/26;Branco;1086;Chicão Reciclagem;;08/03/26;Uso
+345;41;1;#43-1;20/02/26;Azul;951;Chicão Reciclagem;;07/03/26;Uso
+344;41;2;#43-2;20/02/26;Azul;973;Chicão Reciclagem;;08/03/26;Uso
+343;41;3;#43-3;20/02/26;Azul;1056;Chicão Reciclagem;;26/02/26;Uso
+342;41;4;#43-4;20/02/26;Azul;842;Chicão Reciclagem;;05/03/26;Uso
+341;41;7;#43-7;20/02/26;Verde;969;Chicão Reciclagem;;28/02/26;Uso
+340;41;8;#43-8;20/02/26;Verde;930;Chicão Reciclagem;;24/02/26;Uso
+339;41;9;#43-9;20/02/26;Verde;981;Chicão Reciclagem;;07/03/26;Uso
+338;41;10;#43-10;20/02/26;Verde;697;Chicão Reciclagem;;10/03/26;Uso
+337;41;13;#43-13;20/02/26;Vermelho;1020;Chicão Reciclagem;;17/03/26;Uso
+336;41;14;#43-14;20/02/26;Vermelho;927;Chicão Reciclagem;;27/02/26;Uso
+335;41;15;#43-15;20/02/26;Vermelho;669;Chicão Reciclagem;;28/02/26;Ajuste
+334;37;1;#42-1;19/02/26;Verde;1090;Ric Plast;;19/02/26;Uso
+333;37;2;#42-2;19/02/26;Verde;1020;Ric Plast;;23/02/26;Uso
+332;37;7;#42-7;19/02/26;Azul;1087;Ric Plast;;27/02/26;Uso
+331;37;8;#42-8;19/02/26;Azul;963;Ric Plast;;19/02/26;Uso
+330;37;13;#42-13;19/02/26;Vermelho;1123;Ric Plast;;19/02/26;Uso
+329;37;14;#42-14;19/02/26;Vermelho;1088;Ric Plast;;19/02/26;Uso
+328;40;1;#41-1;20/02/26;Rosa;1062;Terplas;;03/03/26;Uso
+327;40;2;#41-2;20/02/26;Rosa;1100;Terplas;;17/03/26;Ajuste
+326;40;3;#41-3;20/02/26;Rosa;1202;Terplas;;05/03/26;Uso
+325;40;4;#41-4;20/02/26;Rosa;921;Terplas;;17/03/26;Uso
+324;40;5;#41-5;20/02/26;Rosa;1203;Terplas;;06/03/26;Uso
+323;40;7;#41-7;20/02/26;Branco;1180;Terplas;;05/03/26;Uso
+322;40;8;#41-8;20/02/26;Branco;1202;Terplas;;14/03/26;Uso
+321;40;9;#41-9;20/02/26;Branco;1174;Terplas;;25/02/26;Uso
+320;40;10;#41-10;20/02/26;Branco;452;Terplas;;05/03/26;Uso
+319;36;1;#40-1;19/02/26;Preto;1152;Terplas;;25/02/26;Uso
+318;36;2;#40-2;19/02/26;Preto;1164;Terplas;;24/02/26;Uso
+317;36;3;#40-3;19/02/26;Preto;1152;Terplas;;26/02/26;Uso
+316;36;4;#40-4;19/02/26;Preto;1205;Terplas;;03/03/26;Uso
+315;36;5;#40-5;19/02/26;Preto;1201;Terplas;;25/02/26;Uso
+314;36;6;#40-6;19/02/26;Preto;1203;Terplas;;26/02/26;Uso
+313;36;7;#40-7;19/02/26;Preto;1198;Terplas;;19/02/26;Uso
+312;36;8;#40-8;19/02/26;Preto;1153;Terplas;;19/02/26;Uso
+311;30;1;#39-1;11/02/26;Verde;1002;Modernize;;14/02/2026;Uso
+310;30;2;#39-2;11/02/26;Verde;685;Modernize;;13/02/26;Uso
+309;30;3;#39-3;11/02/26;Verde;1002;Modernize;;14/02/26;Uso
+308;30;4;#39-4;11/02/26;Verde;1002;Modernize;;12/02/26;Uso
+307;30;5;#39-5;11/02/26;Verde;1002;Modernize;;11/02/2026;Uso
+306;30;6;#39-6;11/02/26;Verde;1001;Modernize;;11/02/2026;Uso
+305;33;1;#38-1;12/02/26;Azul Bebê;1142;G V Brasil;;09/03/26;Uso
+304;33;2;#38-2;12/02/26;Azul Bebê;1173;G V Brasil;;23/02/26;Uso
+303;33;3;#38-3;12/02/26;Azul Bebê;1161;G V Brasil;;21/02/26;Uso
+302;33;4;#38-4;12/02/26;Azul Bebê;1140;G V Brasil;;10/03/26;Ajuste
+301;33;5;#38-5;12/02/26;Azul Bebê;1137;G V Brasil;;16/02/2026;Uso
+300;33;6;#38-6;12/02/26;Azul Bebê;1231;G V Brasil;;17/03/26;Ajuste
+299;33;7;#38-7;12/02/26;Azul Bebê;1310;G V Brasil;;14/02/2026;Uso
+298;33;8;#38-8;12/02/26;Azul Bebê;657;G V Brasil;;14/02/2026;Uso
+297;35;1;#37-1;13/02/26;Verde;571;Comercial Almeida;;13/02/26;Uso
+296;35;2;#37-2;13/02/26;Verde;572;Comercial Almeida;;;
+295;35;3;#37-3;13/02/26;Verde;910;Comercial Almeida;;13/02/26;Uso
+294;35;4;#37-4;13/02/26;Verde;466;Comercial Almeida;;15/02/2026;Uso
+293;35;7;#37-7;13/02/26;Vermelho;880;Comercial Almeida;;14/02/2026;Uso
+292;35;8;#37-8;13/02/26;Vermelho;329;Comercial Almeida;;14/02/2026;Uso
+291;35;61;#37-61;14/02/26;Preto;902;Comercial Almeida;;28/02/26;Uso
+290;35;62;#37-62;14/02/26;Preto;665;Comercial Almeida;;23/02/26;Uso
+289;35;63;#37-63;14/02/26;Preto;1046;Comercial Almeida;;18/02/26;Uso
+288;29;1;#36-1;10/02/26;Azul;1020;Ric Plast;;11/02/2026;Uso
+287;29;2;#36-2;10/02/26;Azul;1017;Ric Plast;;11/02/2026;Uso
+286;29;7;#36-7;10/02/26;Verde;986;Ric Plast;;11/02/2026;Uso
+285;29;8;#36-8;10/02/26;Verde;949;Ric Plast;;15/02/2026;Uso
+284;29;9;#36-9;10/02/26;Verde;562;Ric Plast;;10/02/26;Uso
+283;29;13;#36-13;10/02/26;Vermelho;1121;Ric Plast;;14/02/2026;Uso
+282;29;14;#36-14;10/02/26;Vermelho;1089;Ric Plast;;13/02/26;Uso
+281;32;1;#35-1;12/02/26;Verde Tiffany;1054;Ric Plast;;17/03/26;Ajuste
+280;32;2;#35-2;12/02/26;Verde Tiffany;1055;Ric Plast;;14/03/26;Uso
+279;32;3;#35-3;12/02/26;Verde Tiffany;597;Ric Plast;;19/03/26;Uso
+278;32;4;#35-4;12/02/26;Verde Tiffany;1053;Ric Plast;;12/03/26;Uso
+277;32;5;#35-5;12/02/26;Verde Tiffany;914;Ric Plast;;17/03/26;Ajuste
+276;32;6;#35-6;12/02/26;Verde Tiffany;597;Ric Plast;;13/03/26;Uso
+275;32;7;#35-7;12/02/26;Verde Tiffany;739;Ric Plast;;20/02/2026;Uso
+274;32;8;#35-8;12/02/26;Verde Tiffany;774;Ric Plast;;19/02/26;Uso
+273;28;1;#34-1;10/02/26;Verde;1141;G V Brasil;;17/02/2026;Uso
+272;28;2;#34-2;10/02/26;Verde;1092;G V Brasil;;17/02/2026;Uso
+271;28;3;#34-3;10/02/26;Verde;1160;G V Brasil;;24/02/26;Ajuste
+270;28;7;#34-7;10/02/26;Azul;1058;G V Brasil;;12/02/26;Uso
+269;28;8;#34-8;10/02/26;Azul;1162;G V Brasil;;14/02/2026;Uso
+268;28;9;#34-9;10/02/26;Azul;1043;G V Brasil;;13/02/2026;Uso
+267;39;1;#32-1;20/02/26;Apara Transparente;308;Izaltino;;16/03/26;Ajuste
+266;39;2;#32-2;20/02/26;Apara Transparente;35;Izaltino;;16/03/26;Ajuste
+265;39;3;#32-3;20/02/26;Apara Transparente;297;Izaltino;;16/03/26;Ajuste
+264;39;4;#32-4;20/02/26;Apara Transparente;374;Izaltino;;16/03/26;Ajuste
+263;39;5;#32-5;20/02/26;Apara Transparente;447;Izaltino;;16/03/26;Ajuste
+262;39;6;#32-6;20/02/26;Apara Transparente;479;Izaltino;;16/03/26;Ajuste
+261;39;7;#32-7;20/02/26;Apara Transparente;439;Izaltino;;16/03/26;Ajuste
+260;39;8;#32-8;20/02/26;Apara Transparente;362;Izaltino;;16/03/26;Ajuste
+259;39;9;#32-9;20/02/26;Apara Transparente;403;Izaltino;;16/03/26;Ajuste
+258;39;10;#32-10;20/02/26;Apara Transparente;381;Izaltino;;16/03/26;Ajuste
+257;39;11;#32-11;20/02/26;Apara Transparente;532;Izaltino;;16/03/26;Ajuste
+256;26;1;#31-1;06/02/26;Virgem OFF;270;Izaltino;;;
+255;26;2;#31-2;06/02/26;Virgem OFF;290;Izaltino;;;
+254;26;7;#31-7;06/02/26;Apara Transparente;215;Izaltino;;16/03/26;Ajuste
+253;26;8;#31-8;06/02/26;Apara Transparente;294;Izaltino;;16/03/26;Ajuste
+252;26;9;#31-9;06/02/26;Apara Transparente;298;Izaltino;;16/03/26;Ajuste
+251;26;10;#31-10;06/02/26;Apara Transparente;326;Izaltino;;16/03/26;Ajuste
+250;26;11;#31-11;06/02/26;Apara Transparente;308;Izaltino;;16/03/26;Ajuste
+249;26;13;#31-13;06/02/26;Apara Transparente;410;Izaltino;;16/03/26;Ajuste
+248;26;14;#31-14;06/02/26;Apara Transparente;362;Izaltino;;20/02/2026;Uso
+247;26;15;#31-15;06/02/26;Apara Transparente;378;Izaltino;;16/03/26;Ajuste
+246;26;16;#31-16;06/02/26;Apara Transparente;264;Izaltino;;16/03/26;Ajuste
+245;26;17;#31-17;06/02/26;Apara Transparente;343;Izaltino;;16/03/26;Ajuste
+244;26;18;#31-18;06/02/26;Apara Transparente;305;Izaltino;;16/03/26;Ajuste
+243;26;19;#31-19;06/02/26;Apara Transparente;289;Izaltino;;16/03/26;Ajuste
+242;26;20;#31-20;06/02/26;Apara Transparente;359;Izaltino;;16/03/26;Ajuste
+241;26;25;#31-25;06/02/26;Apara Transparente;287;Izaltino;;06/02/26;Uso
+240;26;26;#31-26;06/02/26;Apara Transparente;409;Izaltino;;16/03/26;Ajuste
+239;21;1;#30-1;05/02/26;Preto;1178;G V Brasil;;06/02/26;Uso
+238;21;2;#30-2;05/02/26;Preto;1020;G V Brasil;;05/02/26;Uso
+237;21;3;#30-3;05/02/26;Preto;354;G V Brasil;;05/02/26;Uso
+236;20;1;#29-1;05/02/26;Apara Transparente;203;José Ricardo;;16/03/26;Ajuste
+235;20;2;#29-2;05/02/26;Apara Transparente;286;José Ricardo;;16/03/26;Ajuste
+234;20;3;#29-3;05/02/26;Apara Transparente;215;José Ricardo;;16/03/26;Ajuste
+233;20;7;#29-7;05/02/26;Apara Transparente FIta;253;José Ricardo;;16/03/26;Ajuste
+232;20;8;#29-8;05/02/26;Apara Transparente FIta;81;José Ricardo;;16/03/26;Ajuste
+231;20;9;#29-9;05/02/26;Apara Transparente FIta;264;José Ricardo;;16/03/26;Ajuste
+230;31;1;#28-1;12/02/26;Rosa;1128;Terplas;;02/03/26;Uso
+229;31;2;#28-2;12/02/26;Rosa;1101;Terplas;;19/02/26;Uso
+228;31;3;#28-3;12/02/26;Rosa;1030;Terplas;;12/02/26;Uso
+227;31;4;#28-4;12/02/26;Rosa;1030;Terplas;;13/02/26;Uso
+226;31;5;#28-5;12/02/26;Rosa;1084;Terplas;;18/02/26;Uso
+225;31;6;#28-6;12/02/26;Rosa;1206;Terplas;;14/02/2026;Uso
+224;27;1;#27-1;09/02/26;Preto;1205;Terplas;;23/03/26;Ajuste
+223;27;2;#27-2;09/02/26;Preto;1202;Terplas;;28/02/26;Ajuste
+222;27;3;#27-3;09/02/26;Preto;1201;Terplas;;12/02/26;Uso
+221;27;4;#27-4;09/02/26;Preto;1194;Terplas;;10/02/26;Uso
+220;27;5;#27-5;09/02/26;Preto;1203;Terplas;;10/02/26;Uso
+219;27;6;#27-6;09/02/26;Preto;1195;Terplas;;09/02/26;Uso
+218;27;7;#27-7;09/02/26;Preto;1199;Terplas;;10/02/26;Uso
+217;27;8;#27-8;09/02/26;Preto;1102;Terplas;;09/02/26;Uso
+216;25;1;#26-1;06/02/26;Preto;1172;Terplas;;08/02/2026;Uso
+215;25;2;#26-2;06/02/26;Preto;1182;Terplas;;07/02/26;Uso
+214;25;3;#26-3;06/02/26;Preto;1183;Terplas;;07/02/26;Uso
+213;25;4;#26-4;06/02/26;Preto;1152;Terplas;;07/02/26;Uso
+212;25;7;#26-7;06/02/26;Azul;1127;Terplas;;14/02/2026;Uso
+211;19;1;#25-1;03/02/26;Preto;311;Macicplast;;03/02/26;Uso
+210;19;3;#25-3;03/02/26;Preto;891;Macicplast;;03/02/26;Uso
+209;19;4;#25-4;03/02/26;Preto;664;Macicplast;;03/02/26;Uso
+208;19;5;#25-5;03/02/26;Preto;843;Macicplast;;03/02/26;Uso
+207;19;13;#25-13;03/02/26;Rosa;577;Macicplast;;04/02/26;Uso
+206;19;14;#25-14;03/02/26;Rosa;420;Macicplast;;03/02/26;Uso
+205;19;19;#25-19;03/02/26;Azul;482;Macicplast;;05/02/26;Uso
+204;19;20;#25-20;03/02/26;Azul;510;Macicplast;;05/02/26;Uso
+203;19;21;#25-21;03/02/26;Azul;747;Macicplast;;24/02/26;Ajuste
+202;19;25;#25-25;03/02/26;Verde Tiffany;540;Macicplast;;;
+201;34;1;#23-1;13/02/26;Preto;850;Macicplast;;16/03/26;Uso
+200;34;3;#23-3;13/02/26;Preto;764;Macicplast;;16/03/26;Uso
+199;34;4;#23-4;13/02/26;Preto;395;Macicplast;;25/02/26;Uso
+198;34;5;#23-5;13/02/26;Preto;587;Macicplast;;18/02/26;Uso
+197;34;8;#23-8;13/02/26;Vermelho;958;Macicplast;;13/02/2026;Uso
+196;34;9;#23-9;13/02/26;Vermelho;942;Macicplast;;14/02/2026;Uso
+195;34;10;#23-10;13/02/26;Vermelho;569;Macicplast;;16/02/2026;Uso
+194;34;13;#23-13;13/02/26;Verde;703;Macicplast;;24/02/26;Ajuste
+193;34;14;#23-14;13/02/26;Verde;558;Macicplast;;24/02/26;Ajuste
+192;34;19;#23-19;13/02/26;Azul;310;Macicplast;;14/02/26;Uso
+191;24;1;#22-1;06/02/26;Verde Tiffany;843;Ric Plast;;;
+190;24;2;#22-2;06/02/26;Verde Tiffany;1090;Ric Plast;;20/03/26;Uso
+189;24;3;#22-3;06/02/26;Verde Tiffany;913;Ric Plast;;17/03/26;Uso
+188;24;4;#22-4;06/02/26;Verde Tiffany;597;Ric Plast;;12/03/26;Uso
+187;24;5;#22-5;06/02/26;Verde Tiffany;983;Ric Plast;;17/03/26;Ajuste
+186;24;6;#22-6;06/02/26;Verde Tiffany;949;Ric Plast;;10/02/26;Uso
+185;24;7;#22-7;06/02/26;Verde Tiffany;1147;Ric Plast;;12/03/26;Uso
+184;23;1;#21-1;06/02/26;Preto;1087;G V Brasil;;08/02/2026;Uso
+183;23;2;#21-2;06/02/26;Preto;1011;G V Brasil;;24/02/26;Ajuste
+182;23;3;#21-3;06/02/26;Preto;962;G V Brasil;;06/02/26;Uso
+181;23;4;#21-4;06/02/26;Preto;948;G V Brasil;;06/02/26;Uso
+180;23;5;#21-5;06/02/26;Preto;647;G V Brasil;;06/02/26;Uso
+179;10;26;#20-26;28/01/26;Apara Transparente FIta;180;Izaltino;;02/02/26;Uso
+178;10;25;#20-25;28/01/26;Apara Transparente FIta;169;Izaltino;;02/02/26;Uso
+177;10;12;#20-12;28/01/26;Apara Transparente;481;Izaltino;;16/03/26;Ajuste
+176;10;11;#20-11;28/01/26;Apara Transparente;460;Izaltino;;20/02/2026;Uso
+175;10;10;#20-10;28/01/26;Apara Transparente;111;Izaltino;;16/03/26;Ajuste
+174;10;9;#20-9;28/01/26;Apara Transparente;253;Izaltino;;16/03/26;Ajuste
+173;10;8;#20-8;28/01/26;Apara Transparente;273;Izaltino;;16/03/26;Ajuste
+172;10;7;#20-7;28/01/26;Apara Transparente;441;Izaltino;;16/03/26;Ajuste
+171;10;6;#20-6;28/01/26;Apara Transparente;264;Izaltino;;16/03/26;Ajuste
+170;10;5;#20-5;28/01/26;Apara Transparente;327;Izaltino;;16/03/26;Ajuste
+169;10;4;#20-4;28/01/26;Apara Transparente;491;Izaltino;;16/03/26;Ajuste
+168;10;3;#20-3;28/01/26;Apara Transparente;421;Izaltino;;16/03/26;Ajuste
+167;10;2;#20-2;28/01/26;Apara Transparente;414;Izaltino;;16/03/26;Ajuste
+166;10;1;#20-1;28/01/26;Apara Transparente;310;Izaltino;;16/03/26;Ajuste
+165;16;1;#18-1;02/02/26;Apara Transparente;258;Marques Plastic;;04/02/26;Uso
+164;16;2;#18-2;02/02/26;Apara Transparente;217;Marques Plastic;;16/03/26;Ajuste
+163;16;3;#18-3;02/02/26;Apara Transparente;195;Marques Plastic;;03/02/26;Uso
+162;16;4;#18-4;02/02/26;Apara Transparente;119;Marques Plastic;;03/02/26;Uso
+161;16;5;#18-5;02/02/26;Apara Transparente;205;Marques Plastic;;04/02/26;Uso
+160;16;7;#18-7;02/02/26;Apara Impressa;250;Marques Plastic;;03/02/26;Uso
+159;16;8;#18-8;02/02/26;Apara Impressa;104;Marques Plastic;;02/02/26;Uso
+158;16;9;#18-9;02/02/26;Apara Impressa;280;Marques Plastic;;02/02/26;Uso
+157;18;1;#17-1;03/02/26;Branco;1020;Chicão Reciclagem;;13/02/26;Uso
+156;18;2;#17-2;03/02/26;Branco;950;Chicão Reciclagem;;12/02/26;Uso
+155;18;3;#17-3;03/02/26;Branco;1197;Chicão Reciclagem;;11/02/2026;Uso
+154;18;4;#17-4;03/02/26;Branco;984;Chicão Reciclagem;;12/02/26;Uso
+153;18;5;#17-5;03/02/26;Branco;1200;Chicão Reciclagem;;13/02/26;Uso
+152;18;6;#17-6;03/02/26;Branco;958;Chicão Reciclagem;;24/02/26;Ajuste
+151;18;7;#17-7;03/02/26;Branco;422;Chicão Reciclagem;;05/02/26;Uso
+150;15;13;#16-13;02/02/26;Preto;757;Macicplast;;04/02/26;Uso
+149;15;14;#16-14;02/02/26;Preto;474;Macicplast;;24/02/26;Ajuste
+148;15;15;#16-15;02/02/26;Preto;739;Macicplast;;04/02/26;Uso
+147;15;16;#16-16;02/02/26;Preto;753;Macicplast;;04/02/26;Uso
+146;15;17;#16-17;02/02/26;Preto;804;Macicplast;;04/02/26;Uso
+145;15;18;#16-18;02/02/26;Preto;805;Macicplast;;04/02/26;Uso
+144;15;19;#16-19;02/02/26;Preto;842;Macicplast;;03/02/26;Uso
+143;15;20;#16-20;02/02/26;Preto;813;Macicplast;;03/02/26;Uso
+142;15;21;#16-21;02/02/26;Preto;856;Macicplast;;02/02/26;Uso
+141;15;22;#16-22;02/02/26;Preto;826;Macicplast;;24/02/26;Ajuste
+140;14;1;#15-1;02/02/26;Rosa;820;Terplas;;10/02/26;Uso
+139;14;2;#15-2;02/02/26;Rosa;1200;Terplas;;09/02/26;Uso
+138;14;3;#15-3;02/02/26;Rosa;1118;Terplas;;08/02/2026;Uso
+137;14;4;#15-4;02/02/26;Rosa;1183;Terplas;;09/02/26;Uso
+136;14;5;#15-5;02/02/26;Rosa;1071;Terplas;;08/02/2026;Uso
+135;14;6;#15-6;02/02/26;Rosa;1092;Terplas;;06/02/26;Uso
+134;14;7;#15-7;02/02/26;Rosa;1147;Terplas;;08/02/2026;Uso
+133;13;1;#14-1;30/01/26;Virgem OFF;212;Izaltino;;;
+132;13;2;#14-2;30/01/26;Virgem OFF;232;Izaltino;;;
+131;13;7;#14-7;30/01/26;Apara Transparente;207;Izaltino;;16/03/26;Ajuste
+130;13;8;#14-8;30/01/26;Apara Transparente;298;Izaltino;;03/02/26;Uso
+129;13;9;#14-9;30/01/26;Apara Transparente;470;Izaltino;;02/02/26;Uso
+128;13;10;#14-10;30/01/26;Apara Transparente;353;Izaltino;;16/03/26;Ajuste
+127;13;11;#14-11;30/01/26;Apara Transparente;227;Izaltino;;16/03/26;Ajuste
+126;13;12;#14-12;30/01/26;Apara Transparente;156;Izaltino;;16/03/26;Ajuste
+125;13;13;#14-13;30/01/26;Apara Transparente;162;Izaltino;;16/03/26;Ajuste
+124;13;14;#14-14;30/01/26;Apara Transparente;141;Izaltino;;04/02/26;Uso
+123;13;15;#14-15;30/01/26;Apara Transparente;137;Izaltino;;03/02/26;Uso
+122;13;16;#14-16;30/01/26;Apara Transparente;147;Izaltino;;02/02/26;Uso
+121;13;17;#14-17;30/01/26;Apara Transparente;192;Izaltino;;16/03/26;Ajuste
+120;13;18;#14-18;30/01/26;Apara Transparente;148;Izaltino;;03/02/26;Uso
+119;13;19;#14-19;30/01/26;Apara Transparente;123;Izaltino;;03/02/26;Uso
+118;13;20;#14-20;30/01/26;Apara Transparente;140;Izaltino;;02/02/26;Uso
+117;22;1;#13-1;06/02/26;Verde;517;Modernize;;09/02/26;Uso
+116;22;2;#13-2;06/02/26;Verde;1001;Modernize;;07/02/26;Uso
+115;22;3;#13-3;06/02/26;Verde;1000;Modernize;;07/02/26;Uso
+114;22;4;#13-4;06/02/26;Verde;1000;Modernize;;10/02/26;Uso
+113;12;1;#12-1;29/01/26;Verde Tiffany;1117;Ric Plast;;02/02/26;Uso
+112;12;2;#12-2;29/01/26;Verde Tiffany;1052;Ric Plast;;02/02/26;Uso
+111;12;3;#12-3;29/01/26;Verde Tiffany;986;Ric Plast;;31/01/2026;Uso
+110;12;4;#12-4;29/01/26;Verde Tiffany;806;Ric Plast;;02/02/26;Uso
+109;12;5;#12-5;29/01/26;Verde Tiffany;738;Ric Plast;;02/02/26;Uso
+108;12;6;#12-6;29/01/26;Verde Tiffany;1053;Ric Plast;;31/01/2026;Uso
+107;17;1;#11-1;03/02/26;Azul Bebê;1133;G V Brasil;;06/02/26;Uso
+106;17;2;#11-2;03/02/26;Azul Bebê;1289;G V Brasil;;05/02/26;Uso
+105;17;3;#11-3;03/02/26;Azul Bebê;1325;G V Brasil;;06/02/26;Uso
+104;17;4;#11-4;03/02/26;Azul Bebê;1246;G V Brasil;;04/02/26;Uso
+103;17;5;#11-5;03/02/26;Azul Bebê;1187;G V Brasil;;03/02/26;Uso
+102;17;6;#11-6;03/02/26;Azul Bebê;1145;G V Brasil;;04/02/26;Uso
+101;17;7;#11-7;03/02/26;Azul Bebê;1272;G V Brasil;;05/02/26;Uso
+100;9;14;#10-14;28/01/26;Verde;951;Comercial Almeida;;28/01/26;Uso
+99;9;13;#10-13;28/01/26;Verde;418;Comercial Almeida;;04/02/26;Uso
+98;9;9;#10-9;28/01/26;Azul;255;Comercial Almeida;;03/02/26;Uso
+97;9;8;#10-8;28/01/26;Azul;503;Comercial Almeida;;03/02/26;Uso
+96;9;7;#10-7;28/01/26;Azul;627;Comercial Almeida;;24/02/26;Ajuste
+95;9;3;#10-3;28/01/26;Vermelho;597;Comercial Almeida;;02/02/26;Uso
+94;9;2;#10-2;28/01/26;Vermelho;434;Comercial Almeida;;31/01/2026;Uso
+93;9;1;#10-1;28/01/26;Vermelho;278;Comercial Almeida;;31/01/2026;Uso
+92;11;1;#9-1;29/01/26;Azul;821;Chicão Reciclagem;;03/02/26;Uso
+91;11;7;#9-7;29/01/26;Verde;877;Chicão Reciclagem;;24/02/26;Ajuste
+90;11;8;#9-8;29/01/26;Verde;473;Chicão Reciclagem;;29/01/26;Uso
+89;11;13;#9-13;29/01/26;Vermelho;1019;Chicão Reciclagem;;30/01/26;Uso
+88;11;14;#9-14;29/01/26;Vermelho;485;Chicão Reciclagem;;29/01/26;Uso
+87;11;19;#9-19;29/01/26;Preto;1057;Chicão Reciclagem;;31/01/2026;Uso
+86;11;20;#9-20;29/01/26;Preto;992;Chicão Reciclagem;;31/01/2026;Uso
+85;11;21;#9-21;29/01/26;Preto;1118;Chicão Reciclagem;;31/01/2026;Uso
+84;11;23;#9-23;29/01/26;Preto;906;Chicão Reciclagem;;03/02/26;Uso
+83;5;1;#8-1;23/01/26;Preto;842;Macicplast;;24/02/26;Ajuste
+82;5;2;#8-2;23/01/26;Preto;857;Macicplast;;24/01/26;Uso
+81;5;3;#8-3;23/01/26;Preto;849;Macicplast;;24/01/26;Uso
+80;5;4;#8-4;23/01/26;Preto;694;Macicplast;;23/01/26;Uso
+79;5;5;#8-5;23/01/26;Preto;765;Macicplast;;26/01/26;Uso
+78;5;6;#8-6;23/01/26;Preto;772;Macicplast;;24/01/26;Uso
+77;5;7;#8-7;23/01/26;Preto;543;Macicplast;;23/01/26;Uso
+76;5;30;#8-30;23/01/26;Preto;800;Macicplast;;02/02/26;Uso
+75;8;1;#7-1;27/01/26;Vermelho;985;Ric Plast;;31/01/2026;Uso
+74;8;2;#7-2;27/01/26;Vermelho;1055;Ric Plast;;30/01/26;Uso
+73;8;7;#7-7;27/01/26;Verde;1055;Ric Plast;;31/01/2026;Uso
+72;8;13;#7-13;27/01/26;Azul;1055;Ric Plast;;27/01/26;Uso
+71;8;14;#7-14;27/01/26;Azul;1054;Ric Plast;;27/01/26;Uso
+70;8;15;#7-15;27/01/26;Azul;1056;Ric Plast;;08/02/2026;Uso
+69;3;23;#6-23;21/01/26;Preto;697;Macicplast;;21/01/26;Uso
+68;3;22;#6-22;21/01/26;Preto;822;Macicplast;;24/02/26;Ajuste
+67;3;21;#6-21;21/01/26;Preto;963;Macicplast;;21/01/26;Uso
+66;3;19;#6-19;21/01/26;Preto;357;Macicplast;;24/01/26;Uso
+65;3;14;#6-14;21/01/26;Azul Bebê;619;Macicplast;;31/01/2026;Uso
+64;3;13;#6-13;21/01/26;Azul Bebê;783;Macicplast;;31/01/2026;Uso
+63;3;11;#6-11;21/01/26;Verde;793;Macicplast;;22/01/26;Uso
+62;3;10;#6-10;21/01/26;Verde;522;Macicplast;;22/01/26;Uso
+61;3;9;#6-9;21/01/26;Verde;571;Macicplast;;24/01/26;Uso
+60;3;8;#6-8;21/01/26;Verde;173;Macicplast;;24/02/26;Ajuste
+59;3;7;#6-7;21/01/26;Verde;531;Macicplast;;10/02/26;Uso
+58;3;1;#6-1;21/01/26;Vermelho;296;Macicplast;;06/02/26;Uso
+57;7;1;#5-1;27/01/26;Preto;820;G V Brasil;;31/01/2026;Uso
+56;7;2;#5-2;27/01/26;Preto;1185;G V Brasil;;30/01/26;Uso
+55;7;3;#5-3;27/01/26;Preto;1220;G V Brasil;;29/01/26;Uso
+54;7;4;#5-4;27/01/26;Preto;1220;G V Brasil;;29/01/26;Uso
+53;7;5;#5-5;27/01/26;Preto;1223;G V Brasil;;02/02/26;Uso
+52;7;6;#5-6;27/01/26;Preto;1228;G V Brasil;;27/01/26;Uso
+51;7;7;#5-7;27/01/26;Preto;1222;G V Brasil;;27/01/26;Uso
+50;7;8;#5-8;27/01/26;Preto;1278;G V Brasil;;27/01/26;Uso
+49;2;1;#4-1;20/01/26;Preto;914;Macicplast;;20/01/26;Uso
+48;2;2;#4-2;20/01/26;Preto;842;Macicplast;;20/01/26;Uso
+47;2;3;#4-3;20/01/26;Preto;719;Macicplast;;22/01/26;Uso
+46;2;4;#4-4;20/01/26;Preto;741;Macicplast;;24/02/26;Ajuste
+45;2;5;#4-5;20/01/26;Preto;672;Macicplast;;26/01/26;Uso
+44;2;6;#4-6;20/01/26;Preto;753;Macicplast;;21/01/26;Uso
+43;2;7;#4-7;20/01/26;Preto;737;Macicplast;;22/01/26;Uso
+42;2;8;#4-8;20/01/26;Preto;792;Macicplast;;26/01/26;Uso
+41;2;9;#4-9;20/01/26;Preto;697;Macicplast;;22/01/26;Uso
+40;2;10;#4-10;20/01/26;Preto;688;Macicplast;;26/01/26;Uso
+39;6;6;#3-6;26/01/26;Rosa;1201;Terplas;;26/01/26;Uso
+38;6;5;#3-5;26/01/26;Rosa;1144;Terplas;;27/01/26;Uso
+37;6;4;#3-4;26/01/26;Rosa;1141;Terplas;;27/01/26;Uso
+36;6;3;#3-3;26/01/26;Rosa;1105;Terplas;;28/01/26;Uso
+35;6;2;#3-2;26/01/26;Rosa;1146;Terplas;;31/01/2026;Uso
+34;6;1;#3-1;26/01/26;Rosa;1183;Terplas;;29/01/26;Uso
+33;1;1;#2-1;19/01/26;Vermelho;763;AB Reciclagem;;20/01/26;Uso
+32;1;2;#2-2;19/01/26;Vermelho;405;AB Reciclagem;;20/01/26;Uso
+31;1;3;#2-3;19/01/26;Vermelho;643;AB Reciclagem;;20/01/26;Uso
+30;1;7;#2-7;19/01/26;Azul;670;AB Reciclagem;;02/02/26;Uso
+29;1;8;#2-8;19/01/26;Azul;730;AB Reciclagem;;02/02/26;Uso
+28;1;9;#2-9;19/01/26;Azul;912;AB Reciclagem;;22/01/26;Uso
+27;1;10;#2-10;19/01/26;Azul;687;AB Reciclagem;;21/01/26;Uso
+26;1;11;#2-11;19/01/26;Azul;875;AB Reciclagem;;21/01/26;Uso
+25;1;12;#2-12;19/01/26;Azul;744;AB Reciclagem;;21/01/26;Uso
+24;1;13;#2-13;19/01/26;Azul;748;AB Reciclagem;;21/01/26;Uso
+23;1;14;#2-14;19/01/26;Azul;693;AB Reciclagem;;21/01/26;Uso
+22;1;19;#2-19;19/01/26;Branco;652;AB Reciclagem;;;
+21;1;20;#2-20;19/01/26;Branco;741;AB Reciclagem;;24/02/26;Ajuste
+20;1;21;#2-21;19/01/26;Branco;429;AB Reciclagem;;27/03/26;Uso
+19;1;22;#2-22;19/01/26;Branco;589;AB Reciclagem;;18/02/26;Uso
+18;1;23;#2-23;19/01/26;Branco;657;AB Reciclagem;;10/03/26;Uso
+17;4;23;#1-23;23/01/26;Branco;633;Chicão Reciclagem;;27/01/26;Uso
+16;4;22;#1-22;23/01/26;Branco;904;Chicão Reciclagem;;26/01/26;Uso
+15;4;21;#1-21;23/01/26;Branco;1296;Chicão Reciclagem;;30/01/26;Uso
+14;4;20;#1-20;23/01/26;Branco;1115;Chicão Reciclagem;;30/01/26;Uso
+13;4;19;#1-19;23/01/26;Branco;1174;Chicão Reciclagem;;30/01/26;Uso
+12;4;16;#1-16;23/01/26;Azul;666;Chicão Reciclagem;;23/01/26;Uso
+11;4;15;#1-15;23/01/26;Azul;905;Chicão Reciclagem;;24/01/26;Uso
+10;4;14;#1-14;23/01/26;Azul;1034;Chicão Reciclagem;;27/01/26;Uso
+9;4;13;#1-13;23/01/26;Azul;792;Chicão Reciclagem;;07/03/26;Ajuste
+8;4;9;#1-9;23/01/26;Verde;875;Chicão Reciclagem;;29/01/26;Uso
+7;4;8;#1-8;23/01/26;Verde;951;Chicão Reciclagem;;24/02/26;Ajuste
+6;4;7;#1-7;23/01/26;Verde;930;Chicão Reciclagem;;24/02/26;Ajuste
+5;4;5;#1-5;23/01/26;Vermelho;866;Chicão Reciclagem;;24/01/26;Uso
+4;4;4;#1-4;23/01/26;Vermelho;768;Chicão Reciclagem;;26/01/26;Uso
+3;4;3;#1-3;23/01/26;Vermelho;899;Chicão Reciclagem;;23/01/26;Uso
+2;4;2;#1-2;23/01/26;Vermelho;1038;Chicão Reciclagem;;23/01/26;Uso
+1;4;1;#1-1;23/01/26;Vermelho;904;Chicão Reciclagem;;02/02/26;Uso
+;;;34;;;24871;;;;

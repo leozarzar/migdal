@@ -1,0 +1,593 @@
+.consumption-container {
+    width: 100%;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.consumption-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    padding: 20px;
+}
+
+.consumption-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.consumption-card-title {
+    margin: 0;
+    font-size: 34px;
+    line-height: 1;
+    color: #1f2937;
+    letter-spacing: 0.2px;
+}
+
+.consumption-card-subtitle {
+    margin: 6px 0 0;
+    font-size: 14px;
+    color: #475569;
+}
+
+.consumption-btn {
+    height: 36px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 8px;
+    background: #111827;
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.consumption-btn:hover {
+    background: #0f172a;
+}
+
+.consumption-filters {
+    display: none;
+}
+
+.consumption-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.consumption-material-filter {
+    justify-self: start;
+    width: 300px;
+    max-width: 300px;
+    min-width: 0;
+}
+
+.consumption-week-filter {
+    justify-self: center;
+    min-width: 320px;
+}
+
+.consumption-week-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.consumption-nav-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #ffffff;
+    cursor: pointer;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.consumption-nav-btn:hover {
+    background: #eef2f7;
+}
+
+.consumption-week-range {
+    min-width: 250px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.consumption-multiselect {
+    position: relative;
+}
+
+.consumption-multiselect-field {
+    width: 100%;
+    min-height: 36px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+.consumption-multiselect.open .consumption-multiselect-field,
+.consumption-multiselect-field:focus {
+    outline: none;
+    border-color: #94a3b8;
+    box-shadow: none;
+}
+
+.consumption-caret {
+    color: #64748b;
+    flex-shrink: 0;
+}
+
+.consumption-tags {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 4px;
+    overflow: hidden;
+    min-width: 0;
+    flex: 1;
+    -webkit-mask-image: linear-gradient(to right, black 80%, transparent 100%);
+    mask-image: linear-gradient(to right, black 80%, transparent 100%);
+}
+
+.consumption-placeholder {
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+.consumption-tag {
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 8px;
+    background: #e2e8f0;
+    color: #334155;
+    padding: 0 8px;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.consumption-tag-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+}
+
+.consumption-tag-remove {
+    width: 16px;
+    height: 16px;
+    border: none;
+    background: transparent;
+    color: #475569;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.consumption-tag-remove .material-symbols-outlined {
+    font-size: 14px;
+}
+
+.consumption-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+    max-height: 260px;
+    overflow-y: auto;
+    z-index: 18;
+    display: none;
+}
+
+.consumption-multiselect.open .consumption-dropdown {
+    display: block;
+}
+
+.consumption-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: #334155;
+    cursor: pointer;
+}
+
+.consumption-option:hover {
+    background: #f1f5f9;
+}
+
+.consumption-dropdown-empty {
+    padding: 12px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.consumption-summary {
+    display: none;
+}
+
+.consumption-legend {
+    margin-top: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.consumption-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.consumption-legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.consumption-chart-wrap {
+    margin-top: 14px;
+    overflow-x: auto;
+    position: relative;
+}
+
+#consumptionChart {
+    display: block;
+    width: 100%;
+}
+
+@media (max-width: 1100px) {
+    .consumption-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .consumption-week-filter {
+        justify-self: start;
+    }
+}
+
+@media (max-width: 640px) {
+    .consumption-card {
+        padding: 14px;
+    }
+
+    .consumption-card-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .consumption-week-filter {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .consumption-week-nav {
+        width: 100%;
+    }
+
+    .consumption-week-range {
+        flex: 1;
+        min-width: 0;
+    }
+}
+
+.consumption-tooltip {
+    position: fixed;
+    display: none;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.13);
+    padding: 10px 14px;
+    pointer-events: none;
+    z-index: 9999;
+    min-width: 150px;
+}
+
+.consumption-tooltip-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 8px;
+}
+
+.consumption-tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 4px;
+}
+
+.consumption-tooltip-row:last-child {
+    margin-bottom: 0;
+}
+
+.consumption-tooltip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.consumption-tooltip-name {
+    flex: 1;
+    font-size: 13px;
+    color: #475569;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 130px;
+}
+
+.consumption-tooltip-val {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-left: 6px;
+    white-space: nowrap;
+}
+
+.consumption-tooltip-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 7px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.consumption-tooltip-total-label {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+/* ─── Policy topbar ───────────────────────────────────────────────────────────── */
+
+.consumption-topbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    padding: 4px 0 0;
+}
+
+.consumption-topbar-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.consumption-topbar-field--materials {
+    width: 400px;
+    max-width: 400px;
+    min-width: 0;
+}
+
+.consumption-topbar .consumption-label {
+    margin-bottom: 6px;
+}
+
+.consumption-policy-select {
+    width: 240px;
+    height: 36px;
+    padding: 0 32px 0 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("../icons/expand.svg");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 18px;
+}
+
+.consumption-policy-select:focus {
+    outline: none;
+    border-color: #94a3b8;
+}
+
+/* ─── Balance card ───────────────────────────────────────────────────────────── */
+
+.consumption-balance-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    padding: 20px;
+}
+
+.consumption-balance-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.consumption-balance-title {
+    margin: 0;
+    font-size: 34px;
+    line-height: 1;
+    color: #1f2937;
+    letter-spacing: 0.2px;
+}
+
+.consumption-balance-subtitle {
+    margin: 6px 0 0;
+    font-size: 14px;
+    color: #475569;
+}
+
+.consumption-balance-empty {
+    padding: 32px 0;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+.consumption-balance-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 32px 0;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.consumption-balance-loading-icon {
+    font-size: 20px;
+    animation: consumption-spin 1.2s linear infinite;
+}
+
+@keyframes consumption-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+/* ─── Balance table ──────────────────────────────────────────────────────────── */
+
+.consumption-balance-table-wrap {
+    overflow-x: auto;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+}
+
+.consumption-balance-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.consumption-balance-table thead tr {
+    background: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.consumption-balance-table th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.consumption-balance-table td {
+    padding: 11px 14px;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+    white-space: nowrap;
+}
+
+.consumption-balance-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.consumption-balance-table tbody tr:hover td {
+    background: #f8fafc;
+}
+
+.consumption-balance-material {
+    font-weight: 500;
+    color: #1e293b;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Row status indicators */
+
+.consumption-balance-row--ok td:first-child {
+    border-left: 3px solid #22c55e;
+}
+
+.consumption-balance-row--warning td:first-child {
+    border-left: 3px solid #f59e0b;
+}
+
+.consumption-balance-row--critical td:first-child {
+    border-left: 3px solid #ef4444;
+}
+
+.consumption-balance-row--ok {
+    background: rgba(34, 197, 94, 0.03);
+}
+
+.consumption-balance-row--warning {
+    background: rgba(245, 158, 11, 0.05);
+}
+
+.consumption-balance-row--critical {
+    background: rgba(239, 68, 68, 0.05);
+}
+
+/* Positive need highlight */
+
+.consumption-balance-need--positive {
+    font-weight: 600;
+    color: #dc2626;
+}
+
+/* Group badge inside balance table */
+
+.consumption-balance-group-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: #dcfce7;
+    color: #166534;
+    vertical-align: middle;
+    margin-left: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
