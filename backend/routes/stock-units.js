@@ -7,6 +7,19 @@
 const router = require("express").Router();
 const db = require("../db");
 
+function normalizeVolumeId(volumeId) {
+    if (volumeId === null || volumeId === undefined || String(volumeId).trim() === "") {
+        return null;
+    }
+
+    const parsedVolumeId = Number.parseInt(String(volumeId).trim(), 10);
+    if (!Number.isInteger(parsedVolumeId) || parsedVolumeId < 0) {
+        return null;
+    }
+
+    return parsedVolumeId;
+}
+
 // ── GET Endpoints ─────────────────────────────────────────────────────────
 
 /**
@@ -39,11 +52,19 @@ router.get("/", (req, res) => {
  */
 router.post("/", (req, res) => {
     const { receipt_id, volume_id, old_id, material, supplier, operator, weight, status, date_in, date_out, notes, deduction_type } = req.body;
+    const normalizedVolumeId = normalizeVolumeId(volume_id);
+
+    if (normalizedVolumeId === null) {
+        return res.status(400).json({
+            success: false,
+            message: "volume_id deve ser um numero inteiro valido"
+        });
+    }
 
     db.run(
         `INSERT INTO stock_units (receipt_id, volume_id, old_id, material, supplier, operator, weight, status, date_in, date_out, notes, deduction_type)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [receipt_id, volume_id, old_id || null, material, supplier || null, operator || null, weight, status, date_in, date_out, notes, deduction_type || null],
+        [receipt_id, normalizedVolumeId, old_id || null, material, supplier || null, operator || null, weight, status, date_in, date_out, notes, deduction_type || null],
         function (err) {
             if (err) {
                 return res.status(500).json({

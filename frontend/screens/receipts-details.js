@@ -25,7 +25,7 @@ const ReceiptsDetails = {
                 this.items = receiptItems.map(i => ({
                     _stockUnitId: i.id,
                     _originalStatus: i.status,
-                    code: i.volume_id,
+                    code: i.volume_id == null ? "" : Number(i.volume_id),
                     material: i.material,
                     quantity: i.weight,
                     operator: i.operator || ""
@@ -333,11 +333,10 @@ const ReceiptsDetails = {
             return;
         }
 
-        // Formata o código com 3 dígitos (001, 002, 003...)
-        const formattedCode = String(code).padStart(3, '0');
+        const normalizedCode = Number.parseInt(code, 10);
 
         this.items.push({
-            code: formattedCode,
+            code: normalizedCode,
             material,
             quantity: Number(quantity),
             operator: nature === "P" ? itemOperator : ""
@@ -661,7 +660,7 @@ const ReceiptsDetails = {
 
             const bagData = {
                 receipt_id: receiptId,
-                volume_id: item.code,
+                volume_id: Number.parseInt(item.code, 10),
                 material: item.material,
                 weight: parseInt(item.quantity),
                 supplier: supplier,
