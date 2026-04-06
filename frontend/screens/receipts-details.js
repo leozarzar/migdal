@@ -187,12 +187,8 @@ const ReceiptsDetails = {
             saveBtn.onclick = () => this.save();
         }
 
-        const totalQty = this.items.reduce((sum, item) => sum + item.quantity, 0);
-        document.getElementById("receiptQty").textContent = totalQty;
-        this._renderItems();
+        this._refreshItemsView();
         this._setNextItemCode();
-        this._updateHeaderFields();
-        this._updateRequiredIndicators();
     },
 
     // ── Ações Públicas ──
@@ -319,13 +315,14 @@ const ReceiptsDetails = {
 
         clearFormInputs(["itemMaterial", "itemOperator", "itemQuantity"]);
         this._setNextItemCode();
-        this.load();
+        this._refreshItemsView();
     },
 
     /** Remove um item pelo índice */
     deleteItem(index) {
         this.items.splice(index, 1);
-        this.load();
+        this._setNextItemCode();
+        this._refreshItemsView();
     },
 
     /** Valida que o campo de código contém apenas dígitos */
@@ -372,6 +369,15 @@ const ReceiptsDetails = {
             `);
             tbody.appendChild(tr);
         });
+    },
+
+    /** Atualiza total e tabela de itens sem recarregar os dados do formulário */
+    _refreshItemsView() {
+        const totalQty = this.items.reduce((sum, item) => sum + item.quantity, 0);
+        document.getElementById("receiptQty").textContent = totalQty;
+        this._renderItems();
+        this._updateHeaderFields();
+        this._updateRequiredIndicators();
     },
 
     /** Define os botões de ação (Salvar/Editar + Cancelar) no header */
