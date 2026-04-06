@@ -16,6 +16,9 @@ const MobApp = {
     /** Itens adicionados ao recebimento em progresso */
     _items: [],
 
+    /** Snapshot dos itens originais carregados do banco (para diff na edição) */
+    _originalItems: [],
+
     /** Recebimento sendo editado (null = novo recebimento) */
     _editingReceipt: null,
 
@@ -128,13 +131,17 @@ const MobApp = {
         try {
             const rawItems = await apiCall(API + '/receipts/items/' + id);
             this._items = (rawItems || []).map(i => ({
-                code:          String(i.volume_id || '').padStart(3, '0'),
-                material:      i.material,
-                materialLabel: i.material,
-                quantity:      i.weight,
-                operator:      i.operator || '',
-                operatorLabel: i.operator || '',
+                _stockUnitId:    i.id,
+                _originalStatus: i.status,
+                code:            String(i.volume_id || '').padStart(3, '0'),
+                material:        i.material,
+                materialLabel:   i.material,
+                quantity:        i.weight,
+                operator:        i.operator || '',
+                operatorLabel:   i.operator || '',
             }));
+            // Snapshot imutável para calcular o diff ao salvar
+            this._originalItems = [...this._items];
             this._renderItemsList();
         } catch {
             this._toast('Erro ao carregar itens do recebimento', 'error');
@@ -229,8 +236,54 @@ const MobApp = {
                         order_id: this._editingReceipt.order_id || null,
                     }),
                 });
-                await apiCall(API + '/receipts/items/' + this._editingReceipt.id, { method: 'DELETE' });
+
+                // Diff: only delete removed items, only insert new items
+                const deletedItems = this._originalItems.filter(orig =>
+                    !this._items.some(cur => cur._stockUnitId === orig._stockUnitId)
+                );
+
+                // Confirm before deleting any OUT_STOCK item
+                const loweredItems = deletedItems.filter(i => i._originalStatus === 'OUT_STOCK');
+                if (loweredItems.length > 0) {
+                    const list = loweredItems
+                        .map(i => `  • Código ${i.code} — ${i.material}`)
+                        .join('\n');
+                    const ok = confirm(
+                        `Atenção: os itens abaixo já foram baixados do estoque e serão deletados permanentemente:\n\n${list}\n\nDeseja continuar mesmo assim?`
+                    );
+                    if (!ok) return;
+                }
+
+                for (const item of deletedItems) {
+                    await apiCall(API + `/stock-units/${item._stockUnitId}`, { method: 'DELETE' });
+                }
+
+                // Only the items without an existing stock-unit ID are new
+                const newItems = this._items.filter(cur => !cur._stockUnitId);
                 receiptId = this._editingReceipt.id;
+
+                // Insert only new items (skip the loop below for existing ones)
+                for (const item of newItems) {
+                    await apiCall(API + '/stock-units', {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify({
+                            receipt_id: receiptId,
+                            volume_id:  item.code,
+                            material:   item.material,
+                            weight:     item.quantity,
+                            supplier:   supplier || null,
+                            operator:   item.operator || null,
+                            status:     'IN_STOCK',
+                            date_in:    date,
+                            notes:      '',
+                        }),
+                    });
+                }
+
+                this._toast('Recebimento atualizado!', 'success');
+                this.showScreen('list');
+                return;
             } else {
                 // ── Criação ──
                 const receipt = await apiCall(API + '/receipts', {
@@ -269,6 +322,7 @@ const MobApp = {
 
     _resetReceiptForm() {
         this._items = [];
+        this._originalItems = [];
         document.getElementById('mobNature').value            = '';
         document.getElementById('mobDate').value              = new Date().toISOString().slice(0, 10);
         document.getElementById('mobSupplier').value          = '';

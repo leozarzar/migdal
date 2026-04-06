@@ -9,21 +9,29 @@ const ReceiptsDetails = {
     /** Lista de itens do recebimento atual */
     items: [],
 
+    /** Snapshot dos itens originais carregados do banco (para diff na edição) */
+    _originalItems: [],
+
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML e carrega itens existentes (se editando) */
     async render() {
         this.items = [];
+        this._originalItems = [];
 
         if (Receipts.selectedReceipt) {
             try {
                 const receiptItems = await apiCall(API + `/receipts/items/${Receipts.selectedReceipt.id}`);
                 this.items = receiptItems.map(i => ({
+                    _stockUnitId: i.id,
+                    _originalStatus: i.status,
                     code: i.volume_id,
                     material: i.material,
                     quantity: i.weight,
                     operator: i.operator || ""
                 }));
+                // Snapshot imutável para calcular o diff ao salvar
+                this._originalItems = [...this.items];
             } catch (error) {
                 console.error("Erro ao carregar itens do recebimento:", error);
             }
@@ -255,6 +263,24 @@ const ReceiptsDetails = {
             return;
         }
 
+        // ── Diff: calcula itens removidos e itens novos ──
+        const deletedItems = this._originalItems.filter(orig =>
+            !this.items.some(cur => cur._stockUnitId === orig._stockUnitId)
+        );
+        const newItems = this.items.filter(cur => !cur._stockUnitId);
+
+        // ── Confirmação para itens já baixados que serão deletados ──
+        const loweredItems = deletedItems.filter(i => i._originalStatus === 'OUT_STOCK');
+        if (loweredItems.length > 0) {
+            const list = loweredItems
+                .map(i => `  • Código ${i.code} — ${i.material}`)
+                .join('\n');
+            const confirmed = confirm(
+                `Atenção: os itens abaixo já foram baixados do estoque e serão deletados permanentemente:\n\n${list}\n\nDeseja continuar mesmo assim?`
+            );
+            if (!confirmed) return;
+        }
+
         try {
             await apiCall(API + "/receipts/update", {
                 method: "PUT",
@@ -262,16 +288,20 @@ const ReceiptsDetails = {
                 body: JSON.stringify(receiptData)
             });
 
-            await apiCall(API + "/receipts/items/" + receiptData.id, {
-                method: "DELETE",
-            });
+            // Deleta somente os itens que foram removidos da lista
+            for (const item of deletedItems) {
+                await apiCall(API + `/stock-units/${item._stockUnitId}`, { method: "DELETE" });
+            }
 
+            // Insere somente os itens que foram adicionados nesta edição
             await this._saveBagsFromItems(
                 receiptData.id,
                 receiptData.supplier,
                 receiptData.date,
-                receiptData.nature
+                receiptData.nature,
+                newItems
             );
+
             alert("Recebimento atualizado com sucesso");
             showScreen('receipts');
         } catch (error) {
@@ -623,8 +653,9 @@ const ReceiptsDetails = {
     },
 
     /** Salva bags (unidades de estoque) baseado nos itens do recebimento */
-    async _saveBagsFromItems(receiptId, supplier, date, nature) {
-        for (const item of this.items) {
+    async _saveBagsFromItems(receiptId, supplier, date, nature, items) {
+        const itemList = items ?? this.items;
+        for (const item of itemList) {
             // Operador só é relevante para natureza Produção
             const operator = nature === "P" ? (item.operator || null) : null;
 
