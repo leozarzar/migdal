@@ -332,13 +332,14 @@ const OrdersDetails = {
         }
 
         document.getElementById("itemQuantity").value = '';
-        this.load();
+        if (this._itemSelect) this._itemSelect.clear();
+        this._refreshItemsView();
     },
 
     /** Remove um item pelo índice */
     deleteItem(index) {
         this.items.splice(index, 1);
-        this.load();
+        this._refreshItemsView();
     },
 
     /** Volta para a tela de pedidos */
@@ -387,6 +388,34 @@ const OrdersDetails = {
             }
             tbody.appendChild(tr);
         });
+    },
+
+    /** Atualiza resumo do header e tabela de itens sem recarregar o formulário */
+    _refreshItemsView() {
+        // Calcula total de quantidade pedida (materiais + grupos)
+        const totalQty = this.items.reduce((sum, item) => {
+            if (item.type === 'group') return sum + (item.group_quantity || 0);
+            return sum + (item.quantity || 0);
+        }, 0);
+        document.getElementById("orderQty").textContent = totalQty;
+
+        // Calcula total de quantidade recebida via bags
+        const totalReceivedQty = this.items.reduce((sum, item) => {
+            return sum + (item.receivedQuantity || 0);
+        }, 0);
+        document.getElementById("orderReceivedQty").textContent = isNaN(totalReceivedQty) ? '-' : totalReceivedQty;
+
+        // Calcula e exibe o percentual de diferença entre recebido e pedido
+        let diffHtml = '-';
+        if (totalReceivedQty > 0 && totalQty > 0) {
+            const diffPct = Math.round(((totalReceivedQty / totalQty) - 1) * 100);
+            const sign = diffPct >= 0 ? '+' : '';
+            const color = diffPct >= 0 ? '#2e7d32' : '#c62828';
+            diffHtml = `<span style="color:${color};font-weight:600">${sign}${diffPct}%</span>`;
+        }
+        document.getElementById("orderDiff").innerHTML = diffHtml;
+
+        this._renderItems();
     },
 
     /** Define os botões de ação (Salvar/Editar + Cancelar) no header */
