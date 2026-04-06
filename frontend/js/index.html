@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Bags</title>
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+        <h1>Entrada de Bag</h1>
+        <button onclick="loadBags()">Carregar Bags</button>
+    </div>
+
+
+    <div class="form-row">
+
+        <input id="code" placeholder="Código">
+
+        <input id="material" placeholder="Material">
+
+        <input id="supplier" placeholder="Fornecedor">
+
+        <input id="weight" placeholder="Peso">
+
+        <input id="date_in" type="date">
+
+        <input id="date_out" type="date">
+
+        <input id="notes" placeholder="Obs">
+
+        <button id="saveBtn" onclick="saveBag()">Salvar</button>
+        <button id="cancelBtn" onclick="cancelEdit()" style="display:none">Cancelar</button>
+
+    </div>
+
+    <div class="filters">
+
+        <select id="filterStatus" onchange="loadBags()">
+            <option value="">Status</option>
+            <option value="IN_STOCK">Em estoque</option>
+            <option value="OUT_STOCK">Usado</option>
+        </select>
+
+        <select id="filterMaterial" onchange="loadBags()">
+            <option value="">Material</option>
+        </select>
+
+        <select id="filterSupplier" onchange="loadBags()">
+            <option value="">Fornecedor</option>
+        </select>
+
+        <input id="search" placeholder="Pesquisar" oninput="loadBags()">
+
+    </div>
+
+    <div class="table-container">
+        <table>
+
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Código</th>
+                    <th>Material</th>
+                    <th>Fornecedor</th>
+                    <th class="header-qty">Quantidade</th>
+                    <th class="header-wait"><span class="material-symbols-outlined">schedule</span></th>
+                    <th></th>
+                    <th></th>
+                </tr>
+            </thead>
+
+            <tbody id="tableBody"></tbody>
+
+        </table>
+    </div>
+
+</div>
+
+</body>
+
+</html>

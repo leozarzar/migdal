@@ -1,0 +1,363 @@
+.stock-monitor-container {
+    width: 100%;
+    padding: 12px;
+}
+
+.stock-monitor-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    padding: 20px;
+}
+
+.stock-monitor-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.stock-monitor-card-title {
+    margin: 0;
+    font-size: 34px;
+    line-height: 1;
+    color: #1f2937;
+    letter-spacing: 0.2px;
+}
+
+.stock-monitor-card-subtitle {
+    margin: 6px 0 0;
+    font-size: 14px;
+    color: #475569;
+}
+
+.stock-monitor-btn {
+    height: 36px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 8px;
+    background: #111827;
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.stock-monitor-btn:hover {
+    background: #0f172a;
+}
+
+.stock-monitor-filters {
+    margin-top: 18px;
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.stock-monitor-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.stock-monitor-material-filter {
+    width: 300px;
+    max-width: 300px;
+    min-width: 0;
+}
+
+.stock-monitor-date-filter {
+    display: flex;
+    flex-direction: column;
+}
+
+.stock-monitor-date-input {
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+}
+
+.stock-monitor-date-input:focus {
+    border-color: #94a3b8;
+}
+
+/* Multiselect */
+.stock-monitor-multiselect {
+    position: relative;
+}
+
+.stock-monitor-multiselect-field {
+    width: 100%;
+    min-height: 36px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+.stock-monitor-multiselect.open .stock-monitor-multiselect-field,
+.stock-monitor-multiselect-field:focus {
+    outline: none;
+    border-color: #94a3b8;
+    box-shadow: none;
+}
+
+.stock-monitor-caret {
+    color: #64748b;
+    flex-shrink: 0;
+}
+
+.stock-monitor-tags {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 4px;
+    overflow: hidden;
+    min-width: 0;
+    flex: 1;
+    -webkit-mask-image: linear-gradient(to right, black 80%, transparent 100%);
+    mask-image: linear-gradient(to right, black 80%, transparent 100%);
+}
+
+.stock-monitor-placeholder {
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+.stock-monitor-tag {
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 8px;
+    background: #e2e8f0;
+    color: #334155;
+    padding: 0 8px;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.stock-monitor-tag-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+}
+
+.stock-monitor-tag-remove {
+    width: 16px;
+    height: 16px;
+    border: none;
+    background: transparent;
+    color: #475569;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.stock-monitor-tag-remove .material-symbols-outlined {
+    font-size: 14px;
+}
+
+.stock-monitor-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+    max-height: 260px;
+    overflow-y: auto;
+    z-index: 18;
+    display: none;
+}
+
+.stock-monitor-multiselect.open .stock-monitor-dropdown {
+    display: block;
+}
+
+.stock-monitor-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: #334155;
+    cursor: pointer;
+}
+
+.stock-monitor-option:hover {
+    background: #f1f5f9;
+}
+
+.stock-monitor-dropdown-empty {
+    padding: 12px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+/* Legend */
+.stock-monitor-legend {
+    margin-top: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.stock-monitor-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.stock-monitor-legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.stock-monitor-legend-sep {
+    display: inline-block;
+    width: 1px;
+    height: 16px;
+    background: #cbd5e1;
+    margin: 0 4px;
+    vertical-align: middle;
+}
+
+.stock-monitor-legend-line {
+    display: inline-block;
+    width: 24px;
+    height: 0;
+    border-top-width: 2px;
+    border-top-style: dashed;
+    border-top-color: #64748b;
+    vertical-align: middle;
+}
+
+.stock-monitor-legend-line--dotted {
+    border-top-style: dotted;
+    border-top-width: 3px;
+}
+
+.stock-monitor-legend-line--dashed {
+    border-top-style: dashed;
+    border-top-width: 2px;
+    border-top-color: #64748b;
+}
+
+.stock-monitor-legend-line--longdash {
+    border-top-style: dashed;
+    border-top-width: 2px;
+    /* longer dash via background for browsers that don't support dash-array on borders */
+    border-top-color: #475569;
+}
+
+/* Chart */
+.stock-monitor-chart-wrap {
+    margin-top: 14px;
+    overflow-x: auto;
+    position: relative;
+}
+
+#stockMonitorChart {
+    display: block;
+    width: 100%;
+}
+
+/* Tooltip */
+.stock-monitor-tooltip {
+    position: absolute;
+    display: none;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.13);
+    padding: 10px 14px;
+    pointer-events: none;
+    z-index: 20;
+    min-width: 150px;
+}
+
+.stock-monitor-tooltip-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 8px;
+}
+
+.stock-monitor-tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 4px;
+}
+
+.stock-monitor-tooltip-row:last-child {
+    margin-bottom: 0;
+}
+
+.stock-monitor-tooltip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.stock-monitor-tooltip-name {
+    flex: 1;
+    font-size: 13px;
+    color: #475569;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 130px;
+}
+
+.stock-monitor-tooltip-val {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-left: 6px;
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .stock-monitor-card {
+        padding: 14px;
+    }
+
+    .stock-monitor-card-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .stock-monitor-material-filter {
+        width: 100%;
+        max-width: 100%;
+    }
+}

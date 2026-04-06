@@ -1,0 +1,247 @@
+/* ================================================================
+   SearchSelect — Dropdown customizado com busca e múltiplas seções
+   Prefixo de classe: sselect-
+   Arquivo: frontend/components/search-select-style.css
+   ================================================================ */
+
+/* ── Wrapper posicional ─────────────────────────────────────────── */
+
+.sselect-wrap {
+    position: relative;
+}
+
+/* ── Botão trigger (campo visível fechado) ──────────────────────── */
+
+.sselect-trigger {
+    width: 100%;
+    min-height: 36px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 8px;
+    cursor: pointer;
+    min-width: 0;
+}
+
+.sselect-wrap.open .sselect-trigger,
+.sselect-trigger:focus {
+    outline: none;
+    border-color: #94a3b8;
+}
+
+/* Label dentro do trigger (modo single) — trunca com ellipsis se longo */
+.sselect-trigger-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    font-size: 13px;
+    color: #0f172a;
+}
+
+.sselect-placeholder {
+    color: #94a3b8 !important;
+    font-size: 13px;
+}
+
+/* Conteúdo do trigger em modo múltiplo (chips) */
+.sselect-trigger-tags {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 4px;
+    overflow: hidden;
+    min-width: 0;
+    flex: 1;
+    -webkit-mask-image: linear-gradient(to right, black 82%, transparent 100%);
+    mask-image: linear-gradient(to right, black 82%, transparent 100%);
+}
+
+.sselect-tag {
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 8px;
+    background: #e2e8f0;
+    color: #334155;
+    padding: 0 8px;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.sselect-tag-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+}
+
+.sselect-tag-remove {
+    width: 16px;
+    height: 16px;
+    border: none;
+    background: transparent;
+    color: #475569;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 15px;
+    line-height: 1;
+}
+
+.sselect-caret {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    opacity: 0.72;
+}
+
+/* ── Painel dropdown ────────────────────────────────────────────── */
+
+.sselect-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 100%;
+    min-width: 220px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    z-index: 100;
+    overflow: hidden;
+}
+
+.sselect-wrap.open .sselect-dropdown {
+    display: block;
+}
+
+/* ── Campo de busca ─────────────────────────────────────────────── */
+
+.sselect-search-wrap {
+    display: flex;
+    align-items: center;
+    padding: 10px 10px 6px;
+    gap: 6px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.sselect-search-icon {
+    color: #94a3b8;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.sselect-search {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 13px;
+    color: #0f172a;
+    background: transparent;
+}
+
+/* ── Lista de opções ────────────────────────────────────────────── */
+
+.sselect-list {
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+.sselect-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: #1e293b;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.sselect-option-checkbox {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+    pointer-events: none;
+}
+
+.sselect-option:hover {
+    background: #f8fafc;
+}
+
+.sselect-option--selected {
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 500;
+}
+
+.sselect-empty {
+    padding: 12px 14px;
+    font-size: 13px;
+    color: #94a3b8;
+    text-align: center;
+}
+
+/* ── Cabeçalho de seção ─────────────────────────────────────────── */
+
+.sselect-section-header {
+    padding: 6px 14px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.sselect-section-header:first-child {
+    border-top: none;
+}
+
+/* ── Badges genéricos ───────────────────────────────────────────── */
+
+.sselect-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    vertical-align: middle;
+    margin-right: 5px;
+    line-height: 1.4;
+}
+
+.sselect-badge--green {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.sselect-badge--blue {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.sselect-badge--orange {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+.sselect-badge--red {
+    background: #fce4ec;
+    color: #c62828;
+}

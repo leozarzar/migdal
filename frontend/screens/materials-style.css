@@ -1,0 +1,236 @@
+.materials-container {
+    width: 100%;
+    padding: 10px;
+}
+
+/* Card */
+
+.materials-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    padding: 16px;
+    overflow: hidden;
+}
+
+/* Form */
+
+.materials-form-wrapper {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    margin-bottom: 12px;
+}
+
+.materials-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.materials-field-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+    line-height: 1;
+}
+
+.materials-input {
+    width: 320px;
+    height: 32px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #0f172a;
+    transition: border-color 0.2s;
+}
+
+.materials-input:focus {
+    outline: none;
+    border-color: #94a3b8;
+}
+
+.materials-btn-save {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 16px 0 10px;
+    background-color: white;
+    color: #1a1a1a;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.materials-btn-save:hover {
+    background-color: #f0f0f0;
+}
+
+.materials-btn-save .material-symbols-outlined {
+    font-size: 18px;
+}
+
+.materials-btn-cancel {
+    height: 32px;
+    padding: 0 16px;
+    background: white;
+    color: #c62828;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.materials-btn-cancel:hover {
+    background-color: #fff0f0;
+    border-color: #f44336;
+}
+
+/* Color picker in form */
+
+.materials-color-input {
+    width: 60px;
+    height: 32px;
+    padding: 2px;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+}
+
+.materials-color-input:focus {
+    outline: none;
+    border-color: #1976d2;
+}
+
+/* Group select in form */
+
+.materials-select {
+    width: 180px;
+}
+
+/* Color swatch in table */
+
+.materials-col-color {
+    width: 32px;
+    padding: 6px 8px 6px 16px !important;
+}
+
+.materials-color-swatch {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    vertical-align: middle;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.materials-color-swatch--none {
+    background: #e5e7eb;
+}
+
+/* Table container */
+
+.materials-table-container {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    overflow: auto;
+    max-height: 490px;
+}
+
+/* Table */
+
+.materials-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.materials-table thead th {
+    text-align: left;
+    font-weight: 600;
+    padding: 8px 16px;
+    background: linear-gradient(#f3f4f6, #e9ebef);
+    border-bottom: 1px solid #dcdfe4;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.materials-table tbody td {
+    padding: 6px 16px;
+    border-bottom: 1px solid #eceef2;
+}
+
+.materials-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.materials-table tbody tr:hover {
+    background-color: #f4f6f8;
+    cursor: pointer;
+}
+
+.materials-table tbody tr.selected {
+    background-color: #e8f0fe;
+}
+
+/* Column widths */
+
+.materials-col-actions {
+    width: 60px;
+    text-align: right;
+}
+
+/* Delete button */
+
+.materials-col-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: white;
+    color: #777;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.materials-table tbody tr:hover .materials-col-actions button,
+.materials-table tbody tr.selected .materials-col-actions button {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.materials-col-actions button:hover {
+    background-color: #fff0f0;
+    border-color: #f44336;
+    color: #d32f2f;
+}
+
+.materials-col-actions button .material-symbols-outlined {
+    font-size: 17px;
+}
+
+.empty-state {
+    padding: 24px 16px;
+    text-align: center;
+    color: #9e9e9e;
+    font-size: 13px;
+}

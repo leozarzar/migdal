@@ -1,0 +1,290 @@
+.gd-container {
+    width: 100%;
+    padding: 10px;
+}
+
+/* Page Header */
+
+.gd-page-header {
+    margin-bottom: 16px;
+}
+
+.gd-page-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0;
+}
+
+/* Top row layout */
+
+.gd-top-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+/* Card */
+
+.gd-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    overflow: hidden;
+}
+
+.gd-card-info {
+    width: 320px;
+    flex-shrink: 0;
+}
+
+.gd-card-materials {
+    flex: 1;
+    min-width: 0;
+}
+
+.gd-card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e9ebef;
+    background: linear-gradient(#f3f4f6, #e9ebef);
+}
+
+.gd-card-header h2 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.gd-card-content {
+    padding: 16px;
+}
+
+.gd-card-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #e9ebef;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* Form */
+
+.gd-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.gd-form-group:last-child {
+    margin-bottom: 0;
+}
+
+.gd-form-group label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+}
+
+.gd-required {
+    color: #e53935;
+}
+
+.gd-form-control {
+    height: 32px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #0f172a;
+    transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.gd-form-control:focus {
+    outline: none;
+    border-color: #94a3b8;
+}
+
+select.gd-form-control {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("../icons/expand.svg");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 18px;
+    padding-right: 32px;
+}
+
+/* Buttons */
+
+.gd-btn-save {
+    height: 32px;
+    padding: 0 16px;
+    background-color: #1976d2;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.gd-btn-save:hover {
+    background-color: #1565c0;
+}
+
+.gd-btn-cancel {
+    height: 32px;
+    padding: 0 16px;
+    background: white;
+    color: #555;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.gd-btn-cancel:hover {
+    background-color: #f5f5f5;
+    border-color: #bbb;
+}
+
+/* Add material row */
+
+.gd-add-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.gd-select-material {
+    flex: 1;
+}
+
+.gd-btn-add {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 14px 0 10px;
+    background-color: white;
+    color: #1a1a1a;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.15s;
+}
+
+.gd-btn-add:hover {
+    background-color: #f0f0f0;
+}
+
+.gd-btn-add .material-symbols-outlined {
+    font-size: 18px;
+}
+
+/* Materials table */
+
+.gd-materials-table-container {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    overflow: auto;
+    max-height: 420px;
+}
+
+.gd-materials-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.gd-materials-table thead th {
+    text-align: left;
+    font-weight: 600;
+    padding: 8px 16px;
+    background: linear-gradient(#f3f4f6, #e9ebef);
+    border-bottom: 1px solid #dcdfe4;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.gd-materials-table tbody td {
+    padding: 6px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    color: #1a1a1a;
+}
+
+.gd-materials-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Color swatch */
+
+.gd-col-color {
+    width: 32px;
+    padding: 6px 8px 6px 16px !important;
+}
+
+.gd-color-swatch {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    vertical-align: middle;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.gd-color-swatch--none {
+    background: #e5e7eb;
+}
+
+/* Actions column */
+
+.gd-col-actions {
+    width: 48px;
+    text-align: right;
+}
+
+.gd-col-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: #999;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.gd-col-actions button:hover {
+    background: #ffeaea;
+    color: #c62828;
+}
+
+.gd-col-actions .material-symbols-outlined {
+    font-size: 18px;
+}
+
+.gd-empty-state {
+    text-align: center;
+    padding: 32px !important;
+    color: #9e9e9e;
+    font-style: italic;
+}

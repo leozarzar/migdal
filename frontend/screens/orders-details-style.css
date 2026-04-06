@@ -1,0 +1,273 @@
+/* ===================== */
+/* ORDERS DETAILS        */
+/* ===================== */
+
+.orders-details-container {
+    width: 100%;
+    padding: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 14px;
+    color: #1a1a1a;
+}
+
+/* Header */
+
+.order-header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.order-meta {
+    margin-top: 10px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    color: #555;
+}
+
+/* Cards row */
+
+.orders-details-cards-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 15px;
+}
+
+.orders-details-cards-row .details-card {
+    flex: 1;
+    min-width: 300px;
+}
+
+.orders-details-items {
+    margin-top: 0;
+}
+
+/* Inputs e selects */
+
+.orders-details-container input,
+.orders-details-container select {
+    height: 32px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #0f172a;
+    box-sizing: border-box;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    transition: border-color 0.2s;
+}
+
+.orders-details-container input[type="date"] {
+    background-image: url("../icons/calendar.svg");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 18px;
+    cursor: pointer;
+}
+
+.orders-details-container select {
+    background-image: url("../icons/expand.svg");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 18px;
+}
+
+.orders-details-container input:focus,
+.orders-details-container select:focus {
+    outline: none;
+    border-color: #94a3b8;
+}
+
+.orders-details-container input:disabled,
+.orders-details-container select:disabled {
+    background-color: #eeeeee;
+    color: #999999;
+    cursor: not-allowed;
+}
+
+/* Formulário de item */
+
+.item-form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.btn-add {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 16px 0 10px;
+    background-color: white;
+    color: #1a1a1a;
+    border: 1px solid #cccccc;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.15s;
+}
+
+.btn-add:hover {
+    background-color: #f0f0f0;
+}
+
+.btn-add .material-symbols-outlined {
+    font-size: 18px;
+}
+
+.item-form-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #888;
+}
+
+.item-form-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.orders-details-item-form {
+    display: flex;
+    gap: 10px;
+}
+
+#itemSelectContainer {
+    min-width: 240px;
+}
+
+#itemQuantity {
+    width: 150px;
+}
+
+/* Badge de grupo na tabela */
+
+.item-group-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #1565c0;
+    background: #e3f2fd;
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+/* Tabela */
+
+.orders-details-table-container {
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    margin-bottom: 12px;
+}
+
+.orders-details-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.orders-details-table thead th {
+    text-align: left;
+    font-weight: 600;
+    padding: 8px 16px;
+    background: linear-gradient(#f3f4f6, #e9ebef);
+    border-bottom: 1px solid #dcdfe4;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.orders-details-table tbody td {
+    padding: 6px 16px;
+    border-bottom: 1px solid #eceef2;
+}
+
+.orders-details-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.orders-details-table tbody tr:hover {
+    background-color: #f4f6f8;
+}
+
+.orders-details-table .col-actions {
+    width: 70px;
+    text-align: center;
+}
+
+.orders-details-table .col-qty,
+.orders-details-table .col-received {
+    width: 120px;
+    text-align: center;
+}
+
+/* Botão deletar */
+
+.orders-details-col-actions {
+    text-align: center;
+}
+
+.orders-details-col-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: white;
+    color: #777;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.orders-details-col-actions button .material-symbols-outlined {
+    font-size: 16px;
+}
+
+.orders-details-table tbody tr:hover .orders-details-col-actions button {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.orders-details-col-actions button:hover {
+    background-color: #fff0f0;
+    border-color: #f44336;
+    color: #f44336;
+}
+
+/* Responsive */
+
+@media (max-width: 768px) {
+    .orders-details-cards-row {
+        flex-direction: column;
+    }
+}
+
+.empty-state {
+    padding: 24px 16px;
+    text-align: center;
+    color: #9e9e9e;
+    font-size: 13px;
+}

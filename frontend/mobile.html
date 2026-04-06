@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WCM</title>
+    <link rel="stylesheet" href="mobile.css">
+</head>
+<body>
+
+    <header class="mob-header">
+        <button class="mob-back-btn" id="mobBackBtn" onclick="MobApp.showScreen('list')" style="display:none">
+            &#8592;
+        </button>
+        <span class="mob-logo">WCM</span>
+        <span class="mob-header-subtitle" id="mobHeaderSubtitle">Recebimentos</span>
+    </header>
+
+    <!-- ── Tela: Lista de Recebimentos ───────────────────── -->
+    <main id="screenList" class="mob-screen">
+
+        <div class="mob-list-toolbar">
+            <button class="mob-btn mob-btn--primary" onclick="MobApp.showScreen('form')">
+                + Novo Recebimento
+            </button>
+        </div>
+
+        <ul class="mob-receipts-list" id="mobReceiptsList">
+            <li class="mob-items-empty">Carregando...</li>
+        </ul>
+
+    </main>
+
+    <!-- ── Tela: Formulário de Novo Recebimento ──────────── -->
+    <main id="screenForm" class="mob-screen" style="display:none">
+
+        <!-- Card: Informações -->
+        <section class="mob-card">
+            <h2 class="mob-card-title">Informações</h2>
+
+            <div class="mob-field">
+                <label class="mob-label" for="mobNature">Natureza <span class="mob-required">*</span></label>
+                <select class="mob-select" id="mobNature" onchange="MobApp.onNatureChange()">
+                    <option value="">Selecione...</option>
+                    <option value="C">Compra</option>
+                    <option value="S">Retorno de Serviço</option>
+                    <option value="P">Produção</option>
+                </select>
+            </div>
+
+            <div class="mob-field">
+                <label class="mob-label" for="mobDate">Data <span class="mob-required">*</span></label>
+                <input class="mob-input" type="date" id="mobDate">
+            </div>
+
+            <div class="mob-field" id="fieldSupplier" style="display:none">
+                <label class="mob-label" for="mobSupplier">Fornecedor <span class="mob-required">*</span></label>
+                <select class="mob-select" id="mobSupplier">
+                    <option value="">Selecione...</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- Card: Adicionar Item -->
+        <section class="mob-card">
+            <h2 class="mob-card-title">Itens do Recebimento</h2>
+
+            <div class="mob-item-form">
+                <div class="mob-field">
+                    <label class="mob-label" for="mobItemCode">Código</label>
+                    <input class="mob-input" type="number" id="mobItemCode" placeholder="001" min="1"
+                           oninput="this.value = this.value.replace(/[^\d]/g, '')">
+                </div>
+                <div class="mob-field">
+                    <label class="mob-label" for="mobItemMaterial">Material <span class="mob-required">*</span></label>
+                    <select class="mob-select" id="mobItemMaterial">
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="mob-field" id="fieldItemOperator" style="display:none">
+                    <label class="mob-label" for="mobItemOperator">Operador <span class="mob-required">*</span></label>
+                    <select class="mob-select" id="mobItemOperator">
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="mob-field">
+                    <label class="mob-label" for="mobItemQty">Quantidade <span class="mob-required">*</span></label>
+                    <input class="mob-input" type="number" id="mobItemQty" placeholder="0" min="0" step="any">
+                </div>
+                <button class="mob-btn mob-btn--secondary mob-btn--full" onclick="MobApp.addItem()">
+                    + Adicionar Item
+                </button>
+            </div>
+
+            <ul class="mob-items-list" id="mobItemsList">
+                <li class="mob-items-empty">Nenhum item adicionado.</li>
+            </ul>
+
+            <div class="mob-receipt-total" id="mobReceiptTotal" style="display:none">
+                Total: <strong id="mobTotalQty">0</strong>
+            </div>
+        </section>
+
+        <div class="mob-actions">
+            <button class="mob-btn mob-btn--primary mob-btn--full" id="mobSaveBtn" onclick="MobApp.saveReceipt()">
+                Salvar Recebimento
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Toast de feedback -->
+    <div class="mob-toast" id="mobToast"></div>
+
+    <script src="utils.js"></script>
+    <script src="mobile.js"></script>
+
+</body>
+</html>
