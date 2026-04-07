@@ -129,7 +129,14 @@
 
             <div class="mob-field" id="fieldSupplier" style="display:none">
                 <label class="mob-label" for="mobSupplier">Fornecedor <span class="mob-required">*</span></label>
-                <select class="mob-select" id="mobSupplier">
+                <select class="mob-select" id="mobSupplier" onchange="MobApp.onSupplierChange()">
+                    <option value="">Selecione...</option>
+                </select>
+            </div>
+
+            <div class="mob-field" id="fieldOrder" style="display:none">
+                <label class="mob-label" for="mobOrder">Pedido</label>
+                <select class="mob-select" id="mobOrder">
                     <option value="">Selecione...</option>
                 </select>
             </div>
