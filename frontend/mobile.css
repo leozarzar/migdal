@@ -219,64 +219,192 @@ body {
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
 }
 
 .mob-receipt-row {
     background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid #d1d5db;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+    padding: 12px 14px;
     display: flex;
-    align-items: center;
-    gap: 12px;
+    flex-direction: column;
+    gap: 10px;
     cursor: pointer;
 }
 
 .mob-receipt-row:active {
-    background: #f1f5f9;
+    background: #f8fafc;
 }
 
-.mob-receipt-arrow {
-    color: #9ca3af;
-    font-size: 22px;
-    line-height: 1;
-    flex-shrink: 0;
+.mob-receipt-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e5e7eb;
 }
 
-.mob-receipt-nature {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 4px 8px;
-    border-radius: 6px;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.mob-receipt-nature--C { background: #dbeafe; color: #1d4ed8; }
-.mob-receipt-nature--S { background: #fef3c7; color: #92400e; }
-.mob-receipt-nature--P { background: #dcfce7; color: #15803d; }
-
-.mob-receipt-info {
-    flex: 1;
+.mob-receipt-top-left {
     min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mob-receipt-top-order {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: #4b5563;
+    flex-shrink: 0;
+}
+
+.mob-receipt-top-order-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #4b5563;
+}
+
+.mob-receipt-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.2);
+    flex-shrink: 0;
+}
+
+.mob-receipt-dot--C { background: #2563eb; }
+.mob-receipt-dot--S { background: #16a34a; }
+.mob-receipt-dot--P { background: #dc2626; }
+.mob-receipt-dot--X { background: #6b7280; }
+
+.mob-receipt-main {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: stretch;
+}
+
+.mob-receipt-details {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .mob-receipt-id {
     font-size: 15px;
-    font-weight: 700;
-    color: #1e2a38;
+    font-weight: 600;
+    color: #6b7280;
+    line-height: 1.1;
 }
 
-.mob-receipt-meta {
-    font-size: 12px;
-    color: #6b7280;
-    margin-top: 2px;
+.mob-receipt-origin {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.mob-receipt-origin--supplier {
+    color: #111827;
+}
+
+.mob-receipt-origin--production {
+    font-size: 12px;
+    font-weight: 700;
+    color: #991b1b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    align-self: flex-start;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    border-radius: 999px;
+    padding: 3px 10px;
+}
+
+.mob-receipt-origin--missing {
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.mob-receipt-date {
+    font-size: 13px;
+    color: #374151;
+    text-transform: capitalize;
+}
+
+.mob-order-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.mob-order-icon img {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.mob-order-icon--linked {
+    opacity: 0.85;
+}
+
+.mob-order-icon--unlinked {
+    opacity: 0.75;
+}
+
+.mob-receipt-quantity {
+    min-width: 72px;
+    padding-left: 12px;
+    border-left: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+    text-align: right;
+}
+
+.mob-receipt-quantity-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #6b7280;
+}
+
+.mob-receipt-quantity-value {
+    margin-top: 4px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    line-height: 1;
+}
+
+@media (max-width: 360px) {
+    .mob-receipt-main {
+        grid-template-columns: 1fr;
+    }
+
+    .mob-receipt-quantity {
+        min-width: 0;
+        padding-left: 0;
+        padding-top: 10px;
+        border-left: none;
+        border-top: 1px solid #e5e7eb;
+        align-items: flex-start;
+        text-align: left;
+    }
 }
 
 /* ── Buttons ──────────────────────────────────────────────── */
