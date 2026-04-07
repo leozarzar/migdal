@@ -55,9 +55,11 @@ const MobApp = {
     // ── Navegação entre telas ────────────────────────────────────────────────
 
     showScreen(screen) {
-        document.getElementById('screenHome').style.display = screen === 'home' ? '' : 'none';
-        document.getElementById('screenList').style.display = screen === 'list' ? '' : 'none';
-        document.getElementById('screenForm').style.display = screen === 'form' ? '' : 'none';
+        document.getElementById('screenHome').style.display         = screen === 'home'          ? '' : 'none';
+        document.getElementById('screenList').style.display         = screen === 'list'          ? '' : 'none';
+        document.getElementById('screenForm').style.display         = screen === 'form'          ? '' : 'none';
+        document.getElementById('screenStockList').style.display    = screen === 'stock-list'    ? '' : 'none';
+        document.getElementById('screenStockDetails').style.display = screen === 'stock-details' ? '' : 'none';
 
         const backBtn = document.getElementById('mobBackBtn');
         backBtn.style.display = screen === 'home' ? 'none' : '';
@@ -76,6 +78,13 @@ const MobApp = {
             document.getElementById('mobHeaderSubtitle').textContent = 'Novo Recebimento';
             document.getElementById('mobSaveBtn').textContent = 'Salvar Recebimento';
             this._resetReceiptForm();
+        } else if (screen === 'stock-list') {
+            this._previousScreen = 'home';
+            document.getElementById('mobHeaderSubtitle').textContent = 'Estoque';
+            this.loadStockList();
+        } else if (screen === 'stock-details') {
+            document.getElementById('mobHeaderSubtitle').textContent = 'Detalhe';
+            this._renderStockDetails();
         }
     },
 
