@@ -236,10 +236,11 @@ const StockMonitor = {
 
             const seriesByMaterial = {};
             selectedMaterials.forEach((material, i) => {
-                seriesByMaterial[material] = (responses[i] || []).map(row => ({
+                const sparse = (responses[i] || []).map(row => ({
                     date: row.date,
                     balance: Number(row.balance || 0)
                 }));
+                seriesByMaterial[material] = this._fillDailySeries(sparse, startDate, endDate);
             });
 
             await this._computeAllPolicyLevels();
@@ -248,6 +249,31 @@ const StockMonitor = {
         } catch (error) {
             alert("Erro ao carregar dados do Monitor de Estoque");
         }
+    },
+
+    /**
+     * Preenche todos os dias entre startDate e endDate, propagando o último
+     * saldo conhecido para os dias sem evento (carry-forward).
+     * @param {Array<{date:string, balance:number}>} sparse - Pontos esparsos da API.
+     * @param {string} startDate - Data inicial ISO (YYYY-MM-DD).
+     * @param {string} endDate - Data final ISO (YYYY-MM-DD).
+     * @returns {Array<{date:string, balance:number}>}
+     */
+    _fillDailySeries(sparse, startDate, endDate) {
+        const balanceByDate = new Map(sparse.map(pt => [pt.date, pt.balance]));
+        const result = [];
+        const cur = new Date(startDate + "T00:00:00");
+        const end = new Date(endDate + "T00:00:00");
+        let lastBalance = 0;
+        while (cur <= end) {
+            const key = this._formatDate(cur);
+            if (balanceByDate.has(key)) {
+                lastBalance = balanceByDate.get(key);
+            }
+            result.push({ date: key, balance: lastBalance });
+            cur.setDate(cur.getDate() + 1);
+        }
+        return result;
     },
 
     /** Calcula os níveis de política (ES, PR/PC, E.Máx) para todos os materiais selecionados. */
