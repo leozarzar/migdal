@@ -1268,25 +1268,14 @@ const ConsumptionStats = {
      * @param {number} serviceLevel - nível de serviço (50–99.9)
      * @returns {number} z-score correspondente
      */
-    _zScore(serviceLevel) {
-        // Beasley-Springer-Moro approximation of the normal quantile
-        const p = Math.max(0.501, Math.min(0.999, serviceLevel / 100));
-        const t = Math.sqrt(-2 * Math.log(1 - p));
-        const c = [2.515517, 0.802853, 0.010328];
-        const d = [1.432788, 0.189269, 0.001308];
-        return t - (c[0] + c[1] * t + c[2] * t * t) /
-                   (1 + d[0] * t + d[1] * t * t + d[2] * t * t * t);
-    },
+    _zScore(serviceLevel) { return StockPolicyUtils.zScore(serviceLevel); },
 
     /**
      * Desvio padrão populacional (RMSE quando aplicado a resíduos).
      * @param {number[]} arr
      * @returns {number}
      */
-    _stdDev(arr) {
-        if (!arr.length) return 0;
-        return Math.sqrt(arr.reduce((s, v) => s + v * v, 0) / arr.length);
-    },
+    _stdDev(arr) { return StockPolicyUtils.stdDev(arr); },
 
     /**
      * Regressão linear simples (mínimos quadrados ordinários).
@@ -1294,17 +1283,7 @@ const ConsumptionStats = {
      * @param {number[]} ys - variável dependente
      * @returns {{a: number, b: number}} intercepto e coeficiente angular
      */
-    _linearReg(xs, ys) {
-        const n     = xs.length;
-        const sumX  = xs.reduce((s, v) => s + v, 0);
-        const sumY  = ys.reduce((s, v) => s + v, 0);
-        const sumXY = xs.reduce((s, v, i) => s + v * ys[i], 0);
-        const sumX2 = xs.reduce((s, v) => s + v * v, 0);
-        const denom = n * sumX2 - sumX * sumX;
-        if (denom === 0) return { a: sumY / n, b: 0 };
-        const b = (n * sumXY - sumX * sumY) / denom;
-        return { a: (sumY - b * sumX) / n, b };
-    },
+    _linearReg(xs, ys) { return StockPolicyUtils.linReg(xs, ys); },
 
     // ══════════════════════════════════════════════════════════════
     // ══ Indicadores KPI ══
