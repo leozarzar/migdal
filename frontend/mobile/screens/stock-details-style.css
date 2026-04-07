@@ -1,0 +1,40 @@
+/* ── Linhas de informação (somente leitura) ───────────────── */
+
+.mob-stock-det-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.mob-stock-det-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.mob-stock-det-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+
+.mob-stock-det-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+    text-align: right;
+}
+
+/* ── Textarea ─────────────────────────────────────────────── */
+
+textarea.mob-input {
+    height: auto;
+    padding: 10px 12px;
+    resize: vertical;
+    line-height: 1.5;
+}

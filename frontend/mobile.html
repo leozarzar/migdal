@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>WCM</title>
     <base href="/">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <link rel="stylesheet" href="mobile/style.css">
     <link rel="stylesheet" href="mobile/screens/home-style.css">
     <link rel="stylesheet" href="mobile/screens/receipts-list-style.css">
     <link rel="stylesheet" href="mobile/screens/receipt-form-style.css">
+    <link rel="stylesheet" href="mobile/screens/stock-list-style.css">
+    <link rel="stylesheet" href="mobile/screens/stock-details-style.css">
 </head>
 <body>
 
@@ -28,6 +31,10 @@
             <button class="mob-shortcut-card" onclick="MobApp.showScreen('list')">
                 <img src="icons/add-document.svg" class="mob-shortcut-icon" alt="">
                 <span class="mob-shortcut-label">Recebimentos</span>
+            </button>
+            <button class="mob-shortcut-card" onclick="MobApp.showScreen('stock-list')">
+                <img src="icons/box.svg" class="mob-shortcut-icon" alt="">
+                <span class="mob-shortcut-label">Estoque</span>
             </button>
         </div>
 
@@ -179,10 +186,108 @@
     <!-- Toast de feedback -->
     <div class="mob-toast" id="mobToast"></div>
 
+    <!-- ── Tela: Lista de Estoque ────────────────────────── -->
+    <main id="screenStockList" class="mob-screen" style="display:none">
+
+        <div class="mob-stock-filters-grid mob-list-filters">
+            <select id="mobStockSupplierFilter" class="mob-select mob-list-filter-select" onchange="MobApp.applyStockFilters()">
+                <option value="">Fornecedor</option>
+            </select>
+            <select id="mobStockMaterialFilter" class="mob-select mob-list-filter-select" onchange="MobApp.applyStockFilters()">
+                <option value="">Material</option>
+            </select>
+        </div>
+
+        <div class="mob-stock-status-filter">
+            <button class="mob-stock-status-btn mob-stock-status-btn--active" data-status="" onclick="MobApp.setStockStatusFilter('')">Todos</button>
+            <button class="mob-stock-status-btn" data-status="IN_STOCK"  onclick="MobApp.setStockStatusFilter('IN_STOCK')">Em Estoque</button>
+            <button class="mob-stock-status-btn" data-status="OUT_STOCK" onclick="MobApp.setStockStatusFilter('OUT_STOCK')">Baixado</button>
+        </div>
+
+        <div class="mob-search-wrap">
+            <input type="search" id="mobStockSearch" class="mob-input mob-search-input"
+                   placeholder="Pesquisar material, fornecedor..."
+                   oninput="MobApp.applyStockFilters()">
+        </div>
+
+        <div id="mobStockCount" class="mob-stock-count"></div>
+
+        <ul class="mob-stock-list" id="mobStockList">
+            <li class="mob-items-empty">Carregando...</li>
+        </ul>
+
+    </main>
+
+    <!-- ── Tela: Detalhes de Estoque ─────────────────────── -->
+    <main id="screenStockDetails" class="mob-screen" style="display:none">
+
+        <!-- Card: Informações -->
+        <section class="mob-card">
+            <h2 class="mob-card-title">Informações</h2>
+            <div class="mob-stock-det-row">
+                <span class="mob-stock-det-label">Material</span>
+                <span class="mob-stock-det-value" id="mobStockDetMaterial">-</span>
+            </div>
+            <div class="mob-stock-det-row">
+                <span class="mob-stock-det-label">Fornecedor</span>
+                <span class="mob-stock-det-value" id="mobStockDetSupplier">-</span>
+            </div>
+            <div class="mob-stock-det-row">
+                <span class="mob-stock-det-label">Peso</span>
+                <span class="mob-stock-det-value" id="mobStockDetWeight">-</span>
+            </div>
+            <div class="mob-stock-det-row">
+                <span class="mob-stock-det-label">Volume</span>
+                <span class="mob-stock-det-value" id="mobStockDetVolumeId">-</span>
+            </div>
+            <div class="mob-stock-det-row">
+                <span class="mob-stock-det-label">Cód. antigo</span>
+                <span class="mob-stock-det-value" id="mobStockDetOldId">-</span>
+            </div>
+            <div class="mob-stock-det-row">
+                <span class="mob-stock-det-label">Entrada</span>
+                <span class="mob-stock-det-value" id="mobStockDetDateIn">-</span>
+            </div>
+        </section>
+
+        <!-- Card: Edição -->
+        <section class="mob-card">
+            <h2 class="mob-card-title">Edição</h2>
+
+            <div class="mob-field">
+                <label class="mob-label" for="mobStockDetDateOut">Data de Saída</label>
+                <input class="mob-input" type="date" id="mobStockDetDateOut"
+                       onchange="MobApp.onStockDetDateOutChange()">
+            </div>
+
+            <div class="mob-field" id="mobStockDetDeductionTypeField" style="display:none">
+                <label class="mob-label" for="mobStockDetDeductionType">Tipo de Baixa</label>
+                <select class="mob-select" id="mobStockDetDeductionType">
+                    <option value="uso">Uso</option>
+                    <option value="ajuste">Ajuste</option>
+                </select>
+            </div>
+
+            <div class="mob-field">
+                <label class="mob-label" for="mobStockDetNotes">Observações</label>
+                <textarea class="mob-input" id="mobStockDetNotes" rows="3" placeholder="Observações..."></textarea>
+            </div>
+        </section>
+
+        <div class="mob-actions">
+            <button class="mob-btn mob-btn--primary mob-btn--full" onclick="MobApp.saveStockUnit()">
+                Salvar Alterações
+            </button>
+        </div>
+
+    </main>
+
     <script src="utils.js"></script>
     <script src="mobile/app.js"></script>
     <script src="mobile/screens/receipts-list.js"></script>
     <script src="mobile/screens/receipt-form.js"></script>
+    <script src="mobile/screens/stock-list.js"></script>
+    <script src="mobile/screens/stock-details.js"></script>
     <script src="mobile/screens/home.js"></script>
 
 </body>
