@@ -1,0 +1,294 @@
+/* ── Shortcuts (mini-cards de navegação) ────────────────────── */
+
+.mob-shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.mob-shortcut-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 20px;
+    background: #fff;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    cursor: pointer;
+    min-width: 90px;
+    transition: background 0.12s;
+}
+
+.mob-shortcut-card:active {
+    background: #f1f5f9;
+}
+
+.mob-shortcut-icon {
+    width: 28px;
+    height: 28px;
+    display: block;
+    filter: brightness(0) saturate(100%) invert(19%) sepia(14%) saturate(1200%) hue-rotate(180deg) brightness(94%);
+    /* renders the SVG in #1e2a38 */
+}
+
+.mob-shortcut-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1e2a38;
+    white-space: nowrap;
+}
+/* ── Filtro de política (acima dos cards) ──────────────────── */
+
+.mob-home-policy-filter {
+    height: 46px;
+    font-size: 15px;
+    border-radius: 12px;
+    background-color: #fff;
+    border: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+/* ── Cabeçalho do card de gráfico ───────────────────────────── */
+
+.mob-home-card-head {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.mob-home-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1f2937;
+    line-height: 1.1;
+}
+
+.mob-home-subtitle {
+    font-size: 13px;
+    color: #475569;
+    margin-top: 3px;
+}
+
+/* ── Navegação de semana (pill centralizado) ────────────────── */
+
+.mob-home-week-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 0 6px;
+}
+
+.mob-home-nav-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: none;
+    color: #b0bec5;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.mob-home-nav-btn:active {
+    color: #334155;
+}
+
+.mob-home-week-range {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+    white-space: nowrap;
+    padding: 0 6px;
+    min-width: 160px;
+    text-align: center;
+}
+
+/* ── Canvas wrapper ─────────────────────────────────────────── */
+
+.mob-home-chart-wrap {
+    margin-top: 12px;
+    overflow-x: auto;
+    position: relative;
+}
+
+#mobHomeChart {
+    display: block;
+    width: 100%;
+}
+
+/* ── Tooltip do gráfico ─────────────────────────────────────── */
+
+.mob-home-tooltip {
+    position: fixed;
+    display: none;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.13);
+    padding: 10px 14px;
+    pointer-events: none;
+    z-index: 9999;
+    min-width: 130px;
+}
+
+.mob-home-tooltip-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 6px;
+}
+
+.mob-home-tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 3px;
+}
+
+.mob-home-tooltip-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.mob-home-tooltip-name {
+    flex: 1;
+    font-size: 12px;
+    color: #475569;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 110px;
+}
+
+.mob-home-tooltip-val {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+
+.mob-home-tooltip-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.mob-home-tooltip-total-label {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+/* ── Linhas de balanço ──────────────────────────────────────── */
+
+.mob-balance-row {
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    padding: 10px 12px;
+    margin-top: 10px;
+    border-left-width: 4px;
+    border-left-color: #e5e7eb;
+}
+
+.mob-balance-row--ok {
+    border-left-color: #22c55e;
+    background: rgba(34, 197, 94, 0.03);
+}
+
+.mob-balance-row--warning {
+    border-left-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.04);
+}
+
+.mob-balance-row--critical {
+    border-left-color: #ef4444;
+    background: rgba(239, 68, 68, 0.04);
+}
+
+.mob-balance-row-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.mob-balance-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mob-balance-stock {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.mob-balance-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+}
+
+.mob-balance-stat {
+    font-size: 12px;
+    color: #374151;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.mob-balance-stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.mob-balance-stat--need {
+    font-weight: 700;
+    color: #dc2626;
+}
+
+.mob-balance-stat--need .mob-balance-stat-label {
+    color: #ef4444;
+}
+
+/* ── Badge de grupo ─────────────────────────────────────────── */
+
+.mob-balance-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 2px 5px;
+    border-radius: 8px;
+    background: #dcfce7;
+    color: #166534;
+    vertical-align: middle;
+    margin-left: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
