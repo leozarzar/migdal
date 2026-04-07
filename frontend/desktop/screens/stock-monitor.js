@@ -323,280 +323,36 @@ const StockMonitor = {
      * @returns {Promise<{safety_stock:number, reorder_point:number, max_stock:number|null}|null>}
      */
     async _calcKpiForPolicyItem(materialName, item) {
-        const serviceLevel     = item.service_level || 95;
-        const reviewType       = item.review_type || "continuous";
-        const reviewPeriod     = item.review_period || "weekly";
-        const reviewPeriodDays = { daily: 1, weekly: 7, monthly: 30, custom: item.review_period_days || 7 }[reviewPeriod] || 7;
-        const leadTimeType     = item.lead_time_type || "auto";
-        const lt               = leadTimeType === "custom"
-            ? (item.policy_lead_time_days || 1)
-            : Math.max(item.lead_time_days || 1, 1);
-
-        let model, param, startDate, aggregation, removeZeros, treatOutliers, treatRuptures;
-        if (item.forecast_model) {
-            model         = item.forecast_model;
-            param         = item.forecast_param;
-            startDate     = item.forecast_start_date;
-            aggregation   = item.forecast_aggregation || "daily";
-            removeZeros   = !!item.forecast_remove_zeros;
-            treatOutliers = !!item.forecast_treat_outliers;
-            treatRuptures = !!item.forecast_treat_ruptures;
-        } else if (item.forecast_type === "custom" && item.policy_forecast_model) {
-            model         = item.policy_forecast_model;
-            param         = item.policy_forecast_param;
-            startDate     = null;
-            aggregation   = "daily";
-            removeZeros   = false;
-            treatOutliers = false;
-            treatRuptures = false;
-        } else {
-            return null;
-        }
-
-        const today     = new Date();
-        const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-        const endDate   = this._formatDate(yesterday);
-        if (!startDate) {
-            const d90 = new Date(today);
-            d90.setDate(d90.getDate() - 90);
-            startDate = this._formatDate(d90);
-        }
-
-        try {
-            const query = new URLSearchParams({ material: materialName, startDate, endDate });
-            const [rows, stockRows] = await Promise.all([
-                apiCall(`${API}/consumption?${query}`),
-                apiCall(`${API}/stock-monitor?${query}`)
-            ]);
-
-            const aggregated = this._monitorAggregate(rows || [], aggregation, startDate, stockRows || []);
-            const filtered   = this._monitorFilter(aggregated, removeZeros, treatOutliers, treatRuptures);
-            if (filtered.length < 2) return null;
-
-            const params = { period: param, alpha: param, regressionPeriod: param };
-            const fc = this._monitorForecast(filtered, model, params, serviceLevel);
-            if (!fc) return null;
-
-            // --- Fórmulas de estoque de segurança ---
-            // Converte previsão do período de agregação para demanda diária
-            const periodSize   = { daily: 1, weekly: 7, monthly: 30 }[aggregation] || 1;
-            const dDaily       = fc.nextForecast / periodSize;
-            // Período de exposição: contínuo = lead time; periódico = período de revisão + lead time
-            const exposureDays = reviewType === "periodic" ? reviewPeriodDays + lt : lt;
-            // ES = Z(nível_serviço) × σ_resíduos × √(exposição / tamanho_período)
-            const ss           = fc.z * fc.std * Math.sqrt(exposureDays / periodSize);
-
-            return {
-                // ES: estoque de segurança puro
-                safety_stock:  Math.max(0, ss),
-                // PR = demanda_diária × lead_time + ES
-                reorder_point: Math.max(0, dDaily * lt + ss),
-                // E.Máx (só periódico) = demanda_diária × (período_revisão + LT) + ES
-                max_stock:     reviewType === "periodic"
-                    ? Math.max(0, dDaily * (reviewPeriodDays + lt) + ss)
-                    : null
-            };
-        } catch { return null; }
-    },
-
-    /**
-     * Agrupa registros de consumo em buckets (diário/semanal/mensal),
-     * preenche lacunas no período e propaga flag hasStock via carry-forward do saldo.
-     * @param {Array} rows - Linhas de consumo {day, consumption}.
-     * @param {string} aggregation - Tipo de agregação: daily | weekly | monthly.
-     * @param {string} startDate - Data inicial ISO (YYYY-MM-DD).
-     * @param {Array} stockRows - Linhas de saldo {date, balance} para carry-forward.
-     * @returns {Array<{key:string, value:number, hasStock:boolean}>}
-     */
-    _monitorAggregate(rows, aggregation, startDate, stockRows) {
-        // --- Preenche buckets com consumo acumulado por período ---
-        const buckets = new Map();
-        rows.forEach(row => {
-            const date = new Date(row.day + "T00:00:00");
-            let key;
-            if (aggregation === "weekly") {
-                const d = date.getDay();
-                const mon = new Date(date);
-                mon.setDate(date.getDate() + (d === 0 ? -6 : 1 - d));
-                key = this._formatDate(mon);
-            } else if (aggregation === "monthly") {
-                key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-            } else {
-                key = row.day;
-            }
-            if (!buckets.has(key)) buckets.set(key, { key, value: 0, hasStock: false });
-            buckets.get(key).value += Number(row.consumption || 0);
-        });
-
-        // --- Preenche lacunas: garante que todo período entre startDate e hoje tenha bucket ---
-        const todayD = new Date();
-        todayD.setHours(0, 0, 0, 0);
-        let cutoffKey;
-        if (aggregation === "weekly") {
-            const dow = todayD.getDay();
-            const mon = new Date(todayD);
-            mon.setDate(todayD.getDate() + (dow === 0 ? -6 : 1 - dow));
-            cutoffKey = this._formatDate(mon);
-        } else if (aggregation === "monthly") {
-            cutoffKey = `${todayD.getFullYear()}-${String(todayD.getMonth() + 1).padStart(2, "0")}`;
-        } else {
-            cutoffKey = this._formatDate(todayD);
-        }
-
-        const start = new Date(startDate + "T00:00:00");
-        const end   = new Date(cutoffKey  + "T00:00:00");
-        if (aggregation === "daily") {
-            for (let c = new Date(start); c < end; c.setDate(c.getDate() + 1)) {
-                const k = this._formatDate(c);
-                if (!buckets.has(k)) buckets.set(k, { key: k, value: 0, hasStock: false });
-            }
-        } else if (aggregation === "weekly") {
-            const c = new Date(start);
-            const dow = c.getDay();
-            c.setDate(c.getDate() + (dow === 0 ? -6 : 1 - dow));
-            while (this._formatDate(c) < cutoffKey) {
-                const k = this._formatDate(c);
-                if (!buckets.has(k)) buckets.set(k, { key: k, value: 0, hasStock: false });
-                c.setDate(c.getDate() + 7);
-            }
-        } else {
-            const c = new Date(start.getFullYear(), start.getMonth(), 1);
-            while (`${c.getFullYear()}-${String(c.getMonth() + 1).padStart(2, "0")}` < cutoffKey) {
-                const k = `${c.getFullYear()}-${String(c.getMonth() + 1).padStart(2, "0")}`;
-                if (!buckets.has(k)) buckets.set(k, { key: k, value: 0, hasStock: false });
-                c.setMonth(c.getMonth() + 1);
-            }
-        }
-
-        const all = Array.from(buckets.values())
-            .sort((a, b) => a.key.localeCompare(b.key))
-            .filter(b => b.key >= startDate && b.key < cutoffKey);
-
-        // --- hasStock carry-forward: marca cada bucket conforme último saldo positivo até o fim do bucket ---
-        const sortedStock = (stockRows || []).filter(r => r.date).sort((a, b) => a.date.localeCompare(b.date));
-        if (sortedStock.length > 0) {
-            const bucketEnd = (key) => {
-                if (aggregation === "daily") return key;
-                if (aggregation === "weekly") {
-                    const d = new Date(key + "T00:00:00");
-                    d.setDate(d.getDate() + 6);
-                    return this._formatDate(d);
-                }
-                const [y, mo] = key.split("-").map(Number);
-                return this._formatDate(new Date(y, mo, 0));
-            };
-            all.forEach(bucket => {
-                const endKey = bucketEnd(bucket.key);
-                let last = 0;
-                for (const sr of sortedStock) {
-                    if (sr.date <= endKey) last = Number(sr.balance || 0); else break;
-                }
-                bucket.hasStock = last > 0;
-            });
-        }
-        return all;
-    },
-
-    /**
-     * Aplica filtros opcionais: remove zeros, trata rupturas e remove outliers via IQR.
-     * @param {Array} data - Buckets agregados.
-     * @param {boolean} removeZeros - Remove períodos com consumo zero.
-     * @param {boolean} treatOutliers - Remove outliers pelo método IQR (1.5×).
-     * @param {boolean} treatRuptures - Remove zeros que ocorreram sem estoque.
-     * @returns {Array} Dados filtrados.
-     */
-    _monitorFilter(data, removeZeros, treatOutliers, treatRuptures) {
-        let r = data.slice();
-        if (removeZeros)   r = r.filter(d => d.value > 0);
-        if (treatRuptures) r = r.filter(d => d.value > 0 || d.hasStock);
-        if (treatOutliers && r.length >= 4) {
-            const s  = r.map(d => d.value).sort((a, b) => a - b);
-            const q1 = s[Math.floor(s.length / 4)];
-            const q3 = s[Math.floor(3 * s.length / 4)];
-            const iqr = q3 - q1;
-            r = r.filter(d => d.value >= q1 - 1.5 * iqr && d.value <= q3 + 1.5 * iqr);
-        }
-        return r;
-    },
-
-    /**
-     * Projeta a próxima demanda e calcula desvio-padrão dos resíduos.
-     * Métodos suportados: moving-average, exp-smoothing, linear-regression, simple-average.
-     * O valor Z do nível de serviço é obtido via aproximação de Abramowitz & Stegun.
-     * @param {Array} data - Buckets filtrados {value}.
-     * @param {string} method - Modelo de forecast.
-     * @param {Object} params - Parâmetros (period, alpha, regressionPeriod).
-     * @param {number} serviceLevel - Nível de serviço (ex: 95).
-     * @returns {{nextForecast:number, std:number, z:number}|null}
-     */
-    _monitorForecast(data, method, params, serviceLevel) {
-        const values = data.map(d => d.value);
-        const n = values.length;
-        if (n < 2) return null;
-        const residuals = [];
-        let nextForecast;
-
-        // --- Cálculo de resíduos por método de forecast ---
-        if (method === "moving-average") {
-            // Resíduo = valor real − média dos p períodos anteriores
-            const p = Math.max(2, Math.min(params.period || 7, n - 1));
-            for (let i = p; i < n; i++) {
-                residuals.push(values[i] - values.slice(i - p, i).reduce((s, v) => s + v, 0) / p);
-            }
-            nextForecast = values.slice(n - p).reduce((s, v) => s + v, 0) / p;
-        } else if (method === "exp-smoothing") {
-            // Resíduo = valor real − suavização exponencial acumulada (fator α)
-            const alpha = Math.max(0.01, Math.min(0.99, params.alpha || 0.3));
-            let s = values[0];
-            for (let i = 1; i < n; i++) { residuals.push(values[i] - s); s = alpha * values[i] + (1 - alpha) * s; }
-            nextForecast = s;
-        } else if (method === "linear-regression") {
-            // Resíduo = valor real − projeção linear dos rp períodos anteriores
-            const rp = Math.max(3, Math.min(params.regressionPeriod || 30, n));
-            for (let i = rp; i < n; i++) {
-                const xs = Array.from({ length: rp }, (_, j) => j);
-                const ys = values.slice(i - rp, i);
-                const { a, b } = this._monitorLinReg(xs, ys);
-                residuals.push(values[i] - Math.max(0, a + b * rp));
-            }
-            const xs = Array.from({ length: rp }, (_, j) => j);
-            const { a, b } = this._monitorLinReg(xs, values.slice(n - rp));
-            nextForecast = Math.max(0, a + b * rp);
-        } else {
-            // Média simples: resíduo = valor real − média acumulada até o ponto
-            for (let i = 1; i < n; i++) {
-                residuals.push(values[i] - values.slice(0, i).reduce((s, v) => s + v, 0) / i);
-            }
-            nextForecast = values.reduce((s, v) => s + v, 0) / n;
-        }
-
-        // --- Aproximação de Abramowitz & Stegun para Z (quantil da normal padrão) ---
-        // Converte nível de serviço (ex: 0.95) em quantil Z usando polinômio racional.
-        // Referência: Handbook of Mathematical Functions, fórmula 26.2.23.
-        const p = Math.max(0.501, Math.min(0.999, serviceLevel / 100));
-        const t = Math.sqrt(-2 * Math.log(1 - p));
-        const c = [2.515517, 0.802853, 0.010328], d = [1.432788, 0.189269, 0.001308];
-        const z = t - (c[0] + c[1]*t + c[2]*t*t) / (1 + d[0]*t + d[1]*t*t + d[2]*t*t*t);
-        // Desvio-padrão dos resíduos (RMSE): mede a dispersão do erro de previsão
-        const std = residuals.length ? Math.sqrt(residuals.reduce((s, v) => s + v*v, 0) / residuals.length) : 0;
-        return { nextForecast, std, z };
-    },
-
-    /**
-     * Regressão linear simples (mínimos quadrados).
-     * @param {number[]} xs - Valores do eixo X.
-     * @param {number[]} ys - Valores do eixo Y.
-     * @returns {{a:number, b:number}} Intercepto e coeficiente angular.
-     */
-    _monitorLinReg(xs, ys) {
-        const n = xs.length;
-        const sx = xs.reduce((s, v) => s + v, 0), sy = ys.reduce((s, v) => s + v, 0);
-        const sxy = xs.reduce((s, v, i) => s + v * ys[i], 0);
-        const sx2 = xs.reduce((s, v) => s + v * v, 0);
-        const den = n * sx2 - sx * sx;
-        if (den === 0) return { a: sy / n, b: 0 };
-        const b = (n * sxy - sx * sy) / den;
-        return { a: (sy - b * sx) / n, b };
+        const policyItem = {
+            forecast_model:          item.forecast_model,
+            forecast_param:          item.forecast_param,
+            forecast_start_date:     item.forecast_start_date,
+            forecast_aggregation:    item.forecast_aggregation,
+            forecast_remove_zeros:   item.forecast_remove_zeros,
+            forecast_treat_outliers: item.forecast_treat_outliers,
+            forecast_treat_ruptures: item.forecast_treat_ruptures,
+            lead_time_days: item.lead_time_type !== 'custom'
+                ? Math.max(item.lead_time_days || 1, 1)
+                : null,
+        };
+        const policyData = {
+            service_level:      item.service_level,
+            review_type:        item.review_type,
+            review_period:      item.review_period,
+            review_period_days: item.review_period_days,
+            lead_time_type:     item.lead_time_type,
+            lead_time_days:     item.policy_lead_time_days,
+            forecast_type:      item.forecast_type,
+            forecast_model:     item.policy_forecast_model,
+            forecast_param:     item.policy_forecast_param,
+        };
+        const kpi = await StockPolicyUtils.computeItemKpis(materialName, policyItem, policyData, async () => 1);
+        if (kpi.safetyStock === null) return null;
+        return {
+            safety_stock:  kpi.safetyStock,
+            reorder_point: kpi.reorderPoint,
+            max_stock:     kpi.maxStock,
+        };
     },
 
     // ══════════════════════════════════════════════
@@ -843,65 +599,7 @@ const StockMonitor = {
      * @param {CanvasRenderingContext2D} ctx - Contexto 2D do canvas.
      * @param {Array<{x:number, y:number}>} pts - Pontos ordenados por X.
      */
-    _buildSmoothPath(ctx, pts) {
-        if (!pts.length) return;
-        if (pts.length === 1) {
-            ctx.moveTo(pts[0].x, pts[0].y);
-            return;
-        }
-        if (pts.length === 2) {
-            ctx.moveTo(pts[0].x, pts[0].y);
-            ctx.lineTo(pts[1].x, pts[1].y);
-            return;
-        }
-
-        const n = pts.length;
-
-        // --- Fritsch-Carlson monotone cubic interpolation ---
-        // 1. Calcula inclinações (Δy/Δx) entre pontos consecutivos
-        const slopes = [];
-        for (let i = 0; i < n - 1; i++) {
-            const dx = pts[i + 1].x - pts[i].x;
-            slopes.push(dx === 0 ? 0 : (pts[i + 1].y - pts[i].y) / dx);
-        }
-
-        // 2. Tangentes iniciais: média das inclinações vizinhas
-        const m = new Array(n);
-        m[0] = slopes[0];
-        m[n - 1] = slopes[n - 2];
-        for (let i = 1; i < n - 1; i++) {
-            m[i] = (slopes[i - 1] + slopes[i]) / 2;
-        }
-
-        // 3. Restrição de monotonicidade Fritsch-Carlson: limita α²+β² ≤ 9
-        //    para evitar overshoot e manter a curva monotone entre pontos
-        for (let i = 0; i < n - 1; i++) {
-            if (slopes[i] === 0) {
-                m[i] = 0;
-                m[i + 1] = 0;
-            } else {
-                const alpha = m[i] / slopes[i];
-                const beta = m[i + 1] / slopes[i];
-                const s = alpha * alpha + beta * beta;
-                if (s > 9) {
-                    const t = 3 / Math.sqrt(s);
-                    m[i] = alpha * t * slopes[i];
-                    m[i + 1] = beta * t * slopes[i];
-                }
-            }
-        }
-
-        // 4. Desenha curvas Bézier cúbicas — pontos de controle derivados das tangentes
-        ctx.moveTo(pts[0].x, pts[0].y);
-        for (let i = 0; i < n - 1; i++) {
-            const dx = pts[i + 1].x - pts[i].x;
-            const cp1x = pts[i].x + dx / 3;
-            const cp1y = pts[i].y + m[i] * dx / 3;
-            const cp2x = pts[i + 1].x - dx / 3;
-            const cp2y = pts[i + 1].y - m[i + 1] * dx / 3;
-            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, pts[i + 1].x, pts[i + 1].y);
-        }
-    },
+    _buildSmoothPath: (ctx, pts) => StockPolicyUtils.buildSmoothPath(ctx, pts),
 
     /**
      * Converte cor hexadecimal para string rgba.
@@ -909,11 +607,7 @@ const StockMonitor = {
      * @param {number} alpha - Opacidade (0–1).
      * @returns {string} Cor no formato rgba(...).
      */
-    _hexToRgba(hex, alpha) {
-        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        if (!result) return `rgba(100,116,139,${alpha})`;
-        return `rgba(${parseInt(result[1], 16)},${parseInt(result[2], 16)},${parseInt(result[3], 16)},${alpha})`;
-    },
+    _hexToRgba: (hex, alpha) => StockPolicyUtils.hexToRgba(hex, alpha),
 
     // ══════════════════════════════════════════════
     // ══ Tooltip ══
@@ -995,35 +689,7 @@ const StockMonitor = {
      * @param {number} v - Valor a formatar.
      * @returns {string}
      */
-    _formatValue(v) {
-        if (v >= 1_000_000) return (v / 1_000_000).toFixed(2) + "M";
-        if (v >= 1_000) return (v / 1_000).toFixed(2) + "K";
-        return Number(v).toFixed(2);
-    },
-
-    /**
-     * Formata objeto Date para string ISO (YYYY-MM-DD).
-     * @param {Date} date
-     * @returns {string}
-     */
-    _formatDate(date) {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, "0");
-        const d = String(date.getDate()).padStart(2, "0");
-        return `${y}-${m}-${d}`;
-    },
-
-    /**
-     * Escapa caracteres HTML para prevenir XSS em conteúdo dinâmico.
-     * @param {*} value
-     * @returns {string}
-     */
-    _escapeHtml(value) {
-        return String(value)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/\"/g, "&quot;")
-            .replace(/'/g, "&#39;");
-    }
+    _formatValue: v => StockPolicyUtils.formatValue(v),
+    _formatDate:  d => StockPolicyUtils.formatDate(d),
+    _escapeHtml:  v => StockPolicyUtils.escapeHtml(v),
 };
