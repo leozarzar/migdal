@@ -343,14 +343,7 @@ const Dashboard = {
     // ═══════════════════════════════════════════════════════════════════════════
 
     /** Escapa caracteres HTML para prevenção de XSS. */
-    _escapeHtml(value) {
-        return String(value)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/\"/g, "&quot;")
-            .replace(/'/g, "&#39;");
-    },
+    _escapeHtml: v => StockPolicyUtils.escapeHtml(v),
 
     /** Retorna domingo (início) da semana da data informada. */
     _startOfWeek(date) {
@@ -362,12 +355,7 @@ const Dashboard = {
     },
 
     /** Formata data como `YYYY-MM-DD`. */
-    _formatDate(date) {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
-    },
+    _formatDate: d => StockPolicyUtils.formatDate(d),
 
     /** Formata data no padrão brasileiro `DD/MM/AAAA`. */
     _formatDatePtBr(date) {

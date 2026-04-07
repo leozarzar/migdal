@@ -471,8 +471,11 @@ const StockPoliciesDetails = {
         if (materialName in this._leadTimeCache) return this._leadTimeCache[materialName];
         try {
             const result = await apiCall(API + `/stock-policies/lead-time/${encodeURIComponent(materialName)}`);
-            return result?.lead_time ?? null;
+            const lt = result?.lead_time ?? null;
+            this._leadTimeCache[materialName] = lt;
+            return lt;
         } catch {
+            this._leadTimeCache[materialName] = null;
             return null;
         }
     },

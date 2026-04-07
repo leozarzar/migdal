@@ -713,12 +713,7 @@ Object.assign(MobApp, {
             return base;
         },
 
-        _formatDate(date) {
-            const y = date.getFullYear();
-            const m = String(date.getMonth() + 1).padStart(2, '0');
-            const d = String(date.getDate()).padStart(2, '0');
-            return `${y}-${m}-${d}`;
-        },
+        _formatDate: d => StockPolicyUtils.formatDate(d),
 
         _formatDatePtBr(date) {
             return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
