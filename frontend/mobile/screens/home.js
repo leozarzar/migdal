@@ -196,21 +196,11 @@ Object.assign(MobApp, {
             const canvas = document.getElementById('mobHomeChart');
             if (!canvas) return;
 
-            const wrapper = canvas.parentElement;
-            const height  = 180;
-            const dpr     = window.devicePixelRatio || 1;
-            const width   = Math.max(canvas.offsetWidth || (wrapper ? wrapper.clientWidth : 320), 200);
-
-            canvas.width  = Math.floor(width * dpr);
-            canvas.height = Math.floor(height * dpr);
-
-            const ctx = canvas.getContext('2d');
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            ctx.clearRect(0, 0, width, height);
-
-            const padding   = { top: 20, right: 12, bottom: 40, left: 42 };
-            const chartW    = width  - padding.left - padding.right;
-            const chartH    = height - padding.top  - padding.bottom;
+            const height = 180;
+            const { ctx, width } = CanvasChartUtils.setupCanvas(canvas, height, 200);
+            const padding = { top: 20, right: 12, bottom: 40, left: 42 };
+            const chartW  = width  - padding.left - padding.right;
+            const chartH  = height - padding.top  - padding.bottom;
 
             const totalsByDay = weekDays.map((_, di) =>
                 selectedMaterials.reduce((s, m) => s + ((seriesByMaterial[m] && seriesByMaterial[m][di]) || 0), 0)
@@ -219,25 +209,11 @@ Object.assign(MobApp, {
             const maxValue = Math.max(...totalsByDay, 0);
             const yMax     = maxValue > 0 ? maxValue * 1.1 : 10;
 
-            const formatY = v => {
-                if (v >= 1_000_000) return (v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1) + 'M';
-                if (v >= 1_000)     return (v / 1_000).toFixed(v % 1_000 === 0 ? 0 : 1) + 'K';
-                return Math.round(v).toString();
-            };
+            CanvasChartUtils.drawYAxis(ctx, padding, chartW, chartH, yMax, { withGrid: false, fontSize: 11, labelOffset: 6 });
 
-            ctx.fillStyle = '#607d9a';
-            ctx.font      = '11px Arial';
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'middle';
-            for (let i = 0; i <= 4; i++) {
-                const value = yMax - (yMax / 4) * i;
-                const y     = padding.top + (chartH / 4) * i;
-                ctx.fillText(formatY(value), padding.left - 6, y);
-            }
-
-            const slotCount    = weekDays.length || 1;
-            const slotW        = chartW / slotCount;
-            const barW         = Math.min(44, slotW * 0.62);
+            const slotCount = weekDays.length || 1;
+            const slotW     = chartW / slotCount;
+            const barW      = Math.min(44, slotW * 0.62);
 
             weekDays.forEach((day, index) => {
                 const x = padding.left + slotW * index + (slotW - barW) / 2;
@@ -264,11 +240,7 @@ Object.assign(MobApp, {
             });
 
             if (maxValue === 0) {
-                ctx.fillStyle    = '#94a3b8';
-                ctx.font         = '13px Arial';
-                ctx.textAlign    = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('Sem consumo no período', width / 2, height / 2);
+                CanvasChartUtils.drawEmptyState(ctx, 'Sem consumo no período', width, height, 13);
             }
         },
 
