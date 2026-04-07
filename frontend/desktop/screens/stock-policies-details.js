@@ -597,155 +597,34 @@ const StockPoliciesDetails = {
      */
     async _computeMaterialKpis(m) {
         if (m.type === 'group') return this._computeGroupKpis(m);
-        const serviceLevel     = Number(document.getElementById("spdServiceLevel")?.value)       || 95;
-        const reviewType       = document.getElementById("spdReviewType")?.value                 || "continuous";
-        const reviewPeriod     = document.getElementById("spdPeriodicType")?.value               || "weekly";
-        const leadTimeType     = document.getElementById("spdLeadTimeType")?.value               || "auto";
-        const coverageType     = document.getElementById("spdCoverageType")?.value               || "min";
-        const customLT         = Number(document.getElementById("spdLeadTimeDays")?.value)       || 1;
-        const customCovDays    = Number(document.getElementById("spdCoverageDays")?.value)       || 7;
-        const customPeriodDays = Number(document.getElementById("spdCustomPeriodicDays")?.value) || 7;
-        const forecastType     = document.getElementById("spdForecastType")?.value               || "auto";
 
-        // Lead time in days
-        const lt = leadTimeType === "custom" ? customLT : Math.max(m.lead_time ?? 1, 1);
-
-        // Review period & target coverage in days
-        const reviewPeriodDays = { daily: 1, weekly: 7, monthly: 30, custom: customPeriodDays }[reviewPeriod] || 7;
-        const coverageDays     = coverageType === "custom" ? customCovDays : reviewPeriodDays;
-
-        // Resolve forecast settings (per-material take priority over policy-level)
-        let model, param, startDate, aggregation, removeZeros, treatOutliers, treatRuptures;
-        if (m.forecast_model) {
-            model         = m.forecast_model;
-            param         = m.forecast_param;
-            startDate     = m.forecast_start_date;
-            aggregation   = m.forecast_aggregation || "daily";
-            removeZeros   = !!m.forecast_remove_zeros;
-            treatOutliers = !!m.forecast_treat_outliers;
-            treatRuptures = !!m.forecast_treat_ruptures;
-        } else if (forecastType === "custom") {
-            model = document.getElementById("spdForecastModel")?.value || "moving-average";
-            const paramElId = { "moving-average": "spdMovingAvgPeriod", "exp-smoothing": "spdExpAlpha", "linear-regression": "spdLinearRegPeriod" }[model];
-            param         = paramElId ? Number(document.getElementById(paramElId)?.value) : null;
-            startDate     = null;
-            aggregation   = "daily";
-            removeZeros   = false;
-            treatOutliers = false;
-            treatRuptures = false;
-        } else {
-            m.safety_stock  = null;
-            m.reorder_point = null;
-            m.max_stock     = null;
-            m.kpi_loading   = false;
-            m.kpi_loaded    = true;
-            this._renderMaterialsTable();
-            return;
-        }
-
-        // Date range: use forecast_start_date or last 90 days
-        const today = new Date();
-        const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-        const endDate = this._formatDateLocal(yesterday);
-        if (!startDate) {
-            const d90 = new Date(today);
-            d90.setDate(d90.getDate() - 90);
-            startDate = this._formatDateLocal(d90);
-        }
+        const policyData = this._readPolicyDataFromDom();
+        const policyItem = {
+            forecast_model:          m.forecast_model   || null,
+            forecast_param:          m.forecast_param   ?? null,
+            forecast_start_date:     m.forecast_start_date || null,
+            forecast_aggregation:    m.forecast_aggregation || null,
+            forecast_remove_zeros:   m.forecast_remove_zeros   || false,
+            forecast_treat_outliers: m.forecast_treat_outliers || false,
+            forecast_treat_ruptures: m.forecast_treat_ruptures || false,
+            lead_time_days:          m.lead_time ?? null,
+        };
 
         m.kpi_loading = true;
         m.kpi_loaded  = false;
         this._renderMaterialsTable();
 
-        try {
-            const query = new URLSearchParams({ material: m.name, startDate, endDate });
-            const [rows, stockRows] = await Promise.all([
-                apiCall(`${API}/consumption?${query}`),
-                apiCall(`${API}/stock-monitor?${query}`)
-            ]);
-            const aggregated = this._aggregateForPolicy(rows || [], aggregation, startDate, endDate, stockRows || []);
-            const filtered   = this._applyFiltersForPolicy(aggregated, removeZeros, treatOutliers, treatRuptures);
-
-            if (filtered.length < 2) {
-                m.safety_stock  = null;
-                m.reorder_point = null;
-                m.max_stock     = null;
-            } else {
-                const params = { period: param, alpha: param, regressionPeriod: param };
-                const fc = this._computeForecastLocal(filtered, model, params, serviceLevel);
-                if (fc) {
-                    const periodSize = { daily: 1, weekly: 7, monthly: 30 }[aggregation] || 1;
-                    const dDaily     = fc.nextForecast / periodSize;
-
-                    // Exposure window: contínua = LT; periódica = T + LT
-                    const exposureDays = reviewType === "periodic"
-                        ? reviewPeriodDays + lt
-                        : lt;
-                    const safetyStock = fc.z * fc.std * Math.sqrt(exposureDays / periodSize);
-
-                    m.safety_stock  = Math.max(0, safetyStock);
-                    m.reorder_point = Math.max(0, dDaily * lt + safetyStock);
-                    m.max_stock     = reviewType === "periodic"
-                        ? Math.max(0, dDaily * (reviewPeriodDays + lt) + safetyStock)
-                        : null;
-                } else {
-                    m.safety_stock  = null;
-                    m.reorder_point = null;
-                    m.max_stock     = null;
-                }
-            }
-        } catch {
-            m.safety_stock  = null;
-            m.reorder_point = null;
-            m.max_stock     = null;
-        }
-
-        m.kpi_loading = false;
-        m.kpi_loaded  = true;
+        const kpi = await StockPolicyUtils.computeItemKpis(m.name, policyItem, policyData, n => this._fetchLeadTime(n));
+        m.safety_stock  = kpi.safetyStock;
+        m.reorder_point = kpi.reorderPoint;
+        m.max_stock     = kpi.maxStock;
+        m.kpi_loading   = false;
+        m.kpi_loaded    = true;
         this._renderMaterialsTable();
     },
 
     /** Calcula KPIs para um grupo agregando consumo de seus materiais membros */
     async _computeGroupKpis(m) {
-        const serviceLevel     = Number(document.getElementById("spdServiceLevel")?.value)       || 95;
-        const reviewType       = document.getElementById("spdReviewType")?.value                 || "continuous";
-        const reviewPeriod     = document.getElementById("spdPeriodicType")?.value               || "weekly";
-        const leadTimeType     = document.getElementById("spdLeadTimeType")?.value               || "auto";
-        const customLT         = Number(document.getElementById("spdLeadTimeDays")?.value)       || 1;
-        const customCovDays    = Number(document.getElementById("spdCoverageDays")?.value)       || 7;
-        const customPeriodDays = Number(document.getElementById("spdCustomPeriodicDays")?.value) || 7;
-        const forecastType     = document.getElementById("spdForecastType")?.value               || "auto";
-
-        const reviewPeriodDays = { daily: 1, weekly: 7, monthly: 30, custom: customPeriodDays }[reviewPeriod] || 7;
-
-        let model, param, startDate, aggregation, removeZeros, treatOutliers, treatRuptures;
-        if (m.forecast_model) {
-            model         = m.forecast_model;
-            param         = m.forecast_param;
-            startDate     = m.forecast_start_date;
-            aggregation   = m.forecast_aggregation || "daily";
-            removeZeros   = !!m.forecast_remove_zeros;
-            treatOutliers = !!m.forecast_treat_outliers;
-            treatRuptures = !!m.forecast_treat_ruptures;
-        } else if (forecastType === "custom") {
-            model = document.getElementById("spdForecastModel")?.value || "moving-average";
-            const paramElId = { "moving-average": "spdMovingAvgPeriod", "exp-smoothing": "spdExpAlpha", "linear-regression": "spdLinearRegPeriod" }[model];
-            param         = paramElId ? Number(document.getElementById(paramElId)?.value) : null;
-            startDate     = null;
-            aggregation   = "daily";
-            removeZeros   = false;
-            treatOutliers = false;
-            treatRuptures = false;
-        } else {
-            m.safety_stock  = null;
-            m.reorder_point = null;
-            m.max_stock     = null;
-            m.kpi_loading   = false;
-            m.kpi_loaded    = true;
-            this._renderMaterialsTable();
-            return;
-        }
-
         if (!m.groupMaterials || m.groupMaterials.length === 0) {
             m.safety_stock  = null;
             m.reorder_point = null;
@@ -756,295 +635,65 @@ const StockPoliciesDetails = {
             return;
         }
 
-        const today     = new Date();
-        const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-        const endDate   = this._formatDateLocal(yesterday);
-        if (!startDate) {
-            const d90 = new Date(today);
-            d90.setDate(d90.getDate() - 90);
-            startDate = this._formatDateLocal(d90);
-        }
+        const policyData = this._readPolicyDataFromDom();
 
         m.kpi_loading = true;
         m.kpi_loaded  = false;
         this._renderMaterialsTable();
 
-        try {
-            // Lead time: fetch for all group materials and average if not cached
-            if (leadTimeType === "auto" && m.lead_time == null) {
-                const ltValues = await Promise.all(
-                    m.groupMaterials.map(gm => this._fetchLeadTime(gm.name))
-                );
-                const validLts = ltValues.filter(v => v != null);
-                m.lead_time = validLts.length > 0
-                    ? validLts.reduce((s, v) => s + v, 0) / validLts.length
-                    : null;
-            }
-            const effectiveLT = leadTimeType === "custom" ? customLT : Math.max(m.lead_time ?? 1, 1);
-
-            // Fetch consumption + stock for all group materials in parallel
-            const [allConsumption, allStock] = await Promise.all([
-                Promise.all(m.groupMaterials.map(gm =>
-                    apiCall(`${API}/consumption?${new URLSearchParams({ material: gm.name, startDate, endDate })}`).catch(() => [])
-                )),
-                Promise.all(m.groupMaterials.map(gm =>
-                    apiCall(`${API}/stock-monitor?${new URLSearchParams({ material: gm.name, startDate, endDate })}`).catch(() => [])
-                ))
-            ]);
-
-            // Aggregate each material independently, then merge by summing per bucket key
-            const mergedMap = new Map();
-            m.groupMaterials.forEach((_, idx) => {
-                const buckets = this._aggregateForPolicy(
-                    allConsumption[idx] || [], aggregation, startDate, endDate, allStock[idx] || []
-                );
-                buckets.forEach(b => {
-                    if (!mergedMap.has(b.key)) mergedMap.set(b.key, { key: b.key, value: 0, hasStock: false });
-                    const e = mergedMap.get(b.key);
-                    e.value   += b.value;
-                    e.hasStock = e.hasStock || !!b.hasStock;
-                });
-            });
-            const merged   = Array.from(mergedMap.values()).sort((a, b) => a.key.localeCompare(b.key));
-            const filtered = this._applyFiltersForPolicy(merged, removeZeros, treatOutliers, treatRuptures);
-
-            if (filtered.length < 2) {
-                m.safety_stock  = null;
-                m.reorder_point = null;
-                m.max_stock     = null;
-            } else {
-                const params = { period: param, alpha: param, regressionPeriod: param };
-                const fc     = this._computeForecastLocal(filtered, model, params, serviceLevel);
-                if (fc) {
-                    const periodSize   = { daily: 1, weekly: 7, monthly: 30 }[aggregation] || 1;
-                    const dDaily       = fc.nextForecast / periodSize;
-                    const exposureDays = reviewType === "periodic"
-                        ? reviewPeriodDays + effectiveLT
-                        : effectiveLT;
-                    const safetyStock  = fc.z * fc.std * Math.sqrt(exposureDays / periodSize);
-
-                    m.safety_stock  = Math.max(0, safetyStock);
-                    m.reorder_point = Math.max(0, dDaily * effectiveLT + safetyStock);
-                    m.max_stock     = reviewType === "periodic"
-                        ? Math.max(0, dDaily * (reviewPeriodDays + effectiveLT) + safetyStock)
-                        : null;
-                } else {
-                    m.safety_stock  = null;
-                    m.reorder_point = null;
-                    m.max_stock     = null;
-                }
-            }
-        } catch (e) {
-            m.safety_stock  = null;
-            m.reorder_point = null;
-            m.max_stock     = null;
+        // Resolve and cache lead time average for table display
+        if (policyData.lead_time_type === "auto" && m.lead_time == null) {
+            const lts   = await Promise.all(m.groupMaterials.map(gm => this._fetchLeadTime(gm.name)));
+            const valid = lts.filter(v => v != null);
+            m.lead_time = valid.length > 0 ? valid.reduce((s, v) => s + v, 0) / valid.length : null;
         }
 
-        m.kpi_loading = false;
-        m.kpi_loaded  = true;
+        const policyItem = {
+            forecast_model:          m.forecast_model   || null,
+            forecast_param:          m.forecast_param   ?? null,
+            forecast_start_date:     m.forecast_start_date || null,
+            forecast_aggregation:    m.forecast_aggregation || null,
+            forecast_remove_zeros:   m.forecast_remove_zeros   || false,
+            forecast_treat_outliers: m.forecast_treat_outliers || false,
+            forecast_treat_ruptures: m.forecast_treat_ruptures || false,
+            lead_time_days:          m.lead_time ?? null,
+        };
+
+        const memberNames = m.groupMaterials.map(gm => gm.name);
+        const kpi = await StockPolicyUtils.computeGroupKpis(memberNames, policyItem, policyData, n => this._fetchLeadTime(n));
+        m.safety_stock  = kpi.safetyStock;
+        m.reorder_point = kpi.reorderPoint;
+        m.max_stock     = kpi.maxStock;
+        m.kpi_loading   = false;
+        m.kpi_loaded    = true;
         this._renderMaterialsTable();
     },
 
-    // ══════════════════════════════════════════════════════════════════════
-    // ── Cálculos Estatísticos ──
-    // ══════════════════════════════════════════════════════════════════════
+    /** Lê os parâmetros da política de estoque a partir dos elementos do formulário */
+    _readPolicyDataFromDom() {
+        const forecastType     = document.getElementById("spdForecastType")?.value || "auto";
+        const reviewPeriod     = document.getElementById("spdPeriodicType")?.value || "weekly";
+        const customPeriodDays = Number(document.getElementById("spdCustomPeriodicDays")?.value) || 7;
 
-    /** Agrega consumo diário em buckets (diário/semanal/mensal) e preenche lacunas */
-    _aggregateForPolicy(rows, aggregation, startDate, endDate, stockRows = []) {
-        const buckets = new Map();
-        rows.forEach(row => {
-            const date = new Date(row.day + "T00:00:00");
-            let key;
-            if (aggregation === "weekly") {
-                const d = date.getDay();
-                const monday = new Date(date);
-                monday.setDate(date.getDate() + (d === 0 ? -6 : 1 - d));
-                key = this._formatDateLocal(monday);
-            } else if (aggregation === "monthly") {
-                key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-            } else {
-                key = row.day;
-            }
-            if (!buckets.has(key)) buckets.set(key, { key, value: 0 });
-            buckets.get(key).value += Number(row.consumption || 0);
-        });
-
-        // Fill gaps between startDate and endDate
-        const start = new Date(startDate + "T00:00:00");
-        const end   = new Date(endDate   + "T00:00:00");
-        if (aggregation === "daily") {
-            for (let c = new Date(start); c <= end; c.setDate(c.getDate() + 1)) {
-                const k = this._formatDateLocal(c);
-                if (!buckets.has(k)) buckets.set(k, { key: k, value: 0 });
-            }
-        } else if (aggregation === "weekly") {
-            const c = new Date(start);
-            const dow = c.getDay();
-            c.setDate(c.getDate() + (dow === 0 ? -6 : 1 - dow));
-            while (c <= end) {
-                const k = this._formatDateLocal(c);
-                if (!buckets.has(k)) buckets.set(k, { key: k, value: 0 });
-                c.setDate(c.getDate() + 7);
-            }
-        } else {
-            const c = new Date(start.getFullYear(), start.getMonth(), 1);
-            const endMon = new Date(end.getFullYear(), end.getMonth(), 1);
-            while (c <= endMon) {
-                const k = `${c.getFullYear()}-${String(c.getMonth() + 1).padStart(2, "0")}`;
-                if (!buckets.has(k)) buckets.set(k, { key: k, value: 0 });
-                c.setMonth(c.getMonth() + 1);
-            }
-        }
-
-        // Exclude current incomplete period and buckets before startDate
-        // (mirrors _aggregateData in consumption-stats.js)
-        const todayD = new Date();
-        todayD.setHours(0, 0, 0, 0);
-        let cutoffKey;
-        if (aggregation === "weekly") {
-            const dow = todayD.getDay();
-            const mon = new Date(todayD);
-            mon.setDate(todayD.getDate() + (dow === 0 ? -6 : 1 - dow));
-            cutoffKey = this._formatDateLocal(mon);
-        } else if (aggregation === "monthly") {
-            cutoffKey = `${todayD.getFullYear()}-${String(todayD.getMonth() + 1).padStart(2, "0")}`;
-        } else {
-            cutoffKey = this._formatDateLocal(todayD);
-        }
-
-        const all = Array.from(buckets.values())
-            .sort((a, b) => a.key.localeCompare(b.key))
-            .filter(b => b.key >= startDate && b.key < cutoffKey);
-
-        // Mark hasStock using carry-forward balance (mirrors _aggregateData)
-        const sortedStock = stockRows.filter(r => r.date).sort((a, b) => a.date.localeCompare(b.date));
-        if (sortedStock.length > 0) {
-            const bucketEndKey = (key) => {
-                if (aggregation === "daily") return key;
-                if (aggregation === "weekly") {
-                    const d = new Date(key + "T00:00:00");
-                    d.setDate(d.getDate() + 6);
-                    return this._formatDateLocal(d);
-                }
-                const [y, mo] = key.split("-").map(Number);
-                return this._formatDateLocal(new Date(y, mo, 0));
-            };
-            all.forEach(bucket => {
-                const endKey = bucketEndKey(bucket.key);
-                let lastBalance = 0;
-                for (const sr of sortedStock) {
-                    if (sr.date <= endKey) lastBalance = Number(sr.balance || 0);
-                    else break;
-                }
-                bucket.hasStock = lastBalance > 0;
-            });
-        }
-
-        return all;
-    },
-
-    /** Filtra dados: remove zeros, outliers (IQR) e rupturas de estoque */
-    _applyFiltersForPolicy(data, removeZeros, treatOutliers, treatRuptures) {
-        let result = data.slice();
-        if (removeZeros) result = result.filter(d => d.value > 0);
-        if (treatRuptures) result = result.filter(d => d.value > 0 || d.hasStock);
-        if (treatOutliers && result.length >= 4) {
-            const sorted = result.map(d => d.value).sort((a, b) => a - b);
-            const q1  = sorted[Math.floor(sorted.length / 4)];
-            const q3  = sorted[Math.floor(3 * sorted.length / 4)];
-            const iqr = q3 - q1;
-            result = result.filter(d => d.value >= q1 - 1.5 * iqr && d.value <= q3 + 1.5 * iqr);
-        }
-        return result;
-    },
-
-    /** Calcula previsão e desvio para um método estatístico (MA, ES, LR, média) */
-    _computeForecastLocal(data, method, params, serviceLevel) {
-        const values = data.map(d => d.value);
-        const n = values.length;
-        if (n < 2) return null;
-
-        const residuals = [];
-        let nextForecast;
-
-        if (method === "moving-average") {
-            const p = Math.max(2, Math.min(params.period || 7, n - 1));
-            for (let i = p; i < n; i++) {
-                const fcast = values.slice(i - p, i).reduce((s, v) => s + v, 0) / p;
-                residuals.push(values[i] - fcast);
-            }
-            nextForecast = values.slice(n - p).reduce((s, v) => s + v, 0) / p;
-
-        } else if (method === "exp-smoothing") {
-            const alpha = Math.max(0.01, Math.min(0.99, params.alpha || 0.3));
-            let s = values[0];
-            for (let i = 1; i < n; i++) {
-                residuals.push(values[i] - s);
-                s = alpha * values[i] + (1 - alpha) * s;
-            }
-            nextForecast = s;
-
-        } else if (method === "linear-regression") {
-            const rp = Math.max(3, Math.min(params.regressionPeriod || 30, n));
-            for (let i = rp; i < n; i++) {
-                const xs = Array.from({ length: rp }, (_, j) => j);
-                const ys = values.slice(i - rp, i);
-                const { a, b } = this._linearRegLocal(xs, ys);
-                residuals.push(values[i] - Math.max(0, a + b * rp));
-            }
-            const xs = Array.from({ length: rp }, (_, j) => j);
-            const ys = values.slice(n - rp);
-            const { a, b } = this._linearRegLocal(xs, ys);
-            nextForecast = Math.max(0, a + b * rp);
-
-        } else {
-            // arithmetic mean
-            for (let i = 1; i < n; i++) {
-                const mean = values.slice(0, i).reduce((s, v) => s + v, 0) / i;
-                residuals.push(values[i] - mean);
-            }
-            nextForecast = values.reduce((s, v) => s + v, 0) / n;
+        let forecast_model = null;
+        let forecast_param = null;
+        if (forecastType === "custom") {
+            forecast_model = document.getElementById("spdForecastModel")?.value || "moving-average";
+            const paramElId = { "moving-average": "spdMovingAvgPeriod", "exp-smoothing": "spdExpAlpha", "linear-regression": "spdLinearRegPeriod" }[forecast_model];
+            forecast_param = paramElId ? Number(document.getElementById(paramElId)?.value) : null;
         }
 
         return {
-            nextForecast,
-            std: this._stdDevLocal(residuals),
-            z:   this._zScoreLocal(serviceLevel)
+            service_level:      Number(document.getElementById("spdServiceLevel")?.value) || 95,
+            review_type:        document.getElementById("spdReviewType")?.value || "continuous",
+            review_period:      reviewPeriod,
+            review_period_days: customPeriodDays,
+            lead_time_type:     document.getElementById("spdLeadTimeType")?.value || "auto",
+            lead_time_days:     Number(document.getElementById("spdLeadTimeDays")?.value) || 1,
+            forecast_type:      forecastType,
+            forecast_model,
+            forecast_param,
         };
-    },
-
-    _zScoreLocal(serviceLevel) {
-        const p = Math.max(0.501, Math.min(0.999, serviceLevel / 100));
-        const t = Math.sqrt(-2 * Math.log(1 - p));
-        const c = [2.515517, 0.802853, 0.010328];
-        const d = [1.432788, 0.189269, 0.001308];
-        return t - (c[0] + c[1] * t + c[2] * t * t) /
-                   (1 + d[0] * t + d[1] * t * t + d[2] * t * t * t);
-    },
-
-    _stdDevLocal(arr) {
-        if (!arr.length) return 0;
-        return Math.sqrt(arr.reduce((s, v) => s + v * v, 0) / arr.length);
-    },
-
-    _linearRegLocal(xs, ys) {
-        const n     = xs.length;
-        const sumX  = xs.reduce((s, v) => s + v, 0);
-        const sumY  = ys.reduce((s, v) => s + v, 0);
-        const sumXY = xs.reduce((s, v, i) => s + v * ys[i], 0);
-        const sumX2 = xs.reduce((s, v) => s + v * v, 0);
-        const denom = n * sumX2 - sumX * sumX;
-        if (denom === 0) return { a: sumY / n, b: 0 };
-        const b = (n * sumXY - sumX * sumY) / denom;
-        return { a: (sumY - b * sumX) / n, b };
-    },
-
-    /** Formata data como YYYY-MM-DD */
-    _formatDateLocal(date) {
-        const y  = date.getFullYear();
-        const mo = String(date.getMonth() + 1).padStart(2, "0");
-        const d  = String(date.getDate()).padStart(2, "0");
-        return `${y}-${mo}-${d}`;
     },
 
     // ══════════════════════════════════════════════════════════════════════
