@@ -188,6 +188,7 @@ const ReceiptsDetails = {
             const dateId = nature === "P" ? "receiptDateProduction" : "receiptDate";
             document.getElementById(dateId).value = Receipts.selectedReceipt.date;
             document.getElementById("receiptSupplier").value = Receipts.selectedReceipt.supplier || "";
+            await this.onSupplierChange();
             document.getElementById("receiptOrder").value = Receipts.selectedReceipt.order_id || "";
         } else {
             const saveBtn = document.getElementById("saveBtn");
