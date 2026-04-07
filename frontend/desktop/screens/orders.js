@@ -123,7 +123,8 @@ const Orders = {
         const orderItems = await apiCall(API + `/orders/items/${order.id}`);
         const orderBags = await apiCall(API + `/orders/${order.id}/stock-units`);
 
-        const totalQty = sumProperty(orderItems, "quantity");
+        const totalQty = orderItems.reduce((sum, item) =>
+            sum + parseInt((item.group_id != null ? item.group_quantity : item.quantity) || 0, 10), 0);
         const receivedQty = sumProperty(orderBags, "weight");
         const differencePercent = totalQty > 0 ? Math.round(((receivedQty / totalQty) - 1) * 100) : 0;
 
