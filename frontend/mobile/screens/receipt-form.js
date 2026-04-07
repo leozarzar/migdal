@@ -30,6 +30,8 @@ Object.assign(MobApp, {
         this.onNatureChange();
         // Supplier precisa ser definido DEPOIS de onNatureChange mostrar o campo
         document.getElementById('mobSupplier').value = receipt.supplier || '';
+        await this.onSupplierChange();
+        document.getElementById('mobOrder').value = receipt.order_id != null ? String(receipt.order_id) : '';
 
         try {
             const rawItems = await apiCall(API + '/receipts/items/' + id);
@@ -57,6 +59,34 @@ Object.assign(MobApp, {
         const showSupplier = nature === 'C' || nature === 'S';
         document.getElementById('fieldSupplier').style.display      = showSupplier ? '' : 'none';
         document.getElementById('fieldItemOperator').style.display  = nature === 'P' ? '' : 'none';
+        if (!showSupplier) {
+            document.getElementById('fieldOrder').style.display = 'none';
+            document.getElementById('mobOrder').innerHTML = '<option value="">Selecione...</option>';
+        }
+    },
+
+    async onSupplierChange() {
+        const supplier = document.getElementById('mobSupplier').value;
+        const orderEl  = document.getElementById('mobOrder');
+        const fieldOrder = document.getElementById('fieldOrder');
+
+        if (!supplier) {
+            fieldOrder.style.display = 'none';
+            orderEl.innerHTML = '<option value="">Selecione...</option>';
+            return;
+        }
+
+        try {
+            const orders = await apiCall(API + '/orders');
+            const filtered = orders.filter(o => o.supplier === supplier && o.status === 'OPEN');
+
+            orderEl.innerHTML = '<option value="">Sem pedido</option>'
+                + filtered.map(o => `<option value="${o.id}">#${o.id}</option>`).join('');
+
+            fieldOrder.style.display = '';
+        } catch {
+            fieldOrder.style.display = 'none';
+        }
     },
 
     addItem() {
@@ -110,9 +140,11 @@ Object.assign(MobApp, {
     },
 
     async saveReceipt() {
-        const nature   = document.getElementById('mobNature').value;
-        const date     = document.getElementById('mobDate').value;
-        const supplier = document.getElementById('mobSupplier').value;
+        const nature    = document.getElementById('mobNature').value;
+        const date      = document.getElementById('mobDate').value;
+        const supplier  = document.getElementById('mobSupplier').value;
+        const orderVal  = document.getElementById('mobOrder').value;
+        const order_id  = orderVal ? parseInt(orderVal, 10) : null;
 
         if (!nature) { this._toast('Selecione a natureza', 'error'); return; }
         if (!date)   { this._toast('Informe a data', 'error'); return; }
@@ -138,7 +170,7 @@ Object.assign(MobApp, {
                         nature,
                         date,
                         supplier: supplier || null,
-                        order_id: this._editingReceipt.order_id || null,
+                        order_id,
                     }),
                 });
 
@@ -194,7 +226,7 @@ Object.assign(MobApp, {
                 const receipt = await apiCall(API + '/receipts', {
                     method:  'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body:    JSON.stringify({ nature, date, supplier: supplier || null, order_id: null }),
+                    body:    JSON.stringify({ nature, date, supplier: supplier || null, order_id }),
                 });
                 receiptId = receipt && receipt.id;
                 if (!receiptId) throw new Error('ID do recebimento não retornado');
@@ -231,10 +263,12 @@ Object.assign(MobApp, {
         document.getElementById('mobNature').value            = '';
         document.getElementById('mobDate').value              = new Date().toISOString().slice(0, 10);
         document.getElementById('mobSupplier').value          = '';
+        document.getElementById('mobOrder').value             = '';
         document.getElementById('mobItemMaterial').value      = '';
         document.getElementById('mobItemQty').value           = '';
         document.getElementById('mobItemOperator').value      = '';
         document.getElementById('fieldSupplier').style.display     = 'none';
+        document.getElementById('fieldOrder').style.display        = 'none';
         document.getElementById('fieldItemOperator').style.display = 'none';
         this._renderItemsList();
         this._setNextItemCode();
