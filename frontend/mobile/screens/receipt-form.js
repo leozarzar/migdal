@@ -1,144 +1,20 @@
 /**
- * @file mobile.js
- * @description Lógica da versão mobile do WCM App.
- *   - Tela "list": lista de recebimentos recentes.
- *   - Tela "form": formulário de novo recebimento.
+ * @file mobile/screens/receipt-form.js
+ * @description Tela de formulário de novo/editar recebimento do mobile.
+ *   Estende MobApp com os métodos de criação, edição, itens e salvamento.
  *
- * Depende de `utils.js` (apiCall) carregado antes deste script.
+ * Carregado após mobile/app.js.
  */
 
-const API = window.location.origin;
+Object.assign(MobApp, {
 
-const MobApp = {
-
-    // ── Estado ──────────────────────────────────────────────────────────────
-
-    /** Itens adicionados ao recebimento em progresso */
-    _items: [],
-
-    /** Snapshot dos itens originais carregados do banco (para diff na edição) */
-    _originalItems: [],
-
-    /** Recebimento sendo editado (null = novo recebimento) */
-    _editingReceipt: null,
-
-    /** Cache dos recebimentos carregados na lista */
-    _receipts: [],
-
-    /** Soma das quantidades por recebimento (chave: receipt_id) */
-    _receiptItemTotals: {},
-
-    // ── Inicialização ────────────────────────────────────────────────────────
-
-    async init() {
-        try {
-            const [suppliers, materials, operators] = await Promise.all([
-                apiCall(API + '/suppliers'),
-                apiCall(API + '/materials'),
-                apiCall(API + '/operators'),
-            ]);
-
-            _fillSelect('mobSupplier', suppliers, 'name', 'Selecione...');
-            _fillSelect('mobItemMaterial', materials, 'name', 'Selecione...');
-            _fillSelect('mobItemOperator', operators, 'name', 'Selecione...');
-        } catch {
-            this._toast('Erro ao carregar dados do servidor', 'error');
-        }
-
-        await this.loadReceipts();
-    },
-
-    // ── Navegação entre telas ────────────────────────────────────────────────
-
-    showScreen(screen) {
-        const isList = screen === 'list';
-        document.getElementById('screenList').style.display = isList ? '' : 'none';
-        document.getElementById('screenForm').style.display = isList ? 'none' : '';
-        document.getElementById('mobBackBtn').style.display = isList ? 'none' : '';
-
-        if (isList) {
-            this._editingReceipt = null;
-            document.getElementById('mobHeaderSubtitle').textContent = 'Recebimentos';
-            this.loadReceipts();
-        } else {
-            this._editingReceipt = null;
-            document.getElementById('mobHeaderSubtitle').textContent = 'Novo Recebimento';
-            document.getElementById('mobSaveBtn').textContent = 'Salvar Recebimento';
-            this._resetReceiptForm();
-        }
-    },
-
-    // ── Tela: Lista de Recebimentos ────────────────────────────────────────────
-
-    async loadReceipts() {
-        const list = document.getElementById('mobReceiptsList');
-        list.innerHTML = '<li class="mob-items-empty">Carregando...</li>';
-        try {
-            const receipts = await apiCall(API + '/receipts');
-            let receiptItemTotals = {};
-
-            try {
-                const stockUnits = await apiCall(API + '/stock-units');
-                receiptItemTotals = _sumQuantitiesByReceipt(stockUnits || []);
-            } catch {
-                receiptItemTotals = {};
-            }
-
-            this._receipts = receipts || [];
-            this._receiptItemTotals = receiptItemTotals;
-            this._renderReceiptsList(this._receipts);
-        } catch {
-            list.innerHTML = '<li class="mob-items-empty">Erro ao carregar recebimentos.</li>';
-        }
-    },
-
-    _renderReceiptsList(receipts) {
-        const list = document.getElementById('mobReceiptsList');
-        if (!receipts.length) {
-            list.innerHTML = '<li class="mob-items-empty">Nenhum recebimento encontrado.</li>';
-            return;
-        }
-
-        list.innerHTML = receipts.map(r => `
-            <li class="mob-receipt-row" onclick="MobApp.openReceipt(${r.id})" role="button">
-                <div class="mob-receipt-top">
-                    <div class="mob-receipt-top-left">
-                        <span class="mob-receipt-dot mob-receipt-dot--${_esc(r.nature || 'X')}"></span>
-                        <div class="mob-receipt-id">#${_esc(String(r.nature || ''))}${_esc(String(r.id))}</div>
-                    </div>
-                    ${_hasOrder(r.order_id) ? `
-                    <div class="mob-receipt-top-order">
-                        ${_buildOrderIcon(r.order_id)}
-                        <span class="mob-receipt-top-order-text">#${_esc(String(r.order_id))}</span>
-                    </div>
-                    ` : ''}
-                </div>
-                <div class="mob-receipt-main">
-                    <div class="mob-receipt-details">
-                        ${(() => {
-                            const origin = _getReceiptOrigin(r);
-                            return `<div class="${_esc(origin.className)}">${_esc(origin.label)}</div>`;
-                        })()}
-                        <div class="mob-receipt-date">${r.date ? _esc(_formatDateLongBr(r.date)) : '-'}</div>
-                    </div>
-                    <div class="mob-receipt-quantity">
-                        <div class="mob-receipt-quantity-label">Quantidade</div>
-                        <div class="mob-receipt-quantity-value">${_esc(_formatQuantityLabel(this._receiptItemTotals[String(r.id)] || 0))}</div>
-                    </div>
-                </div>
-            </li>
-        `).join('');
-    },
-
-    // ── Tela: Formulário de Novo/Editar Recebimento ──────────────────────────────
+    // ── Tela: Formulário de Novo/Editar Recebimento ──────────────────────────
 
     async openReceipt(id) {
-        document.getElementById('screenList').style.display = 'none';
-        document.getElementById('screenForm').style.display = '';
-        document.getElementById('mobBackBtn').style.display = '';
+        this.showScreen('form');
+        this._previousScreen = 'list';
         document.getElementById('mobHeaderSubtitle').textContent = 'Editar Recebimento';
         document.getElementById('mobSaveBtn').textContent = 'Atualizar Recebimento';
-        this._resetReceiptForm();
 
         // Usa o cache local — evita re-fetch e problema de comparação de tipos
         const receipt = this._receipts.find(r => String(r.id) === String(id));
@@ -184,13 +60,13 @@ const MobApp = {
     },
 
     addItem() {
-        const nature   = document.getElementById('mobNature').value;
+        const nature     = document.getElementById('mobNature').value;
         const materialEl = document.getElementById('mobItemMaterial');
-        const material = materialEl.value;
-        const qty      = parseFloat(document.getElementById('mobItemQty').value);
-        const code     = document.getElementById('mobItemCode').value.trim();
+        const material   = materialEl.value;
+        const qty        = parseFloat(document.getElementById('mobItemQty').value);
+        const code       = document.getElementById('mobItemCode').value.trim();
         const operatorEl = document.getElementById('mobItemOperator');
-        const operator = operatorEl.value;
+        const operator   = operatorEl.value;
 
         if (!material) {
             this._toast('Selecione o material', 'error');
@@ -219,9 +95,9 @@ const MobApp = {
         });
 
         // Limpa campos do formulário de item
-        document.getElementById('mobItemMaterial').value = '';
-        document.getElementById('mobItemQty').value     = '';
-        document.getElementById('mobItemOperator').value = '';
+        document.getElementById('mobItemMaterial').value  = '';
+        document.getElementById('mobItemQty').value       = '';
+        document.getElementById('mobItemOperator').value  = '';
 
         this._renderItemsList();
         this._setNextItemCode();
@@ -418,128 +294,4 @@ const MobApp = {
         totalQtyEl.textContent = total;
         totalEl.style.display  = '';
     },
-
-    // ── Utilitários internos ─────────────────────────────────────────────────
-
-    _toastTimer: null,
-
-    _toast(message, type = '') {
-        const el = document.getElementById('mobToast');
-        el.textContent = message;
-        el.className = 'mob-toast mob-toast--visible' + (type ? ` mob-toast--${type}` : '');
-        clearTimeout(this._toastTimer);
-        this._toastTimer = setTimeout(() => {
-            el.className = 'mob-toast';
-        }, 3000);
-    },
-};
-
-// ── Funções auxiliares de escopo global ──────────────────────────────────────
-
-/**
- * Escapa HTML para prevenir XSS.
- * @param {string} value
- * @returns {string}
- */
-function _esc(value) {
-    return String(value)
-        .replace(/&/g,  '&amp;')
-        .replace(/</g,  '&lt;')
-        .replace(/>/g,  '&gt;')
-        .replace(/"/g,  '&quot;')
-        .replace(/'/g,  '&#39;');
-}
-
-/**
- * Preenche um <select> com itens de um array, usando uma propriedade como valor e label.
- * @param {string} selectId
- * @param {Array}  items
- * @param {string} prop
- * @param {string} placeholder
- */
-function _fillSelect(selectId, items, prop, placeholder) {
-    const el = document.getElementById(selectId);
-    if (!el) return;
-    const current = el.value;
-    const unique = [...new Set((items || []).map(i => i[prop]).filter(Boolean))];
-    el.innerHTML = `<option value="">${placeholder}</option>`
-        + unique.map(v => `<option value="${_esc(v)}">${_esc(v)}</option>`).join('');
-    if (current) el.value = current;
-}
-
-function _hasOrder(orderId) {
-    return orderId !== null && orderId !== undefined && String(orderId).trim() !== '';
-}
-
-function _sumQuantitiesByReceipt(stockUnits) {
-    return (stockUnits || []).reduce((acc, item) => {
-        const key = String(item.receipt_id || '');
-        if (!key) {
-            return acc;
-        }
-
-        const quantity = Number.parseFloat(item.weight) || 0;
-        acc[key] = (acc[key] || 0) + quantity;
-        return acc;
-    }, {});
-}
-
-function _getReceiptOrigin(receipt) {
-    if (receipt?.nature === 'P') {
-        return {
-            label: 'Produção',
-            className: 'mob-receipt-origin mob-receipt-origin--production',
-        };
-    }
-
-    if (receipt?.supplier) {
-        return {
-            label: receipt.supplier,
-            className: 'mob-receipt-origin mob-receipt-origin--supplier',
-        };
-    }
-
-    return {
-        label: 'Sem fornecedor',
-        className: 'mob-receipt-origin mob-receipt-origin--missing',
-    };
-}
-
-function _formatQuantityLabel(quantity) {
-    const normalizedQuantity = Number(quantity) || 0;
-    if (Number.isInteger(normalizedQuantity)) {
-        return String(normalizedQuantity);
-    }
-
-    return normalizedQuantity.toLocaleString('pt-BR', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-    });
-}
-
-function _formatOrderLabel(orderId) {
-    return _hasOrder(orderId) ? `Pedido: #${orderId}` : 'Sem pedido';
-}
-
-function _buildOrderIcon(orderId) {
-    const iconName = _hasOrder(orderId) ? 'order2.svg' : 'order-off.svg';
-    const iconClass = _hasOrder(orderId) ? 'mob-order-icon mob-order-icon--linked' : 'mob-order-icon mob-order-icon--unlinked';
-    return `<span class="${iconClass}" aria-hidden="true"><img src="icons/${iconName}" alt=""></span>`;
-}
-
-function _formatDateLongBr(value) {
-    const date = new Date(value + 'T00:00:00');
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-
-    return date.toLocaleDateString('pt-BR', {
-        weekday: 'long',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-    });
-}
-
-// Inicializa quando o DOM estiver pronto
-document.addEventListener('DOMContentLoaded', () => MobApp.init());
+});

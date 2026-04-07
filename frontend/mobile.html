@@ -4,30 +4,97 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>WCM</title>
-    <link rel="stylesheet" href="mobile.css">
+    <base href="/">
+    <link rel="stylesheet" href="mobile/style.css">
+    <link rel="stylesheet" href="mobile/screens/home-style.css">
+    <link rel="stylesheet" href="mobile/screens/receipts-list-style.css">
+    <link rel="stylesheet" href="mobile/screens/receipt-form-style.css">
 </head>
 <body>
 
     <header class="mob-header">
-        <button class="mob-back-btn" id="mobBackBtn" onclick="MobApp.showScreen('list')" style="display:none">
+        <button class="mob-back-btn" id="mobBackBtn" onclick="MobApp.goBack()" style="display:none">
             &#8592;
         </button>
         <span class="mob-logo">WCM</span>
-        <span class="mob-header-subtitle" id="mobHeaderSubtitle">Recebimentos</span>
+        <span class="mob-header-subtitle" id="mobHeaderSubtitle"></span>
     </header>
 
-    <!-- ── Tela: Lista de Recebimentos ───────────────────── -->
-    <main id="screenList" class="mob-screen">
+    <!-- ── Tela: Home ─────────────────────────────────────────────── -->
+    <main id="screenHome" class="mob-screen">
 
-        <div class="mob-list-toolbar">
-            <button class="mob-btn mob-btn--primary" onclick="MobApp.showScreen('form')">
-                + Novo Recebimento
+        <!-- Atalhos de navegação -->
+        <div class="mob-shortcuts">
+            <button class="mob-shortcut-card" onclick="MobApp.showScreen('list')">
+                <img src="icons/add-document.svg" class="mob-shortcut-icon" alt="">
+                <span class="mob-shortcut-label">Recebimentos</span>
             </button>
+        </div>
+
+        <!-- Filtro de política -->
+        <select class="mob-select mob-home-policy-filter" id="mobHomePolicySelect" onchange="MobApp.HomeScreen.onPolicyChange()">
+            <option value="">Política de Estoque</option>
+        </select>
+
+        <!-- Gráfico de consumo semanal -->
+        <section class="mob-card">
+            <div class="mob-home-card-head">
+                <div>
+                    <div class="mob-home-title">Consumo</div>
+                    <div class="mob-home-subtitle">Acompanhamento semanal</div>
+                </div>
+            </div>
+
+            <div class="mob-home-week-nav">
+                <button class="mob-home-nav-btn" onclick="MobApp.HomeScreen.prevWeek()" aria-label="Semana anterior">
+                    &#8249;
+                </button>
+                <span class="mob-home-week-range" id="mobHomeWeekRange">-</span>
+                <button class="mob-home-nav-btn" onclick="MobApp.HomeScreen.nextWeek()" aria-label="Próxima semana">
+                    &#8250;
+                </button>
+            </div>
+
+
+            <div class="mob-home-chart-wrap">
+                <canvas id="mobHomeChart" height="180"></canvas>
+            </div>
+
+            <div id="mobHomeTooltip" class="mob-home-tooltip"></div>
+        </section>
+
+        <!-- Balanço de Estoque -->
+        <section class="mob-card">
+            <div class="mob-home-title">Balanço de Estoque</div>
+            <div class="mob-home-subtitle">Níveis vs. política selecionada</div>
+            <div id="mobHomeBalanceBody">
+                <p class="mob-items-empty">Selecione uma política para visualizar.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ── Tela: Lista de Recebimentos ───────────────────── -->
+    <main id="screenList" class="mob-screen" style="display:none">
+        <div class="mob-list-filters">
+            <select id="mobListNatureFilter" class="mob-select mob-list-filter-select" onchange="MobApp.applyListFilters()">
+                <option value="">Natureza</option>
+                <option value="C">Compra</option>
+                <option value="S">Retorno de Serviço</option>
+                <option value="P">Produção</option>
+            </select>
+            <select id="mobListSupplierFilter" class="mob-select mob-list-filter-select" onchange="MobApp.applyListFilters()">
+                <option value="">Fornecedor</option>
+            </select>
         </div>
 
         <ul class="mob-receipts-list" id="mobReceiptsList">
             <li class="mob-items-empty">Carregando...</li>
         </ul>
+
+        <button class="mob-fab" onclick="MobApp.showScreen('form')" aria-label="Novo Recebimento">
+            <img src="icons/add-document.svg" alt="" aria-hidden="true">
+        </button>
 
     </main>
 
@@ -113,7 +180,10 @@
     <div class="mob-toast" id="mobToast"></div>
 
     <script src="utils.js"></script>
-    <script src="mobile.js"></script>
+    <script src="mobile/app.js"></script>
+    <script src="mobile/screens/receipts-list.js"></script>
+    <script src="mobile/screens/receipt-form.js"></script>
+    <script src="mobile/screens/home.js"></script>
 
 </body>
 </html>
