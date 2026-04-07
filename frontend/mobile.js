@@ -25,6 +25,9 @@ const MobApp = {
     /** Cache dos recebimentos carregados na lista */
     _receipts: [],
 
+    /** Soma das quantidades por recebimento (chave: receipt_id) */
+    _receiptItemTotals: {},
+
     // ── Inicialização ────────────────────────────────────────────────────────
 
     async init() {
@@ -72,7 +75,17 @@ const MobApp = {
         list.innerHTML = '<li class="mob-items-empty">Carregando...</li>';
         try {
             const receipts = await apiCall(API + '/receipts');
+            let receiptItemTotals = {};
+
+            try {
+                const stockUnits = await apiCall(API + '/stock-units');
+                receiptItemTotals = _sumQuantitiesByReceipt(stockUnits || []);
+            } catch {
+                receiptItemTotals = {};
+            }
+
             this._receipts = receipts || [];
+            this._receiptItemTotals = receiptItemTotals;
             this._renderReceiptsList(this._receipts);
         } catch {
             list.innerHTML = '<li class="mob-items-empty">Erro ao carregar recebimentos.</li>';
@@ -86,19 +99,33 @@ const MobApp = {
             return;
         }
 
-        const natureLabel = { C: 'Compra', S: 'Retorno de Serviço', P: 'Produção' };
-
         list.innerHTML = receipts.map(r => `
             <li class="mob-receipt-row" onclick="MobApp.openReceipt(${r.id})" role="button">
-                <div class="mob-receipt-nature mob-receipt-nature--${_esc(r.nature || 'X')}">${_esc(natureLabel[r.nature] || r.nature || '-')}</div>
-                <div class="mob-receipt-info">
-                    <div class="mob-receipt-id">#${_esc(String(r.id))}</div>
-                    <div class="mob-receipt-meta">
-                        ${r.date ? _esc(r.date) : '-'}
-                        ${r.supplier ? ` &nbsp;·&nbsp; ${_esc(r.supplier)}` : ''}
+                <div class="mob-receipt-top">
+                    <div class="mob-receipt-top-left">
+                        <span class="mob-receipt-dot mob-receipt-dot--${_esc(r.nature || 'X')}"></span>
+                        <div class="mob-receipt-id">#${_esc(String(r.nature || ''))}${_esc(String(r.id))}</div>
+                    </div>
+                    ${_hasOrder(r.order_id) ? `
+                    <div class="mob-receipt-top-order">
+                        ${_buildOrderIcon(r.order_id)}
+                        <span class="mob-receipt-top-order-text">#${_esc(String(r.order_id))}</span>
+                    </div>
+                    ` : ''}
+                </div>
+                <div class="mob-receipt-main">
+                    <div class="mob-receipt-details">
+                        ${(() => {
+                            const origin = _getReceiptOrigin(r);
+                            return `<div class="${_esc(origin.className)}">${_esc(origin.label)}</div>`;
+                        })()}
+                        <div class="mob-receipt-date">${r.date ? _esc(_formatDateLongBr(r.date)) : '-'}</div>
+                    </div>
+                    <div class="mob-receipt-quantity">
+                        <div class="mob-receipt-quantity-label">Quantidade</div>
+                        <div class="mob-receipt-quantity-value">${_esc(_formatQuantityLabel(this._receiptItemTotals[String(r.id)] || 0))}</div>
                     </div>
                 </div>
-                <span class="mob-receipt-arrow">›</span>
             </li>
         `).join('');
     },
@@ -133,7 +160,7 @@ const MobApp = {
             this._items = (rawItems || []).map(i => ({
                 _stockUnitId:    i.id,
                 _originalStatus: i.status,
-                code:            String(i.volume_id || '').padStart(3, '0'),
+                code:            i.volume_id == null ? '' : Number(i.volume_id),
                 material:        i.material,
                 materialLabel:   i.material,
                 quantity:        i.weight,
@@ -143,6 +170,7 @@ const MobApp = {
             // Snapshot imutável para calcular o diff ao salvar
             this._originalItems = [...this._items];
             this._renderItemsList();
+            this._setNextItemCode();
         } catch {
             this._toast('Erro ao carregar itens do recebimento', 'error');
         }
@@ -178,8 +206,8 @@ const MobApp = {
         }
 
         const nextCode = code
-            ? String(parseInt(code, 10)).padStart(3, '0')
-            : String(this._items.length + 1).padStart(3, '0');
+            ? Number.parseInt(code, 10)
+            : this._getNextItemCode();
 
         this._items.push({
             code:          nextCode,
@@ -191,17 +219,18 @@ const MobApp = {
         });
 
         // Limpa campos do formulário de item
-        document.getElementById('mobItemCode').value    = '';
         document.getElementById('mobItemMaterial').value = '';
         document.getElementById('mobItemQty').value     = '';
         document.getElementById('mobItemOperator').value = '';
 
         this._renderItemsList();
+        this._setNextItemCode();
     },
 
     removeItem(index) {
         this._items.splice(index, 1);
         this._renderItemsList();
+        this._setNextItemCode();
     },
 
     async saveReceipt() {
@@ -269,7 +298,7 @@ const MobApp = {
                         headers: { 'Content-Type': 'application/json' },
                         body:    JSON.stringify({
                             receipt_id: receiptId,
-                            volume_id:  item.code,
+                            volume_id:  Number.parseInt(item.code, 10),
                             material:   item.material,
                             weight:     item.quantity,
                             supplier:   supplier || null,
@@ -301,7 +330,7 @@ const MobApp = {
                     headers: { 'Content-Type': 'application/json' },
                     body:    JSON.stringify({
                         receipt_id: receiptId,
-                        volume_id:  item.code,
+                        volume_id:  Number.parseInt(item.code, 10),
                         material:   item.material,
                         weight:     item.quantity,
                         supplier:   supplier || null,
@@ -326,13 +355,39 @@ const MobApp = {
         document.getElementById('mobNature').value            = '';
         document.getElementById('mobDate').value              = new Date().toISOString().slice(0, 10);
         document.getElementById('mobSupplier').value          = '';
-        document.getElementById('mobItemCode').value          = '';
         document.getElementById('mobItemMaterial').value      = '';
         document.getElementById('mobItemQty').value           = '';
         document.getElementById('mobItemOperator').value      = '';
         document.getElementById('fieldSupplier').style.display     = 'none';
         document.getElementById('fieldItemOperator').style.display = 'none';
         this._renderItemsList();
+        this._setNextItemCode();
+    },
+
+    _getNextItemCode() {
+        if (!this._items.length) {
+            return 1;
+        }
+
+        const maxCode = this._items.reduce((currentMax, item) => {
+            const parsedCode = Number.parseInt(item.code, 10);
+            if (!Number.isInteger(parsedCode)) {
+                return currentMax;
+            }
+
+            return Math.max(currentMax, parsedCode);
+        }, 0);
+
+        return maxCode + 1;
+    },
+
+    _setNextItemCode() {
+        const codeInput = document.getElementById('mobItemCode');
+        if (!codeInput) {
+            return;
+        }
+
+        codeInput.value = this._getNextItemCode();
     },
 
     _renderItemsList() {
@@ -410,6 +465,80 @@ function _fillSelect(selectId, items, prop, placeholder) {
     el.innerHTML = `<option value="">${placeholder}</option>`
         + unique.map(v => `<option value="${_esc(v)}">${_esc(v)}</option>`).join('');
     if (current) el.value = current;
+}
+
+function _hasOrder(orderId) {
+    return orderId !== null && orderId !== undefined && String(orderId).trim() !== '';
+}
+
+function _sumQuantitiesByReceipt(stockUnits) {
+    return (stockUnits || []).reduce((acc, item) => {
+        const key = String(item.receipt_id || '');
+        if (!key) {
+            return acc;
+        }
+
+        const quantity = Number.parseFloat(item.weight) || 0;
+        acc[key] = (acc[key] || 0) + quantity;
+        return acc;
+    }, {});
+}
+
+function _getReceiptOrigin(receipt) {
+    if (receipt?.nature === 'P') {
+        return {
+            label: 'Produção',
+            className: 'mob-receipt-origin mob-receipt-origin--production',
+        };
+    }
+
+    if (receipt?.supplier) {
+        return {
+            label: receipt.supplier,
+            className: 'mob-receipt-origin mob-receipt-origin--supplier',
+        };
+    }
+
+    return {
+        label: 'Sem fornecedor',
+        className: 'mob-receipt-origin mob-receipt-origin--missing',
+    };
+}
+
+function _formatQuantityLabel(quantity) {
+    const normalizedQuantity = Number(quantity) || 0;
+    if (Number.isInteger(normalizedQuantity)) {
+        return String(normalizedQuantity);
+    }
+
+    return normalizedQuantity.toLocaleString('pt-BR', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    });
+}
+
+function _formatOrderLabel(orderId) {
+    return _hasOrder(orderId) ? `Pedido: #${orderId}` : 'Sem pedido';
+}
+
+function _buildOrderIcon(orderId) {
+    const iconName = _hasOrder(orderId) ? 'order2.svg' : 'order-off.svg';
+    const iconClass = _hasOrder(orderId) ? 'mob-order-icon mob-order-icon--linked' : 'mob-order-icon mob-order-icon--unlinked';
+    return `<span class="${iconClass}" aria-hidden="true"><img src="icons/${iconName}" alt=""></span>`;
+}
+
+function _formatDateLongBr(value) {
+    const date = new Date(value + 'T00:00:00');
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return date.toLocaleDateString('pt-BR', {
+        weekday: 'long',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    });
 }
 
 // Inicializa quando o DOM estiver pronto
