@@ -369,161 +369,60 @@ const StockMonitor = {
      */
     _drawChart(seriesByMaterial, selectedMaterials, startDate, endDate) {
         this._chartPoints = [];
-        // --- Setup do canvas: dimensão física × DPR para tela retina ---
+
         const canvas = document.getElementById("stockMonitorChart");
         if (!canvas) return;
 
-        const wrapper = canvas.parentElement;
-        const height = 300;
-        const dpr = window.devicePixelRatio || 1;
-        const width = Math.max(canvas.offsetWidth || (wrapper ? wrapper.clientWidth : 640), 300);
+        const height      = 300;
+        const { ctx, width } = CanvasChartUtils.setupCanvas(canvas, height);
+        const padding     = { top: 20, right: 20, bottom: 44, left: 56 };
+        const chartWidth  = width  - padding.left - padding.right;
+        const chartHeight = height - padding.top  - padding.bottom;
 
-        canvas.width = Math.floor(width * dpr);
-        canvas.height = Math.floor(height * dpr);
-        canvas.style.height = height + "px";
-
-        const ctx = canvas.getContext("2d");
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.clearRect(0, 0, width, height);
-
-        const padding = { top: 20, right: 20, bottom: 44, left: 56 };
-        const chartWidth = width - padding.left - padding.right;
-        const chartHeight = height - padding.top - padding.bottom;
-
-        // Calcula balanço máximo global para escala do eixo Y (margem de 15%)
         let maxBalance = 0;
-        selectedMaterials.forEach(material => {
+        selectedMaterials.forEach(material =>
             (seriesByMaterial[material] || []).forEach(pt => {
                 if (pt.balance > maxBalance) maxBalance = pt.balance;
-            });
-        });
-
+            })
+        );
         const yMax = maxBalance > 0 ? maxBalance * 1.15 : 10;
 
-        // Date range in ms
-        const tsStart = startDate ? new Date(startDate).getTime() : 0;
-        const tsEnd = endDate ? new Date(endDate).getTime() : tsStart + 1;
-        const tsRange = tsEnd - tsStart || 1;
+        CanvasChartUtils.drawYAxis(ctx, padding, chartWidth, chartHeight, yMax);
 
-        // --- Eixo Y: grade pontilhada e rótulos formatados (K/M) ---
-        const formatY = v => {
-            if (v >= 1_000_000) return (v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1) + "M";
-            if (v >= 1_000) return (v / 1_000).toFixed(v % 1_000 === 0 ? 0 : 1) + "K";
-            return Math.round(v).toString();
-        };
-
-        const gridCount = 4;
-        ctx.strokeStyle = "#e2e8f0";
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
-
-        for (let i = 0; i <= gridCount; i++) {
-            const y = padding.top + (chartHeight / gridCount) * i;
-            ctx.beginPath();
-            ctx.moveTo(padding.left, y);
-            ctx.lineTo(padding.left + chartWidth, y);
-            ctx.stroke();
-        }
-        ctx.setLineDash([]);
-
-        ctx.fillStyle = "#607d9a";
-        ctx.font = "12px Arial";
-        ctx.textAlign = "right";
-        ctx.textBaseline = "middle";
-        for (let i = 0; i <= gridCount; i++) {
-            const value = yMax - (yMax / gridCount) * i;
-            const y = padding.top + (chartHeight / gridCount) * i;
-            ctx.fillText(formatY(value), padding.left - 8, y);
-        }
-
-        // Mensagem de vazio quando nenhum material selecionado ou sem dados
         if (!selectedMaterials.length || selectedMaterials.every(m => !(seriesByMaterial[m] || []).length)) {
-            ctx.fillStyle = "#94a3b8";
-            ctx.font = "14px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("Selecione materiais e um período para visualizar o saldo.", width / 2, height / 2);
+            CanvasChartUtils.drawEmptyState(ctx, "Selecione materiais e um período para visualizar o saldo.", width, height);
             return;
         }
 
-        // Converte string de data → posição X em pixels
-        const dateToX = (dateStr) => {
-            const ts = new Date(dateStr + "T00:00:00").getTime();
-            return padding.left + ((ts - tsStart) / tsRange) * chartWidth;
-        };
+        const tsStart = startDate ? new Date(startDate).getTime() : 0;
+        const tsEnd   = endDate   ? new Date(endDate).getTime()   : tsStart + 1;
+        const tsRange = tsEnd - tsStart || 1;
 
-        // Converte saldo → posição Y em pixels (invertido: maior saldo = menor Y)
-        const balToY = (bal) => {
-            return padding.top + chartHeight - (bal / yMax) * chartHeight;
-        };
+        const dateToX = dateStr => padding.left + ((new Date(dateStr + "T00:00:00").getTime() - tsStart) / tsRange) * chartWidth;
+        const balToY  = bal     => padding.top + chartHeight - (bal / yMax) * chartHeight;
 
-        // --- Renderização de séries: gradiente, linha suave e pontos ---
+        // --- Séries: gradiente + linha suave + pontos ---
         selectedMaterials.forEach(material => {
-            const data = (seriesByMaterial[material] || []);
+            const data = seriesByMaterial[material] || [];
             if (!data.length) return;
-
             const color = this.materialColors[material] || "#3b82f6";
-
             const pts = data.map(pt => ({
                 x: dateToX(pt.date),
                 y: balToY(pt.balance),
                 balance: pt.balance,
                 date: pt.date,
-                material
+                material,
             }));
-
-            // Preenchimento com gradiente vertical (cor do material → transparente)
-            const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartHeight);
-            grad.addColorStop(0, this._hexToRgba(color, 0.22));
-            grad.addColorStop(1, this._hexToRgba(color, 0.02));
-
-            ctx.save();
-            ctx.beginPath();
-            this._buildSmoothPath(ctx, pts);
-            ctx.lineTo(pts[pts.length - 1].x, padding.top + chartHeight);
-            ctx.lineTo(pts[0].x, padding.top + chartHeight);
-            ctx.closePath();
-            ctx.fillStyle = grad;
-            ctx.fill();
-            ctx.restore();
-
-            // Linha suave (monotone cubic) sobre os pontos
-            ctx.save();
-            ctx.beginPath();
-            this._buildSmoothPath(ctx, pts);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 2.5;
-            ctx.lineJoin = "round";
-            ctx.stroke();
-            ctx.restore();
-
-            // Pontos (dots) com borda colorida e centro branco
-            pts.forEach(pt => {
-                ctx.beginPath();
-                ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
-                ctx.fillStyle = "#ffffff";
-                ctx.fill();
-                ctx.strokeStyle = color;
-                ctx.lineWidth = 2.5;
-                ctx.stroke();
-
-                this._chartPoints.push(pt);
-            });
+            CanvasChartUtils.drawLineSeries(ctx, pts, color, padding, chartHeight, this._chartPoints);
         });
 
-        // ── Policy level reference lines ────────────────────────────────────
+        // ── Linhas de referência das políticas ───────────────────────────────
         const levelDefs = [
             { key: "safety_stock",  alpha: 0.55, dash: [3, 5]  },
             { key: "reorder_point", alpha: 0.75, dash: [9, 5]  },
             { key: "max_stock",     alpha: 0.90, dash: [16, 5] },
         ];
-        const levelLabels = {
-            safety_stock:  "ES",
-            reorder_point: { continuous: "PR", periodic: "PC" },
-            max_stock:     "E.Máx"
-        };
-
-        // Track used Y positions to offset overlapping labels
+        const levelLbl = { safety_stock: "ES", max_stock: "E.Máx" };
         const usedLabelY = [];
 
         selectedMaterials.forEach(material => {
@@ -535,13 +434,12 @@ const StockMonitor = {
                 levelDefs.forEach(({ key, alpha, dash }) => {
                     const value = levelSet[key];
                     if (value === null || value === undefined) return;
-
                     const y = balToY(value);
                     if (y < padding.top || y > padding.top + chartHeight) return;
 
                     ctx.save();
                     ctx.setLineDash(dash);
-                    ctx.strokeStyle = this._hexToRgba(color, alpha);
+                    ctx.strokeStyle = CanvasChartUtils.hexToRgba(color, alpha);
                     ctx.lineWidth = 1.5;
                     ctx.beginPath();
                     ctx.moveTo(padding.left, y);
@@ -549,17 +447,16 @@ const StockMonitor = {
                     ctx.stroke();
                     ctx.setLineDash([]);
 
-                    // Rótulo: desloca verticalmente para evitar sobreposição
                     const lbl = key === "reorder_point"
                         ? (levelSet.review_type === "periodic" ? "PC" : "PR")
-                        : levelLabels[key];
+                        : levelLbl[key];
                     let labelY = y - 3;
                     while (usedLabelY.some(uy => Math.abs(uy - labelY) < 11)) labelY -= 11;
                     usedLabelY.push(labelY);
 
-                    ctx.font = "10px Arial";
-                    ctx.fillStyle = this._hexToRgba(color, alpha + 0.1);
-                    ctx.textAlign = "right";
+                    ctx.font         = "10px Arial";
+                    ctx.fillStyle    = CanvasChartUtils.hexToRgba(color, alpha + 0.1);
+                    ctx.textAlign    = "right";
                     ctx.textBaseline = "bottom";
                     ctx.fillText(`${lbl} ${this._formatValue(value)}`, padding.left + chartWidth - 4, labelY);
                     ctx.restore();
@@ -567,47 +464,29 @@ const StockMonitor = {
             });
         });
 
-        // --- Eixo X: amostragem inteligente de datas para evitar sobreposição ---
+        // ── Eixo X: amostragem inteligente ───────────────────────────────────
         const allDates = [];
-        selectedMaterials.forEach(material => {
+        selectedMaterials.forEach(material =>
             (seriesByMaterial[material] || []).forEach(pt => {
                 if (!allDates.includes(pt.date)) allDates.push(pt.date);
-            });
-        });
+            })
+        );
         allDates.sort();
 
         const minLabelSpacing = 60;
         let lastLabelX = -Infinity;
-        ctx.fillStyle = "#607d9a";
-        ctx.font = "11px Arial";
-        ctx.textAlign = "center";
+        ctx.fillStyle    = "#607d9a";
+        ctx.font         = "11px Arial";
+        ctx.textAlign    = "center";
         ctx.textBaseline = "top";
-
         allDates.forEach(dateStr => {
             const x = dateToX(dateStr);
             if (x - lastLabelX < minLabelSpacing) return;
             lastLabelX = x;
-            const parts = dateStr.split("-");
-            const label = `${parts[2]}/${parts[1]}`;
-            ctx.fillText(label, x, padding.top + chartHeight + 10);
+            const [y, mo, d] = dateStr.split("-");
+            ctx.fillText(`${d}/${mo}`, x, padding.top + chartHeight + 10);
         });
     },
-
-    /**
-     * Constrói caminho suave no canvas usando interpolação cúbica monotone (Fritsch-Carlson).
-     * Garante que a curva passe por todos os pontos sem overshoot.
-     * @param {CanvasRenderingContext2D} ctx - Contexto 2D do canvas.
-     * @param {Array<{x:number, y:number}>} pts - Pontos ordenados por X.
-     */
-    _buildSmoothPath: (ctx, pts) => StockPolicyUtils.buildSmoothPath(ctx, pts),
-
-    /**
-     * Converte cor hexadecimal para string rgba.
-     * @param {string} hex - Cor em formato #RRGGBB.
-     * @param {number} alpha - Opacidade (0–1).
-     * @returns {string} Cor no formato rgba(...).
-     */
-    _hexToRgba: (hex, alpha) => StockPolicyUtils.hexToRgba(hex, alpha),
 
     // ══════════════════════════════════════════════
     // ══ Tooltip ══
@@ -660,18 +539,7 @@ const StockMonitor = {
         tooltip.innerHTML = `<div class="stock-monitor-tooltip-header">${dateLabel}</div>${lines}`;
         tooltip.style.display = "block";
 
-        const wrap = canvas.parentElement;
-        const wrapRect = wrap.getBoundingClientRect();
-        let tx = e.clientX - wrapRect.left + 14;
-        let ty = e.clientY - wrapRect.top + 14;
-
-        const tw = tooltip.offsetWidth;
-        const th = tooltip.offsetHeight;
-        if (tx + tw > wrapRect.width - 4) tx = e.clientX - wrapRect.left - tw - 14;
-        if (ty + th > wrapRect.height - 4) ty = e.clientY - wrapRect.top - th - 14;
-
-        tooltip.style.left = tx + "px";
-        tooltip.style.top = ty + "px";
+        CanvasChartUtils.positionTooltip(tooltip, e, canvas.parentElement);
     },
 
     /** Esconde o tooltip ao sair do canvas. */

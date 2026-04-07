@@ -491,50 +491,22 @@ const Dashboard = {
         const canvas = document.getElementById("consumptionChart");
         if (!canvas) return;
 
-        const wrapper = canvas.parentElement;
         const height = 200;
-        const dpr = window.devicePixelRatio || 1;
-        const width = Math.max(canvas.offsetWidth || (wrapper ? wrapper.clientWidth : 640), 300);
+        const { ctx, width } = CanvasChartUtils.setupCanvas(canvas, height);
+        const padding     = { top: 20, right: 20, bottom: 44, left: 46 };
+        const chartWidth  = width  - padding.left - padding.right;
+        const chartHeight = height - padding.top  - padding.bottom;
 
-        // Escala o canvas pelo devicePixelRatio para manter nitidez em telas Retina
-        canvas.width = Math.floor(width * dpr);
-        canvas.height = Math.floor(height * dpr);
-
-        const ctx = canvas.getContext("2d");
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.clearRect(0, 0, width, height);
-
-        const padding = { top: 20, right: 20, bottom: 44, left: 46 };
-        const chartWidth = width - padding.left - padding.right;
-        const chartHeight = height - padding.top - padding.bottom;
-
-        const totalsByDay = weekDays.map((_, dayIndex) => {
-            return selectedMaterials.reduce((sum, material) => {
-                const value = (seriesByMaterial[material] && seriesByMaterial[material][dayIndex]) || 0;
-                return sum + value;
-            }, 0);
-        });
+        const totalsByDay = weekDays.map((_, dayIndex) =>
+            selectedMaterials.reduce((sum, material) =>
+                sum + ((seriesByMaterial[material] && seriesByMaterial[material][dayIndex]) || 0), 0)
+        );
 
         // yMax = maior total diário + 10% de margem superior
         const maxValue = Math.max(...totalsByDay, 0);
         const yMax = maxValue > 0 ? maxValue * 1.1 : 10;
 
-        // Formata eixo Y com sufixos K/M para melhor legibilidade
-        const formatY = v => {
-            if (v >= 1_000_000) return (v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1) + "M";
-            if (v >= 1_000)     return (v / 1_000).toFixed(v % 1_000 === 0 ? 0 : 1) + "K";
-            return Math.round(v).toString();
-        };
-
-        ctx.fillStyle = "#607d9a";
-        ctx.font = "12px Arial";
-        ctx.textAlign = "right";
-        ctx.textBaseline = "middle";
-        for (let i = 0; i <= 4; i++) {
-            const value = yMax - (yMax / 4) * i;
-            const y = padding.top + (chartHeight / 4) * i;
-            ctx.fillText(formatY(value), padding.left - 8, y);
-        }
+        CanvasChartUtils.drawYAxis(ctx, padding, chartWidth, chartHeight, yMax, { withGrid: false });
 
         // Largura de cada slot e barra (máx. 54px, 62% do slot)
         const slotCount = weekDays.length || 1;
@@ -562,20 +534,16 @@ const Dashboard = {
                 currentY = y;
             });
 
-            ctx.fillStyle = "#334155";
-            ctx.font = "11px Arial";
-            ctx.textAlign = "center";
+            ctx.fillStyle    = "#334155";
+            ctx.font         = "11px Arial";
+            ctx.textAlign    = "center";
             ctx.textBaseline = "top";
             const dayLabel = `${String(day.getDate()).padStart(2, "0")}/${String(day.getMonth() + 1).padStart(2, "0")}`;
             ctx.fillText(dayLabel, x + barWidthSafe / 2, padding.top + chartHeight + 10);
         });
 
         if (maxValue === 0) {
-            ctx.fillStyle = "#94a3b8";
-            ctx.font = "14px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("Sem consumo registrado para os filtros selecionados.", width / 2, height / 2);
+            CanvasChartUtils.drawEmptyState(ctx, "Sem consumo registrado para os filtros selecionados.", width, height);
         }
     },
 

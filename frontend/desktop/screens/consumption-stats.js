@@ -847,26 +847,15 @@ const ConsumptionStats = {
         const canvas = document.getElementById("cstatsChart");
         if (!canvas) return;
 
-        const wrapper = canvas.parentElement;
-        const height  = 320;
-        const dpr     = window.devicePixelRatio || 1;
-        const width   = Math.max(canvas.offsetWidth || (wrapper ? wrapper.clientWidth : 640), 300);
-
-        canvas.width  = Math.floor(width * dpr);
-        canvas.height = Math.floor(height * dpr);
-        canvas.style.height = height + "px";
-
-        const ctx = canvas.getContext("2d");
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.clearRect(0, 0, width, height);
-
+        const height = 320;
+        const { ctx, width } = CanvasChartUtils.setupCanvas(canvas, height);
         const padding     = { top: 20, right: 20, bottom: 44, left: 56 };
         const chartWidth  = width  - padding.left - padding.right;
         const chartHeight = height - padding.top  - padding.bottom;
 
         const data = this._lastAggregated;
 
-        // Y scale — include forecast upper band in max
+        // Escala Y — inclui a banda superior do forecast no máximo
         let maxVal = 0;
         data.forEach(d => { if (d.value > maxVal) maxVal = d.value; });
         if (forecast) {
@@ -879,51 +868,18 @@ const ConsumptionStats = {
         }
         const yMax = maxVal > 0 ? maxVal * 1.15 : 10;
 
-        const formatY = v => {
-            if (v >= 1_000_000) return (v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1) + "M";
-            if (v >= 1_000)     return (v / 1_000).toFixed(v % 1_000 === 0 ? 0 : 1) + "K";
-            return Math.round(v).toString();
-        };
-
         const valToY = v => padding.top + chartHeight - (Math.max(0, v) / yMax) * chartHeight;
         const n = data.length;
         const xOfIdx = i => padding.left + (n === 1 ? chartWidth / 2 : (i / (n - 1)) * chartWidth);
 
-        // Grid
-        const gridCount = 4;
-        ctx.strokeStyle = "#e2e8f0";
-        ctx.lineWidth   = 1;
-        ctx.setLineDash([4, 4]);
-        for (let i = 0; i <= gridCount; i++) {
-            const y = padding.top + (chartHeight / gridCount) * i;
-            ctx.beginPath();
-            ctx.moveTo(padding.left, y);
-            ctx.lineTo(padding.left + chartWidth, y);
-            ctx.stroke();
-        }
-        ctx.setLineDash([]);
+        CanvasChartUtils.drawYAxis(ctx, padding, chartWidth, chartHeight, yMax);
 
-        // Y labels
-        ctx.fillStyle    = "#607d9a";
-        ctx.font         = "12px Arial";
-        ctx.textAlign    = "right";
-        ctx.textBaseline = "middle";
-        for (let i = 0; i <= gridCount; i++) {
-            const value = yMax - (yMax / gridCount) * i;
-            const y     = padding.top + (chartHeight / gridCount) * i;
-            ctx.fillText(formatY(value), padding.left - 8, y);
-        }
-
-        // Empty state
+        // Estado vazio
         if (!data.length) {
-            ctx.fillStyle    = "#94a3b8";
-            ctx.font         = "14px Arial";
-            ctx.textAlign    = "center";
-            ctx.textBaseline = "middle";
             const msg = this.selectedMaterial
                 ? "Nenhum dado de consumo no período selecionado."
                 : "Selecione um material para visualizar o consumo.";
-            ctx.fillText(msg, padding.left + chartWidth / 2, padding.top + chartHeight / 2);
+            CanvasChartUtils.drawEmptyState(ctx, msg, width, height);
             return;
         }
 
@@ -960,41 +916,8 @@ const ConsumptionStats = {
             }
         }
 
-        // --- Fase 2: Linha de consumo real (preenchimento gradiente + traçado sólido) ---
-        const color = "#3b82f6";
-        const grad  = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartHeight);
-        grad.addColorStop(0, this._hexToRgba(color, 0.22));
-        grad.addColorStop(1, this._hexToRgba(color, 0.02));
-
-        ctx.save();
-        ctx.beginPath();
-        this._buildSmoothPath(ctx, pts);
-        ctx.lineTo(pts[pts.length - 1].x, padding.top + chartHeight);
-        ctx.lineTo(pts[0].x,              padding.top + chartHeight);
-        ctx.closePath();
-        ctx.fillStyle = grad;
-        ctx.fill();
-        ctx.restore();
-
-        ctx.save();
-        ctx.beginPath();
-        this._buildSmoothPath(ctx, pts);
-        ctx.strokeStyle = color;
-        ctx.lineWidth   = 2.5;
-        ctx.lineJoin    = "round";
-        ctx.stroke();
-        ctx.restore();
-
-        pts.forEach(pt => {
-            ctx.beginPath();
-            ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
-            ctx.fillStyle   = "#ffffff";
-            ctx.fill();
-            ctx.strokeStyle = color;
-            ctx.lineWidth   = 2.5;
-            ctx.stroke();
-            this._chartPoints.push(pt);
-        });
+        // --- Fase 2: Linha de consumo real (gradiente + traçado sólido + pontos) ---
+        CanvasChartUtils.drawLineSeries(ctx, pts, "#3b82f6", padding, chartHeight, this._chartPoints);
 
         // --- Fase 3: Linha tracejada de previsão ---
         if (forecast && n > forecast.startIdx) {
@@ -1006,7 +929,7 @@ const ConsumptionStats = {
             if (fPts.length >= 2) {
                 ctx.save();
                 ctx.beginPath();
-                this._buildSmoothPath(ctx, fPts);
+                CanvasChartUtils.buildSmoothPath(ctx, fPts);
                 ctx.strokeStyle = "#f59f00";
                 ctx.lineWidth   = 2;
                 ctx.setLineDash([6, 4]);
@@ -1017,14 +940,13 @@ const ConsumptionStats = {
             }
         }
 
-        // X labels — smart sampling
+        // Eixo X — amostragem inteligente de labels
         const minLabelSpacing = 60;
         let lastLabelX = -Infinity;
         ctx.fillStyle    = "#607d9a";
         ctx.font         = "11px Arial";
         ctx.textAlign    = "center";
         ctx.textBaseline = "top";
-
         data.forEach((d, i) => {
             const cx = pts[i].x;
             if (cx - lastLabelX < minLabelSpacing) return;
@@ -1080,16 +1002,7 @@ const ConsumptionStats = {
         tooltip.innerHTML = `<div class="cstats-tooltip-header">${this._escapeHtml(closest.label)}</div>${rows}`;
         tooltip.style.display = "block";
 
-        const wrap     = canvas.parentElement;
-        const wrapRect = wrap.getBoundingClientRect();
-        let tx = e.clientX - wrapRect.left + 14;
-        let ty = e.clientY - wrapRect.top  + 14;
-        const tw = tooltip.offsetWidth;
-        const th = tooltip.offsetHeight;
-        if (tx + tw > wrapRect.width  - 4) tx = e.clientX - wrapRect.left - tw - 14;
-        if (ty + th > wrapRect.height - 4) ty = e.clientY - wrapRect.top  - th - 14;
-        tooltip.style.left = tx + "px";
-        tooltip.style.top  = ty + "px";
+        CanvasChartUtils.positionTooltip(tooltip, e, canvas.parentElement);
     },
 
     /** Esconde o tooltip ao sair do canvas */
@@ -1101,13 +1014,6 @@ const ConsumptionStats = {
     // ══════════════════════════════════════════════════════════════
     // ══ Utilitários ══
     // ══════════════════════════════════════════════════════════════
-
-    /**
-     * Traça um caminho suavizado (spline monotônica de Fritsch-Carlson)
-     * entre os pontos fornecidos.
-     */
-    _buildSmoothPath: (ctx, pts) => StockPolicyUtils.buildSmoothPath(ctx, pts),
-    _hexToRgba: (hex, alpha) => StockPolicyUtils.hexToRgba(hex, alpha),
 
     // ══════════════════════════════════════════════════════════════
     // ══ Cálculos Estatísticos ══
