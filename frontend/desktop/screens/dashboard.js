@@ -24,6 +24,7 @@ const Dashboard = {
     _selectedPolicyId: null,
     _policyFull: null,
     _balanceRows: [],
+    _groupedMaterialNames: null,
     _leadTimeCache: {},
     _materialColorMap: {},
 
@@ -625,6 +626,7 @@ const Dashboard = {
         if (!policyId) {
             this._policyFull = null;
             this._balanceRows = [];
+            this._groupedMaterialNames = null;
             this.selectedMaterials = [];
             this._renderBalanceTable();
             await this.refresh();
@@ -684,6 +686,7 @@ const Dashboard = {
             grpItems.map(i => apiCall(`${API}/groups/${i.group_id}`).catch(() => null))
         );
         const groupMemberNames = groupDataList.map(g => (g?.materials || []).map(m => m.name).filter(Boolean));
+        this._groupedMaterialNames = new Set(groupMemberNames.flat());
 
         // All material names needed for stocks / open orders
         const directNames = matItems.map(i => i.material).filter(Boolean);
@@ -898,8 +901,12 @@ const Dashboard = {
                 </tr>`;
         }).join("");
 
-        const totalStock = this._balanceRows.reduce((s, r) => s + (r.currentStock ?? 0), 0);
-        const totalNeed  = this._balanceRows.reduce((s, r) => s + (r.need ?? 0), 0);
+        // Exclui materiais que já estão contabilizados dentro de um grupo
+        const rowsForTotal = this._balanceRows.filter(
+            r => r.isGroup || !(this._groupedMaterialNames?.has(r.label))
+        );
+        const totalStock = rowsForTotal.reduce((s, r) => s + (r.currentStock ?? 0), 0);
+        const totalNeed  = rowsForTotal.reduce((s, r) => s + (r.need ?? 0), 0);
 
         container.innerHTML = `
             <div class="consumption-balance-table-wrap">

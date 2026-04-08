@@ -200,25 +200,29 @@
     <!-- ── Tela: Lista de Estoque ────────────────────────── -->
     <main id="screenStockList" class="mob-screen" style="display:none">
 
-        <div class="mob-stock-filters-grid mob-list-filters">
-            <select id="mobStockSupplierFilter" class="mob-select mob-list-filter-select" onchange="MobApp.applyStockFilters()">
-                <option value="">Fornecedor</option>
-            </select>
-            <select id="mobStockMaterialFilter" class="mob-select mob-list-filter-select" onchange="MobApp.applyStockFilters()">
-                <option value="">Material</option>
-            </select>
+        <!-- Barra de seleção em lote — fica no topo colada ao header -->
+        <div id="mobStockBatchBar" class="mob-stock-batch-bar" style="display:none">
+            <span id="mobStockBatchCount" class="mob-stock-batch-count"></span>
+            <button class="mob-stock-batch-out-btn" onclick="MobApp.openStockBatchDialog()">
+                <span class="material-symbols-outlined">output</span>
+                Dar saída
+            </button>
+            <button class="mob-stock-batch-cancel-btn" onclick="MobApp.clearStockSelection()">
+                <span class="material-symbols-outlined">close</span>
+            </button>
         </div>
 
-        <div class="mob-stock-status-filter">
-            <button class="mob-stock-status-btn mob-stock-status-btn--active" data-status="" onclick="MobApp.setStockStatusFilter('')">Todos</button>
-            <button class="mob-stock-status-btn" data-status="IN_STOCK"  onclick="MobApp.setStockStatusFilter('IN_STOCK')">Em Estoque</button>
-            <button class="mob-stock-status-btn" data-status="OUT_STOCK" onclick="MobApp.setStockStatusFilter('OUT_STOCK')">Baixado</button>
-        </div>
-
-        <div class="mob-search-wrap">
-            <input type="search" id="mobStockSearch" class="mob-input mob-search-input"
-                   placeholder="Pesquisar material, fornecedor..."
-                   oninput="MobApp.applyStockFilters()">
+        <!-- Barra de pesquisa + botão de filtro -->
+        <div class="mob-stock-topbar">
+            <div class="mob-search-wrap" style="flex:1; min-width:0">
+                <input type="search" id="mobStockSearch" class="mob-input mob-search-input"
+                       placeholder="Pesquisar material, fornecedor..."
+                       oninput="MobApp.applyStockFilters()">
+            </div>
+            <button class="mob-stock-filter-btn" id="mobStockFilterBtn" onclick="MobApp.openStockFilterSheet()">
+                <span class="material-symbols-outlined">filter_list</span>
+                <span class="mob-stock-filter-badge" id="mobStockFilterBadge" style="display:none"></span>
+            </button>
         </div>
 
         <div id="mobStockCount" class="mob-stock-count"></div>
@@ -226,6 +230,75 @@
         <ul class="mob-stock-list" id="mobStockList">
             <li class="mob-items-empty">Carregando...</li>
         </ul>
+
+        <!-- Painel de filtros (bottom sheet) -->
+        <div id="mobStockFilterSheet" class="mob-stock-filter-sheet-backdrop" style="display:none"
+             onclick="MobApp._onStockFilterBackdropClick(event)">
+            <div class="mob-stock-filter-sheet">
+                <div class="mob-stock-filter-sheet-header">
+                    <button class="mob-stock-filter-sheet-reset" onclick="MobApp.resetStockFilters()">Resetar</button>
+                    <span class="mob-stock-filter-sheet-title">Filtros</span>
+                    <button class="mob-stock-filter-sheet-close" onclick="MobApp.closeStockFilterSheet()">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <div class="mob-stock-filter-sheet-body">
+                    <div class="mob-stock-filter-section">
+                        <label class="mob-stock-filter-section-label">Fornecedor</label>
+                        <select id="mobStockSupplierFilter" class="mob-select" onchange="MobApp.applyStockFilters(); MobApp._updateStockFilterBadge()">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="mob-stock-filter-section">
+                        <label class="mob-stock-filter-section-label">Material</label>
+                        <select id="mobStockMaterialFilter" class="mob-select" onchange="MobApp.applyStockFilters(); MobApp._updateStockFilterBadge()">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="mob-stock-filter-section">
+                        <label class="mob-stock-filter-section-label">Status</label>
+                        <div class="mob-stock-status-filter">
+                            <button class="mob-stock-status-btn mob-stock-status-btn--active" data-status="" onclick="MobApp.setStockStatusFilter('')">Todos</button>
+                            <button class="mob-stock-status-btn" data-status="IN_STOCK" onclick="MobApp.setStockStatusFilter('IN_STOCK')">Em Estoque</button>
+                            <button class="mob-stock-status-btn" data-status="OUT_STOCK" onclick="MobApp.setStockStatusFilter('OUT_STOCK')">Baixado</button>
+                        </div>
+                    </div>
+                    <div class="mob-stock-filter-section">
+                        <label class="mob-stock-filter-section-label">Selecionados</label>
+                        <button id="mobStockShowSelectedBtn" class="mob-stock-show-selected-btn" onclick="MobApp.toggleStockShowSelected()">
+                            <span class="material-symbols-outlined">checklist</span>
+                            Selecionados
+                        </button>
+                    </div>
+                </div>
+                <div class="mob-stock-filter-sheet-footer">
+                    <button class="mob-stock-filter-apply-btn" onclick="MobApp.closeStockFilterSheet()">Aplicar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dialog de saída em lote -->
+        <div id="mobStockBatchDialog" class="mob-stock-batch-dialog-backdrop" style="display:none">
+            <div class="mob-stock-batch-dialog">
+                <h3 class="mob-stock-batch-dialog-title">Dar saída em lote</h3>
+                <p class="mob-stock-batch-dialog-sub" id="mobStockBatchDialogSub"></p>
+                <div class="mob-form-field">
+                    <label class="mob-label" for="mobBatchDateOut">Data de saída</label>
+                    <input type="date" id="mobBatchDateOut" class="mob-input">
+                </div>
+                <div class="mob-form-field">
+                    <label class="mob-label" for="mobBatchDeductionType">Tipo de baixa</label>
+                    <select id="mobBatchDeductionType" class="mob-select">
+                        <option value="uso">Uso</option>
+                        <option value="ajuste">Ajuste</option>
+                    </select>
+                </div>
+                <div class="mob-stock-batch-dialog-actions">
+                    <button class="mob-btn mob-btn--primary" onclick="MobApp.confirmStockBatchOut()">Confirmar</button>
+                    <button class="mob-btn mob-btn--secondary" onclick="MobApp.closeStockBatchDialog()">Cancelar</button>
+                </div>
+            </div>
+        </div>
 
     </main>
 

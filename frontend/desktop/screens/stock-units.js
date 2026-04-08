@@ -10,14 +10,54 @@ const StockUnits = {
     /** Bag selecionado atualmente */
     selectedBag: null,
     _filterRestored: false,
+    _defaultDateOut: '',
+    _selectedIds: new Set(),
+    _showOnlySelected: false,
 
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML da tela */
     render() {
         this._filterRestored = false;
+        this._defaultDateOut = '';
+        this._selectedIds = new Set();
+        this._showOnlySelected = false;
         return `
         <div class="stock-units-container">
+            <div id="stockUnitsDateBanner" class="stock-units-date-banner" style="display:none">
+                <span class="material-symbols-outlined">warning</span>
+                Saídas rápidas estão usando <strong id="stockUnitsBannerDate"></strong> — não a data de hoje.
+                <button onclick="StockUnits._clearDefaultDate()">Limpar</button>
+            </div>
+            <div id="stockUnitsBatchBar" class="stock-units-batch-bar" style="display:none">
+                <span id="stockUnitsBatchCount"></span>
+                <button class="stock-units-batch-btn" onclick="StockUnits.openBatchOut()">
+                    <span class="material-symbols-outlined">output</span>
+                    Dar saída
+                </button>
+                <button class="stock-units-batch-cancel" onclick="StockUnits._clearSelection()">Cancelar seleção</button>
+            </div>
+            <div id="stockUnitsBatchDialog" class="stock-units-batch-dialog-backdrop" style="display:none">
+                <div class="stock-units-batch-dialog">
+                    <h3 class="stock-units-batch-dialog-title">Dar saída em lote</h3>
+                    <p class="stock-units-batch-dialog-sub" id="stockUnitsBatchDialogSub"></p>
+                    <div class="stock-units-batch-dialog-field">
+                        <label for="batchDateOut">Data de saída</label>
+                        <input type="date" id="batchDateOut" class="stock-units-edit-input">
+                    </div>
+                    <div class="stock-units-batch-dialog-field">
+                        <label for="batchDeductionType">Tipo de baixa</label>
+                        <select id="batchDeductionType" class="stock-units-edit-input">
+                            <option value="uso">Uso</option>
+                            <option value="ajuste">Ajuste</option>
+                        </select>
+                    </div>
+                    <div class="stock-units-batch-dialog-actions">
+                        <button class="btn-primary" onclick="StockUnits.confirmBatchOut()">Confirmar</button>
+                        <button class="btn-secondary" onclick="StockUnits.closeBatchDialog()">Cancelar</button>
+                    </div>
+                </div>
+            </div>
             <div id="stockUnitsEditPanel" class="stock-units-edit-panel" style="display:none">
                 <div class="stock-units-edit-fields">
                     <div class="stock-units-edit-field">
@@ -86,12 +126,21 @@ const StockUnits = {
                         <option value="">Fornecedor</option>
                     </select>
                     <input id="search" class="stock-units-search" placeholder="Pesquisar" oninput="StockUnits.load()">
+                    <button id="filterSelectedBtn" class="stock-units-filter-selected-btn" onclick="StockUnits._toggleShowSelected()" title="Mostrar apenas selecionados">
+                        <span class="material-symbols-outlined">checklist</span>
+                        Selecionados
+                    </button>
+                    <div class="stock-units-default-date-wrap">
+                        <label for="defaultDateOut">Data de saída</label>
+                        <input type="date" id="defaultDateOut" class="stock-units-edit-input" title="Data padrão para saídas rápidas" onchange="StockUnits._onDefaultDateChange()">
+                    </div>
                 </div>
                 <div id="stockUnitsCount" class="stock-units-count"></div>
                 <div class="stock-units-table-container">
                     <table class="stock-units-table">
                         <thead>
                             <tr>
+                                <th class="stock-units-col-check"><input type="checkbox" id="checkAll" onchange="StockUnits._onCheckAll(this)" title="Selecionar todos"></th>
                                 <th></th>
                                 <th>Código</th>
                                 <th>ID Antigo</th>
@@ -142,6 +191,13 @@ const StockUnits = {
             localStorage.setItem('wcm.stockUnits.search',   document.getElementById('search')?.value         || '');
 
             this._renderTable(stockUnits);
+
+            // Restaura o campo de data padrão (valor de sessão, não localStorage)
+            const defaultDateEl = document.getElementById('defaultDateOut');
+            if (defaultDateEl) defaultDateEl.value = this._defaultDateOut || '';
+            this._updateDateBanner();
+            this._updateSelectedFilterBtn();
+            this._updateBatchBar();
         } catch (error) {
             alert("Erro ao carregar estoque");
         }
@@ -198,10 +254,23 @@ const StockUnits = {
         }
     },
 
-    /** Marca um bag como usado (saída) */
+    /** Marca um bag como usado (saída) — usa data padrão de sessão se definida */
     async useStockUnit(event, id) {
         event.stopPropagation();
-        await this._updateStockUnitStatus(id, "out");
+        if (this._defaultDateOut) {
+            try {
+                await apiCall(`${API}/stock-units/update`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, date_out: this._defaultDateOut, status: 'OUT_STOCK', notes: '', deduction_type: 'uso' })
+                });
+                this.load();
+            } catch {
+                alert('Erro ao dar saída na unidade de estoque');
+            }
+        } else {
+            await this._updateStockUnitStatus(id, 'out');
+        }
     },
 
     /** Devolve um bag ao estoque */
@@ -261,8 +330,12 @@ const StockUnits = {
         const tr = document.createElement("tr");
         const daysDiff = calculateDaysDifference(bag.date_in, bag.date_out);
         const isInStock = bag.status === "IN_STOCK";
+        const isChecked = this._selectedIds.has(String(bag.id));
 
         tr.innerHTML = `
+            <td class="stock-units-col-check" onclick="event.stopPropagation()">
+                ${isInStock ? `<input type="checkbox" class="stock-units-row-check" data-id="${bag.id}" onchange="StockUnits._onRowCheck(this,'${bag.id}')" ${isChecked ? 'checked' : ''}>` : ''}
+            </td>
             <td class="stock-units-col-status">
                 ${isInStock ? "" : '<span class="material-symbols-outlined">check_circle</span>'}
             </td>
@@ -306,12 +379,14 @@ const StockUnits = {
             status: document.getElementById("filterStatus").value || null,
             material: document.getElementById("filterMaterial").value || null,
             supplier: document.getElementById("filterSupplier").value || null,
-            search: document.getElementById("search").value.toLowerCase() || null
+            search: document.getElementById("search").value.toLowerCase() || null,
+            onlySelected: this._showOnlySelected
         };
     },
 
     /** Verifica se um bag corresponde aos filtros ativos */
     _matchesFilters(bag, filters) {
+        if (filters.onlySelected && !this._selectedIds.has(String(bag.id))) return false;
         if (filters.status && bag.status !== filters.status) return false;
         if (filters.material && bag.material !== filters.material) return false;
         if (filters.supplier && bag.supplier !== filters.supplier) return false;
@@ -363,6 +438,142 @@ const StockUnits = {
     _clearAndReload() {
         this._clearForm();
         this.load();
+    },
+
+    /** Reage à mudança da data de saída padrão */
+    _onDefaultDateChange() {
+        this._defaultDateOut = document.getElementById('defaultDateOut')?.value || '';
+        this._updateDateBanner();
+    },
+
+    /** Atualiza o banner de aviso conforme data padrão */
+    _updateDateBanner() {
+        const banner = document.getElementById('stockUnitsDateBanner');
+        const bannerDate = document.getElementById('stockUnitsBannerDate');
+        if (!banner) return;
+        const today = new Date().toISOString().slice(0, 10);
+        if (this._defaultDateOut && this._defaultDateOut !== today) {
+            const [y, m, d] = this._defaultDateOut.split('-');
+            bannerDate.textContent = `${d}/${m}/${y}`;
+            banner.style.display = '';
+        } else {
+            banner.style.display = 'none';
+        }
+    },
+
+    /** Limpa a data padrão e fecha o banner */
+    _clearDefaultDate() {
+        this._defaultDateOut = '';
+        const el = document.getElementById('defaultDateOut');
+        if (el) el.value = '';
+        this._updateDateBanner();
+    },
+
+    /** Checkbox "selecionar todos" */
+    _onCheckAll(checkbox) {
+        this._selectedIds = new Set();
+        document.querySelectorAll('.stock-units-row-check').forEach(cb => {
+            cb.checked = checkbox.checked;
+            if (checkbox.checked) this._selectedIds.add(String(cb.dataset.id));
+        });
+        this._updateBatchBar();
+    },
+
+    /** Checkbox individual por linha */
+    _onRowCheck(checkbox, id) {
+        if (checkbox.checked) {
+            this._selectedIds.add(String(id));
+        } else {
+            this._selectedIds.delete(String(id));
+            const checkAll = document.getElementById('checkAll');
+            if (checkAll) checkAll.checked = false;
+        }
+        this._updateBatchBar();
+    },
+
+    /** Exibe/oculta a barra de ações em lote */
+    _updateBatchBar() {
+        const bar = document.getElementById('stockUnitsBatchBar');
+        const countEl = document.getElementById('stockUnitsBatchCount');
+        if (!bar) return;
+        const n = this._selectedIds.size;
+        if (n > 0) {
+            bar.style.display = '';
+            countEl.textContent = `${n} ${n === 1 ? 'item selecionado' : 'itens selecionados'}`;
+        } else {
+            bar.style.display = 'none';
+        }
+    },
+
+    /** Limpa todas as seleções e desativa o filtro de selecionados */
+    _clearSelection() {
+        this._selectedIds = new Set();
+        this._showOnlySelected = false;
+        document.querySelectorAll('.stock-units-row-check').forEach(cb => cb.checked = false);
+        const checkAll = document.getElementById('checkAll');
+        if (checkAll) checkAll.checked = false;
+        this._updateBatchBar();
+        this._updateSelectedFilterBtn();
+        this.load();
+    },
+
+    /** Liga/desliga o filtro "mostrar apenas selecionados" */
+    _toggleShowSelected() {
+        this._showOnlySelected = !this._showOnlySelected;
+        this._updateSelectedFilterBtn();
+        this.load();
+    },
+
+    /** Atualiza o estado visual do botão de filtro de selecionados */
+    _updateSelectedFilterBtn() {
+        const btn = document.getElementById('filterSelectedBtn');
+        if (!btn) return;
+        btn.classList.toggle('stock-units-filter-selected-btn--active', this._showOnlySelected);
+    },
+
+    /** Abre o dialog de saída em lote */
+    openBatchOut() {
+        const dialog = document.getElementById('stockUnitsBatchDialog');
+        const sub = document.getElementById('stockUnitsBatchDialogSub');
+        const dateEl = document.getElementById('batchDateOut');
+        if (!dialog) return;
+        const n = this._selectedIds.size;
+        sub.textContent = `${n} ${n === 1 ? 'item será baixado' : 'itens serão baixados'}.`;
+        dateEl.value = this._defaultDateOut || new Date().toISOString().slice(0, 10);
+        document.getElementById('batchDeductionType').value = 'uso';
+        dialog.style.display = '';
+    },
+
+    /** Fecha o dialog sem confirmar */
+    closeBatchDialog() {
+        const dialog = document.getElementById('stockUnitsBatchDialog');
+        if (dialog) dialog.style.display = 'none';
+    },
+
+    /** Confirma saída em lote */
+    async confirmBatchOut() {
+        const dateOut = document.getElementById('batchDateOut').value;
+        const deductionType = document.getElementById('batchDeductionType').value;
+        if (!dateOut) {
+            alert('Informe a data de saída');
+            return;
+        }
+        this.closeBatchDialog();
+
+        const ids = [...this._selectedIds];
+        try {
+            await Promise.all(ids.map(id =>
+                apiCall(`${API}/stock-units/update`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, date_out: dateOut, status: 'OUT_STOCK', notes: '', deduction_type: deductionType })
+                })
+            ));
+            this._selectedIds = new Set();
+            this.load();
+        } catch {
+            alert('Erro ao dar saída nos itens selecionados');
+        }
     },
 
     /** Reage à mudança da data de saída — exibe/oculta tipo de baixa */

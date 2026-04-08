@@ -362,7 +362,7 @@ const ReceiptsDetails = {
             operator: nature === "P" ? itemOperator : ""
         });
 
-        clearFormInputs(["itemMaterial", "itemOperator", "itemQuantity"]);
+        clearFormInputs(["itemOperator", "itemQuantity"]);
         this._setNextItemCode();
         this._refreshItemsView();
     },
