@@ -432,5 +432,42 @@ function createSearchSelect(config) {
         }
     }
 
-    return { renderHTML, mount, setItems, getValue, getValues, clear, destroy };
+    /**
+     * Seleciona programaticamente um item em modo single sem disparar onChange.
+     * @param {string} sectionKey — Chave da seção.
+     * @param {*}      value      — Valor do item a selecionar.
+     */
+    function select(sectionKey, value) {
+        if (_multiple) return;
+        const section = _sections.find(s => s.key === sectionKey);
+        const item = section && section.items.find(i => String(i.value) === String(value));
+        if (!item) return;
+        _selectedKey   = sectionKey;
+        _selectedValue = String(item.value);
+        _renderTriggerSelection();
+        _renderList(_sections);
+    }
+
+    /**
+     * Seleciona programaticamente vários itens em modo multiple sem disparar onChange.
+     * @param {string}   sectionKey — Chave da seção.
+     * @param {Array<*>} values     — Valores a selecionar.
+     */
+    function setSelectedValues(sectionKey, values) {
+        if (!_multiple) return;
+        const section = _sections.find(s => s.key === sectionKey);
+        if (!section) return;
+        const strValues = new Set((values || []).map(String));
+        section.items.forEach(item => {
+            if (strValues.has(String(item.value))) {
+                if (!_selectedItems.some(s => s.key === sectionKey && String(s.value) === String(item.value))) {
+                    _selectedItems.push({ key: sectionKey, value: item.value, label: item.label, item });
+                }
+            }
+        });
+        _renderTriggerSelection();
+        _renderList(_sections);
+    }
+
+    return { renderHTML, mount, setItems, getValue, getValues, select, setSelectedValues, clear, destroy };
 }

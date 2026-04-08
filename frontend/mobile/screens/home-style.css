@@ -121,6 +121,30 @@
     width: 100%;
 }
 
+/* Empty state */
+.mob-home-empty-state {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 150px;
+    padding: 24px 16px;
+    text-align: center;
+}
+
+.mob-home-empty-icon {
+    font-size: 36px;
+    color: #cbd5e1;
+}
+
+.mob-home-empty-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
 /* ── Tooltip do gráfico ─────────────────────────────────────── */
 
 .mob-home-tooltip {

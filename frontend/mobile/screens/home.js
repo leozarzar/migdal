@@ -209,6 +209,17 @@ Object.assign(MobApp, {
             const maxValue = Math.max(...totalsByDay, 0);
             const yMax     = maxValue > 0 ? maxValue * 1.1 : 10;
 
+            const emptyState = document.getElementById('mobHomeEmptyState');
+
+            if (maxValue === 0) {
+                canvas.style.display = 'none';
+                if (emptyState) emptyState.style.display = 'flex';
+                return;
+            }
+
+            canvas.style.display = '';
+            if (emptyState) emptyState.style.display = 'none';
+
             CanvasChartUtils.drawYAxis(ctx, padding, chartW, chartH, yMax, { withGrid: false, fontSize: 11, labelOffset: 6 });
 
             const slotCount = weekDays.length || 1;
@@ -238,10 +249,6 @@ Object.assign(MobApp, {
                 const dayLabel = `${String(day.getDate()).padStart(2, '0')}/${String(day.getMonth() + 1).padStart(2, '0')}`;
                 ctx.fillText(dayLabel, x + barW / 2, padding.top + chartH + 8);
             });
-
-            if (maxValue === 0) {
-                CanvasChartUtils.drawEmptyState(ctx, 'Sem consumo no período', width, height, 13);
-            }
         },
 
         _bindChartEvents() {

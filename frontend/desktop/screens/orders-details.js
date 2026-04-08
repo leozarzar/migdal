@@ -12,6 +12,9 @@ const OrdersDetails = {
     /** Instância do SearchSelect para seleção de material/grupo */
     _itemSelect: null,
 
+    /** Indica se há alterações não salvas */
+    _isDirty: false,
+
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML e carrega itens/quantidades recebidas (se editando) */
@@ -164,8 +167,18 @@ const OrdersDetails = {
         `;
     },
 
+    /** Marca o formulário como modificado */
+    _markDirty() { this._isDirty = true; },
+
+    /** Permite ao router verificar se pode navegar para outra tela */
+    async canLeave() {
+        if (!this._isDirty) return true;
+        return confirm('Você tem alterações não salvas. Deseja sair sem salvar?');
+    },
+
     /** Inicializa a tela: popula selects, preenche campos do pedido selecionado */
     async load() {
+        this._isDirty = false;
         if (this._itemSelect) this._itemSelect.destroy();
         this._itemSelect = createSearchSelect({
             id: 'orderItem',
@@ -238,6 +251,10 @@ const OrdersDetails = {
         document.getElementById("orderDiff").innerHTML = diffHtml;
 
         this._renderItems();
+
+        // Marca o form como sujo em qualquer alteração de campo
+        document.querySelectorAll('#content input, #content select, #content textarea')
+            .forEach(el => el.addEventListener('change', () => this._markDirty()));
     },
 
     // ── Ações Públicas ──
@@ -264,6 +281,7 @@ const OrdersDetails = {
             });
 
             await this._saveOrderItems(response.id);
+            this._isDirty = false;
             alert("Pedido salvo com sucesso");
             showScreen('orders');
         } catch (error) {
@@ -299,6 +317,7 @@ const OrdersDetails = {
             });
 
             await this._saveOrderItems(orderData.id);
+            this._isDirty = false;
             alert("Pedido atualizado com sucesso");
             showScreen('orders');
         } catch (error) {
@@ -418,13 +437,12 @@ const OrdersDetails = {
         this._renderItems();
     },
 
-    /** Define os botões de ação (Salvar/Editar + Cancelar) no header */
+    /** Define o botão de ação (Salvar / Editar) no header */
     _setHeaderOptions() {
         const headerOptions = document.getElementById("headerOptionsContent");
         const isEditing = !!Orders.selectedOrder;
         headerOptions.innerHTML = `
             <button class="btn-primary" onclick="OrdersDetails.${isEditing ? 'editOrder' : 'save'}()">${isEditing ? 'Editar' : 'Salvar'}</button>
-            <button class="btn-secondary" onclick="OrdersDetails.cancel()">Cancelar</button>
         `;
     },
 

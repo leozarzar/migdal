@@ -168,6 +168,14 @@
     border-color: #94a3b8;
 }
 
+/* Item count */
+
+.stock-units-count {
+    font-size: 13px;
+    color: #64748b;
+    padding: 6px 0 4px;
+}
+
 /* Table container */
 
 .stock-units-table-container {

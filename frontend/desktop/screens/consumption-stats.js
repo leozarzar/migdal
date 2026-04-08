@@ -158,6 +158,11 @@ const ConsumptionStats = {
                 <div class="cstats-chart-wrap">
                     <canvas id="cstatsChart" height="320"></canvas>
                     <div id="cstatsTooltip" class="cstats-tooltip"></div>
+                    <div id="cstatsEmptyState" class="cstats-empty-state">
+                        <span class="cstats-empty-icon material-symbols-outlined">show_chart</span>
+                        <p class="cstats-empty-title">Nenhum dado disponível</p>
+                        <p class="cstats-empty-subtitle" id="cstatsEmptyMsg">Selecione um material para visualizar o consumo.</p>
+                    </div>
                 </div>
             </div>
 
@@ -230,20 +235,28 @@ const ConsumptionStats = {
         const ninetyDaysAgo = new Date(today);
         ninetyDaysAgo.setDate(today.getDate() - 90);
 
-        this.startDate = this._formatDate(ninetyDaysAgo);
-        this.endDate = this._formatDate(today);
-        this.selectedMaterial = null;
-        this.selectedType = 'material';
-        this.selectedGroupData = null;
-        this.groups = [];
-        this.aggregation = "daily";
-        this.forecastMethod = "moving-average";
-        this.forecastParams = { period: 7, alpha: 0.3, regressionPeriod: 30 };
-        this.serviceLevel = 95;
-        this.removeZeros = false;
-        this.treatOutliers = false;
+        // Restaura filtros do localStorage (com fallback para os padrões)
+        this.startDate      = localStorage.getItem('wcm.cstats.startDate')     || this._formatDate(ninetyDaysAgo);
+        this.endDate        = localStorage.getItem('wcm.cstats.endDate')       || this._formatDate(today);
+        this.aggregation    = localStorage.getItem('wcm.cstats.aggregation')   || "daily";
+        this.forecastMethod = localStorage.getItem('wcm.cstats.method')        || "moving-average";
+        this.serviceLevel   = Number(localStorage.getItem('wcm.cstats.serviceLevel')) || 95;
+        this.removeZeros    = localStorage.getItem('wcm.cstats.removeZeros')   === 'true';
+        this.treatOutliers  = localStorage.getItem('wcm.cstats.treatOutliers') === 'true';
         this.removeNoActivity = false;
-        this._policyItems = [];
+        const _savedParams  = (() => { try { return JSON.parse(localStorage.getItem('wcm.cstats.forecastParams')); } catch { return null; } })();
+        this.forecastParams = (_savedParams && typeof _savedParams === 'object') ? _savedParams : { period: 7, alpha: 0.3, regressionPeriod: 30 };
+
+        const _savedType      = localStorage.getItem('wcm.cstats.type')      || 'material';
+        const _savedMaterial  = localStorage.getItem('wcm.cstats.material')  || null;
+        const _savedGroupId   = localStorage.getItem('wcm.cstats.groupId')   || null;
+        const _savedGroupName = localStorage.getItem('wcm.cstats.groupName') || null;
+
+        this.selectedMaterial  = null;
+        this.selectedType      = 'material';
+        this.selectedGroupData = null;
+        this.groups            = [];
+        this._policyItems      = [];
 
         // Recria o componente de seleção a cada load() para garantir DOM e listeners limpos
         if (this._materialSelect) this._materialSelect.destroy();
@@ -275,21 +288,66 @@ const ConsumptionStats = {
                     this.selectedType      = 'material';
                     this.selectedGroupData = null;
                 }
+                this._saveFilters();
                 await this.refresh();
                 await this._checkPolicyLink();
             }
         });
         this._materialSelect.mount(document.getElementById('cstatsMaterialContainer'));
 
-        // Monta os componentes NumberInput nos seus contêineres
+        // Monta os componentes NumberInput nos seus contêineres (usa valores já restaurados).
+        // Os callbacks onChange são a fonte de verdade para salvar parâmetros — mais
+        // robustos do que depender de _bindEvents() encontrar os elementos no DOM.
         [
-            { containerId: 'cstatsNinputMovingAvg',     id: 'cstatsMovingAvgPeriod', value: this.forecastParams.period,            min: 2,    max: 365,  step: 1,    unit: 'dias'     },
-            { containerId: 'cstatsNinputExpAlpha',       id: 'cstatsExpAlpha',        value: this.forecastParams.alpha,             min: 0.01, max: 0.99, step: 0.01, unit: '0–1'      },
-            { containerId: 'cstatsNinputLinearReg',      id: 'cstatsLinearRegPeriod', value: this.forecastParams.regressionPeriod, min: 3,    max: 365,  step: 1,    unit: 'períodos' },
-            { containerId: 'cstatsNinputServiceLevel',   id: 'cstatsServiceLevel',    value: this.serviceLevel,                    min: 50,   max: 99.9, step: 0.1,  unit: '%'        },
+            {
+                containerId: 'cstatsNinputMovingAvg', id: 'cstatsMovingAvgPeriod',
+                value: this.forecastParams.period, min: 2, max: 365, step: 1, unit: 'dias',
+                onChange: (v) => { this.forecastParams.period = v; this._saveFilters(); this.refresh(); }
+            },
+            {
+                containerId: 'cstatsNinputExpAlpha', id: 'cstatsExpAlpha',
+                value: this.forecastParams.alpha, min: 0.01, max: 0.99, step: 0.01, unit: '0–1',
+                onChange: (v) => { this.forecastParams.alpha = v; this._saveFilters(); this.refresh(); }
+            },
+            {
+                containerId: 'cstatsNinputLinearReg', id: 'cstatsLinearRegPeriod',
+                value: this.forecastParams.regressionPeriod, min: 3, max: 365, step: 1, unit: 'períodos',
+                onChange: (v) => { this.forecastParams.regressionPeriod = v; this._saveFilters(); this.refresh(); }
+            },
+            {
+                containerId: 'cstatsNinputServiceLevel', id: 'cstatsServiceLevel',
+                value: this.serviceLevel, min: 50, max: 99.9, step: 0.1, unit: '%',
+                onChange: (v) => { this.serviceLevel = v; this._saveFilters(); this.refresh(); }
+            },
         ].forEach(cfg => createNumberInput(cfg).mount(cfg.containerId));
 
         this._bindEvents();
+
+        // Sincroniza inputs de DOM com os valores restaurados
+        const startInput = document.getElementById('cstatsStartDate');
+        const endInput   = document.getElementById('cstatsEndDate');
+        if (startInput) startInput.value = this.startDate;
+        if (endInput)   endInput.value   = this.endDate;
+
+        const aggregationGroup = document.getElementById('cstatsAggregation');
+        if (aggregationGroup) {
+            aggregationGroup.querySelectorAll('.cstats-toggle-btn').forEach(btn => {
+                btn.classList.toggle('cstats-toggle-btn--active', btn.getAttribute('data-value') === this.aggregation);
+            });
+        }
+
+        const methodSelect = document.getElementById('cstatsForecastMethod');
+        if (methodSelect) {
+            methodSelect.value = this.forecastMethod;
+            this._updateMethodParams();
+        }
+
+        const removeZerosChk = document.getElementById('cstatsRemoveZeros');
+        if (removeZerosChk) removeZerosChk.checked = this.removeZeros;
+
+        const treatOutliersChk = document.getElementById('cstatsTreatOutliers');
+        if (treatOutliersChk) treatOutliersChk.checked = this.treatOutliers;
+
         this._drawChart([]);
 
         try {
@@ -305,6 +363,28 @@ const ConsumptionStats = {
                 label: g.name,
                 badge: '<span class="sselect-badge sselect-badge--green">grupo</span>'
             })));
+
+            // Restaura seleção de material/grupo e exibe os dados
+            if (_savedType === 'group' && _savedGroupId) {
+                const group = this.groups.find(g => String(g.id) === _savedGroupId);
+                if (group) {
+                    this._materialSelect.select('group', _savedGroupId);
+                    this.selectedType = 'group';
+                    try {
+                        const gData = await apiCall(API + `/groups/${_savedGroupId}`);
+                        this.selectedGroupData = { id: _savedGroupId, name: _savedGroupName || group.name, materials: gData.materials || [] };
+                    } catch {
+                        this.selectedGroupData = { id: _savedGroupId, name: _savedGroupName || group.name, materials: [] };
+                    }
+                    await this.refresh();
+                    await this._checkPolicyLink();
+                }
+            } else if (_savedType === 'material' && _savedMaterial && this.materials.includes(_savedMaterial)) {
+                this._materialSelect.select('material', _savedMaterial);
+                this.selectedMaterial = _savedMaterial;
+                await this.refresh();
+                await this._checkPolicyLink();
+            }
         } catch (error) {
             alert("Erro ao carregar materiais para Estatística de Consumo");
         }
@@ -316,17 +396,13 @@ const ConsumptionStats = {
 
     /** Bindeia todos os event-handlers de filtros, botões e canvas */
     _bindEvents() {
-        const startInput        = document.getElementById("cstatsStartDate");
-        const endInput          = document.getElementById("cstatsEndDate");
-        const aggregationGroup  = document.getElementById("cstatsAggregation");
-        const methodSelect      = document.getElementById("cstatsForecastMethod");
-        const movingAvgPeriod   = document.getElementById("cstatsMovingAvgPeriod");
-        const expAlpha          = document.getElementById("cstatsExpAlpha");
-        const linearRegPeriod   = document.getElementById("cstatsLinearRegPeriod");
-        const serviceLevelInput = document.getElementById("cstatsServiceLevel");
-        const removeZerosChk    = document.getElementById("cstatsRemoveZeros");
-        const treatOutliersChk  = document.getElementById("cstatsTreatOutliers");
-        const canvas            = document.getElementById("cstatsChart");
+        const startInput       = document.getElementById("cstatsStartDate");
+        const endInput         = document.getElementById("cstatsEndDate");
+        const aggregationGroup = document.getElementById("cstatsAggregation");
+        const methodSelect     = document.getElementById("cstatsForecastMethod");
+        const removeZerosChk   = document.getElementById("cstatsRemoveZeros");
+        const treatOutliersChk = document.getElementById("cstatsTreatOutliers");
+        const canvas           = document.getElementById("cstatsChart");
 
         const optimizeBtn = document.getElementById("cstatsOptimizeBtn");
         const linkBtn     = document.getElementById("cstatsLinkBtn");
@@ -342,6 +418,7 @@ const ConsumptionStats = {
         if (startInput) {
             startInput.onchange = async () => {
                 this.startDate = startInput.value;
+                this._saveFilters();
                 await this.refresh();
             };
         }
@@ -349,6 +426,7 @@ const ConsumptionStats = {
         if (endInput) {
             endInput.onchange = async () => {
                 this.endDate = endInput.value;
+                this._saveFilters();
                 await this.refresh();
             };
         }
@@ -359,6 +437,7 @@ const ConsumptionStats = {
                     aggregationGroup.querySelectorAll(".cstats-toggle-btn").forEach(b => b.classList.remove("cstats-toggle-btn--active"));
                     btn.classList.add("cstats-toggle-btn--active");
                     this.aggregation = btn.getAttribute("data-value");
+                    this._saveFilters();
                     await this.refresh();
                 };
             });
@@ -368,64 +447,66 @@ const ConsumptionStats = {
             methodSelect.onchange = async () => {
                 this.forecastMethod = methodSelect.value;
                 this._updateMethodParams();
+                this._saveFilters();
                 await this.refresh();
             };
         }
 
-        if (movingAvgPeriod) {
-            movingAvgPeriod.onchange = async () => {
-                this.forecastParams.period = Number(movingAvgPeriod.value);
-                await this.refresh();
-            };
-        }
-
-        if (expAlpha) {
-            expAlpha.onchange = async () => {
-                this.forecastParams.alpha = Number(expAlpha.value);
-                await this.refresh();
-            };
-        }
-
-        if (linearRegPeriod) {
-            linearRegPeriod.onchange = async () => {
-                this.forecastParams.regressionPeriod = Number(linearRegPeriod.value);
-                await this.refresh();
-            };
-        }
-
-        if (serviceLevelInput) {
-            serviceLevelInput.onchange = async () => {
-                this.serviceLevel = Number(serviceLevelInput.value);
-                await this.refresh();
-            };
-        }
-
+        // Checkboxes: usar addEventListener para garantir que o handler persiste
+        // (onchange = ... pode ser sobrescrito por outros c\u00f3digos)
         if (removeZerosChk) {
-            removeZerosChk.onchange = async () => {
+            removeZerosChk.addEventListener('change', async () => {
                 this.removeZeros = removeZerosChk.checked;
+                this._saveFilters();
                 await this.refresh();
-            };
+            });
         }
 
         if (treatOutliersChk) {
-            treatOutliersChk.onchange = async () => {
+            treatOutliersChk.addEventListener('change', async () => {
                 this.treatOutliers = treatOutliersChk.checked;
+                this._saveFilters();
                 await this.refresh();
-            };
+            });
         }
 
         const removeNoActivityChk = document.getElementById("cstatsRemoveNoActivity");
         if (removeNoActivityChk) {
-            removeNoActivityChk.onchange = async () => {
+            removeNoActivityChk.addEventListener('change', async () => {
                 this.removeNoActivity = removeNoActivityChk.checked;
                 await this.refresh();
-            };
+            });
         }
 
         if (canvas) {
             canvas.onmousemove = (e) => this._onChartHover(e);
             canvas.onmouseleave = () => this._onChartLeave();
         }
+    },
+
+    /** Persiste os filtros atuais no localStorage para restauração na próxima visita. */
+    _saveFilters() {
+        try {
+            localStorage.setItem('wcm.cstats.startDate',      this.startDate      || '');
+            localStorage.setItem('wcm.cstats.endDate',        this.endDate        || '');
+            localStorage.setItem('wcm.cstats.aggregation',    this.aggregation);
+            localStorage.setItem('wcm.cstats.method',         this.forecastMethod);
+            localStorage.setItem('wcm.cstats.forecastParams', JSON.stringify(this.forecastParams));
+            localStorage.setItem('wcm.cstats.serviceLevel',   String(this.serviceLevel));
+            localStorage.setItem('wcm.cstats.removeZeros',    String(this.removeZeros));
+            localStorage.setItem('wcm.cstats.treatOutliers',  String(this.treatOutliers));
+            if (this.selectedType === 'group' && this.selectedGroupData) {
+                localStorage.setItem('wcm.cstats.type',      'group');
+                localStorage.setItem('wcm.cstats.material',  '');
+                localStorage.setItem('wcm.cstats.groupId',   String(this.selectedGroupData.id));
+                localStorage.setItem('wcm.cstats.groupName', this.selectedGroupData.name || '');
+            } else {
+                localStorage.setItem('wcm.cstats.type',      'material');
+                localStorage.setItem('wcm.cstats.material',  this.selectedMaterial || '');
+                localStorage.setItem('wcm.cstats.groupId',   '');
+                localStorage.setItem('wcm.cstats.groupName', '');
+            }
+        } catch (e) { /* localStorage indisponível */ }
     },
 
     // ══════════════════════════════════════════════════════════════
@@ -514,6 +595,7 @@ const ConsumptionStats = {
             if (linearRegInput)  linearRegInput.value  = best.params.regressionPeriod;
 
             this._updateMethodParams();
+            this._saveFilters();
             await this.refresh();
         } catch (e) {
             alert("Erro ao otimizar previsão.");
@@ -872,16 +954,24 @@ const ConsumptionStats = {
         const n = data.length;
         const xOfIdx = i => padding.left + (n === 1 ? chartWidth / 2 : (i / (n - 1)) * chartWidth);
 
-        CanvasChartUtils.drawYAxis(ctx, padding, chartWidth, chartHeight, yMax);
+        const emptyState = document.getElementById("cstatsEmptyState");
+        const emptyMsg   = document.getElementById("cstatsEmptyMsg");
 
-        // Estado vazio
         if (!data.length) {
-            const msg = this.selectedMaterial
+            canvas.style.display = "none";
+            if (emptyMsg) emptyMsg.textContent = this.selectedMaterial
                 ? "Nenhum dado de consumo no período selecionado."
                 : "Selecione um material para visualizar o consumo.";
-            CanvasChartUtils.drawEmptyState(ctx, msg, width, height);
+            if (emptyState) emptyState.style.display = "flex";
             return;
         }
+
+        canvas.style.display = "";
+        if (emptyState) emptyState.style.display = "none";
+
+        CanvasChartUtils.drawYAxis(ctx, padding, chartWidth, chartHeight, yMax);
+
+        // Estado vazio — branch removido (tratado acima antes de drawYAxis)
 
         const pts = data.map((d, i) => ({
             x: xOfIdx(i),

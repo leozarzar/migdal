@@ -29,6 +29,14 @@
 
 <body>
 
+<!-- Banner exibido em telas pequenas — redireciona para o app mobile -->
+<div class="mobile-redirect-banner" role="alert" aria-live="polite">
+    <span class="mobile-redirect-banner__icon material-symbols-outlined">smartphone</span>
+    <p class="mobile-redirect-banner__title">Use o app mobile</p>
+    <p class="mobile-redirect-banner__subtitle">Esta versão foi projetada para uso em computador. Para dispositivos móveis, acesse o app dedicado.</p>
+    <a class="mobile-redirect-banner__btn" href="/mobile/">Ir para o app mobile</a>
+</div>
+
 <div class="app">
 
     <!-- SIDEBAR -->
@@ -41,51 +49,51 @@
 
         <div class="sidebar-section-label">Análises</div>
 
-        <button onclick="showScreen('dashboard')">
+        <button data-route="dashboard" onclick="showScreen('dashboard')">
             Dashboard
         </button>
 
-        <button onclick="showScreen('stock-monitor')">
+        <button data-route="stock-monitor" onclick="showScreen('stock-monitor')">
             Monitor de Estoque
         </button>
 
-        <button onclick="showScreen('consumption-stats')">
+        <button data-route="consumption-stats" onclick="showScreen('consumption-stats')">
             Estat. de Consumo
         </button>
 
-        <button onclick="showScreen('stock-policies')">
+        <button data-route="stock-policies" onclick="showScreen('stock-policies')">
             Política de Estoque
         </button>
 
         <div class="sidebar-section-label">Operacional</div>
 
-        <button onclick="showScreen('stock-units')">
+        <button data-route="stock-units" onclick="showScreen('stock-units')">
             Estoque
         </button>
 
-        <button onclick="showScreen('orders')">
+        <button data-route="orders" onclick="showScreen('orders')">
             Pedidos
         </button>
 
-        <button onclick="showScreen('receipts')">
+        <button data-route="receipts" onclick="showScreen('receipts')">
             Recebimentos
         </button>
 
         <div class="sidebar-section-label">Cadastros</div>
 
-        <button onclick="showScreen('materials')">
+        <button data-route="materials" onclick="showScreen('materials')">
             Materiais
         </button>
 
-        <button onclick="showScreen('suppliers')">
+        <button data-route="suppliers" onclick="showScreen('suppliers')">
             Fornecedores
         </button>
 
-        <button onclick="showScreen('operators')">
+        <button data-route="operators" onclick="showScreen('operators')">
             Operadores
         </button>
 
-        <button onclick="showScreen('groups')">
+        <button data-route="groups" onclick="showScreen('groups')">
             Grupos
         </button>
 

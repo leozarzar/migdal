@@ -8,12 +8,14 @@ const Orders = {
     // ── Estado ──
 
     selectedOrder: null,
+    _filterRestored: false,
 
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML da tela e reseta a seleção. */
     render() {
         this.selectedOrder = null;
+        this._filterRestored = false;
         return `
         <div class="orders-container">
             <div class="orders-card">
@@ -53,6 +55,19 @@ const Orders = {
         try {
             const orders = await apiCall(API + "/orders");
             populateSelect(orders, "filterSupplier", "supplier", "Fornecedor");
+
+            const selectEl = document.getElementById("filterSupplier");
+            if (selectEl) {
+                if (!this._filterRestored) {
+                    // Primeira carga após render(): restaura filtro salvo
+                    this._filterRestored = true;
+                    const saved = localStorage.getItem('wcm.orders.supplier');
+                    if (saved) selectEl.value = saved;
+                }
+                // Persiste o filtro atual (seja restaurado ou escolhido pelo usuário)
+                localStorage.setItem('wcm.orders.supplier', selectEl.value);
+            }
+
             await this._renderTable(orders);
         } catch (error) {
             alert("Erro ao carregar pedidos");
@@ -173,7 +188,7 @@ const Orders = {
                 const color = differencePercent >= 0 ? '#2e7d32' : '#c62828';
                 return `<span style="color:${color};font-weight:600">${sign}${differencePercent}%</span>`;
             })()}</td>
-            <td class="orders-col-status">${order.status}</td>
+            <td class="orders-col-status">${this._statusBadge(order)}</td>
             <td class="orders-col-actions">
                 <button onclick="Orders.deleteOrder(event,${order.id})">
                     <span class="material-symbols-outlined">delete</span>
@@ -182,6 +197,39 @@ const Orders = {
         `;
 
         return tr;
+    },
+
+    /**
+     * Retorna o HTML do badge de status de um pedido.
+     * Pedidos OPEN são classificados em: a tempo, vencendo (≤2 dias) ou atrasado.
+     * @param {Object} order - Objeto do pedido com status e due_date.
+     * @returns {string} HTML do badge.
+     */
+    _statusBadge(order) {
+        if (order.status === 'CLOSED') {
+            return `<span class="orders-badge orders-badge--closed">Fechado</span>`;
+        }
+        if (order.status !== 'OPEN') {
+            return `<span class="orders-badge">${order.status}</span>`;
+        }
+
+        if (!order.due_date) {
+            return `<span class="orders-badge orders-badge--open">Aberto</span>`;
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const due = new Date(order.due_date + 'T00:00:00');
+        const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            const days = Math.abs(diffDays);
+            return `<span class="orders-badge orders-badge--overdue">Atrasado</span>`;
+        }
+        if (diffDays <= 2) {
+            return `<span class="orders-badge orders-badge--due-soon">Vencendo</span>`;
+        }
+        return `<span class="orders-badge orders-badge--open">Aberto</span>`;
     },
 
     /** Injeta botões de ação no header da página. */

@@ -43,16 +43,6 @@ const Dashboard = {
                         <option value="">Selecione uma política...</option>
                     </select>
                 </div>
-                <div class="consumption-topbar-field consumption-topbar-field--materials">
-                    <label class="consumption-label">Materiais</label>
-                    <div class="consumption-multiselect" id="consumptionMaterialSelect">
-                        <button class="consumption-multiselect-field" id="consumptionMaterialToggle" type="button" aria-expanded="false">
-                            <div class="consumption-tags" id="consumptionSelectedTags"></div>
-                            <span class="material-symbols-outlined consumption-caret">expand_more</span>
-                        </button>
-                        <div class="consumption-dropdown" id="consumptionMaterialDropdown"></div>
-                    </div>
-                </div>
             </div>
 
             <div class="consumption-card">
@@ -79,6 +69,11 @@ const Dashboard = {
 
                 <div class="consumption-chart-wrap">
                     <canvas id="consumptionChart" height="200"></canvas>
+                    <div id="consumptionEmptyState" class="consumption-empty-state">
+                        <span class="consumption-empty-icon material-symbols-outlined">bar_chart</span>
+                        <p class="consumption-empty-title">Sem consumo registrado</p>
+                        <p class="consumption-empty-subtitle">Não há consumo registrado para os filtros selecionados nesta semana.</p>
+                    </div>
                 </div>
                 <div id="consumptionTooltip" class="consumption-tooltip"></div>
             </div>
@@ -105,8 +100,9 @@ const Dashboard = {
         const headerOptions = document.getElementById("headerOptionsContent");
         if (headerOptions) headerOptions.innerHTML = "";
 
-        this.weekStart = this._startOfWeek(new Date());
-        this._selectedPolicyId = null;
+        const _savedWeek = localStorage.getItem('wcm.dashboard.weekStart');
+        this.weekStart = _savedWeek ? new Date(_savedWeek + 'T00:00:00') : this._startOfWeek(new Date());
+        this._selectedPolicyId = localStorage.getItem('wcm.dashboard.policyId') || null;
         this._policyFull = null;
         this._balanceRows = [];
         this._leadTimeCache = {};
@@ -126,8 +122,6 @@ const Dashboard = {
             this.selectedMaterials = [];
             this._assignMaterialColors();
             this._renderPoliciesSelect();
-            this._renderMaterialsDropdown();
-            this._renderSelectedTags();
             await this._onPolicyChange();
         } catch (error) {
             alert("Erro ao carregar dados de consumo");
@@ -143,14 +137,13 @@ const Dashboard = {
         const prevBtn = document.getElementById("weekPrevBtn");
         const nextBtn = document.getElementById("weekNextBtn");
         const refreshBtn = document.getElementById("consumptionRefreshBtn");
-        const materialToggle = document.getElementById("consumptionMaterialToggle");
-        const materialSelectWrap = document.getElementById("consumptionMaterialSelect");
         const policySelect = document.getElementById("consumptionPolicySelect");
         const balanceRefreshBtn = document.getElementById("consumptionBalanceRefreshBtn");
 
         if (prevBtn) {
             prevBtn.onclick = async () => {
                 this.weekStart.setDate(this.weekStart.getDate() - 7);
+                localStorage.setItem('wcm.dashboard.weekStart', this._formatDate(this.weekStart));
                 await this.refresh();
             };
         }
@@ -158,6 +151,7 @@ const Dashboard = {
         if (nextBtn) {
             nextBtn.onclick = async () => {
                 this.weekStart.setDate(this.weekStart.getDate() + 7);
+                localStorage.setItem('wcm.dashboard.weekStart', this._formatDate(this.weekStart));
                 await this.refresh();
             };
         }
@@ -175,27 +169,6 @@ const Dashboard = {
                 await this.refresh();
             };
         }
-
-        if (materialToggle) {
-            materialToggle.onclick = () => {
-                if (!materialSelectWrap) return;
-                materialSelectWrap.classList.toggle("open");
-                materialToggle.setAttribute("aria-expanded", materialSelectWrap.classList.contains("open") ? "true" : "false");
-            };
-        }
-
-        if (this._outsideClickHandler) {
-            document.removeEventListener("click", this._outsideClickHandler);
-        }
-
-        this._outsideClickHandler = (event) => {
-            if (!materialSelectWrap) return;
-            if (materialSelectWrap.contains(event.target)) return;
-            materialSelectWrap.classList.remove("open");
-            if (materialToggle) materialToggle.setAttribute("aria-expanded", "false");
-        };
-
-        document.addEventListener("click", this._outsideClickHandler);
 
         const canvas = document.getElementById("consumptionChart");
         if (canvas) {
@@ -506,6 +479,17 @@ const Dashboard = {
         const maxValue = Math.max(...totalsByDay, 0);
         const yMax = maxValue > 0 ? maxValue * 1.1 : 10;
 
+        const emptyState = document.getElementById("consumptionEmptyState");
+
+        if (maxValue === 0) {
+            canvas.style.display = "none";
+            if (emptyState) emptyState.style.display = "flex";
+            return;
+        }
+
+        canvas.style.display = "";
+        if (emptyState) emptyState.style.display = "none";
+
         CanvasChartUtils.drawYAxis(ctx, padding, chartWidth, chartHeight, yMax, { withGrid: false });
 
         // Largura de cada slot e barra (máx. 54px, 62% do slot)
@@ -542,9 +526,6 @@ const Dashboard = {
             ctx.fillText(dayLabel, x + barWidthSafe / 2, padding.top + chartHeight + 10);
         });
 
-        if (maxValue === 0) {
-            CanvasChartUtils.drawEmptyState(ctx, "Sem consumo registrado para os filtros selecionados.", width, height);
-        }
     },
 
     /** Exibe tooltip ao passar o mouse sobre uma barra do gráfico. */
@@ -639,13 +620,12 @@ const Dashboard = {
         if (!select) return;
         const policyId = select.value;
         this._selectedPolicyId = policyId || null;
+        localStorage.setItem('wcm.dashboard.policyId', this._selectedPolicyId || '');
 
         if (!policyId) {
             this._policyFull = null;
             this._balanceRows = [];
             this.selectedMaterials = [];
-            this._renderSelectedTags();
-            this._renderMaterialsDropdown();
             this._renderBalanceTable();
             await this.refresh();
             return;
@@ -670,8 +650,6 @@ const Dashboard = {
 
             this.selectedMaterials = allNames.filter(m => this.materials.includes(m));
             this._assignMaterialColors();
-            this._renderSelectedTags();
-            this._renderMaterialsDropdown();
             await Promise.all([
                 this.refresh(),
                 this._computeBalanceData()
@@ -920,6 +898,9 @@ const Dashboard = {
                 </tr>`;
         }).join("");
 
+        const totalStock = this._balanceRows.reduce((s, r) => s + (r.currentStock ?? 0), 0);
+        const totalNeed  = this._balanceRows.reduce((s, r) => s + (r.need ?? 0), 0);
+
         container.innerHTML = `
             <div class="consumption-balance-table-wrap">
                 <table class="consumption-balance-table">
@@ -935,6 +916,17 @@ const Dashboard = {
                         </tr>
                     </thead>
                     <tbody>${tbody}</tbody>
+                    <tfoot>
+                        <tr class="consumption-balance-totals">
+                            <td><strong>Total</strong></td>
+                            <td><strong>${fmt(totalStock)}</strong></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td><strong>${totalNeed > 0 ? fmt(totalNeed) : "—"}</strong></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>`;
     },

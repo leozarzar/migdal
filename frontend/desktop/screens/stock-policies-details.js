@@ -12,6 +12,7 @@ const StockPoliciesDetails = {
     materials: [],       // [{ id, name, lead_time, forecast_model, forecast_param, ... }]
     _leadTimeCache: {},  // { materialName: days|null }
     _itemSelect: null,
+    _isDirty: false,     // indica se há alterações não salvas
 
     // ══════════════════════════════════════════════════════════════════════
     // ── Ciclo de Vida ──
@@ -208,8 +209,18 @@ const StockPoliciesDetails = {
         `;
     },
 
+    /** Marca o formulário como modificado */
+    _markDirty() { this._isDirty = true; },
+
+    /** Permite ao router verificar se pode navegar para outra tela */
+    async canLeave() {
+        if (!this._isDirty) return true;
+        return confirm('Você tem alterações não salvas. Deseja sair sem salvar?');
+    },
+
     /** Inicializa a tela, carrega selects e preenche formulário se editando */
     async load() {
+        this._isDirty = false;
         this.materials = [];
         this._leadTimeCache = {};
         this._setHeaderOptions();
@@ -241,6 +252,10 @@ const StockPoliciesDetails = {
         } else {
             document.getElementById("spdPageTitle").textContent = "Nova Política de Estoque";
         }
+
+        // Marca o form como sujo em qualquer alteração de campo (após preencher)
+        document.querySelectorAll('#content input, #content select, #content textarea')
+            .forEach(el => el.addEventListener('change', () => this._markDirty()));
     },
 
     /** Preenche o formulário com os dados de uma política existente */
@@ -703,12 +718,11 @@ const StockPoliciesDetails = {
     // ── Utilitários ──
     // ══════════════════════════════════════════════════════════════════════
 
-    /** Define os botões de ação no header (Salvar/Cancelar) */
+    /** Define o botão de ação no header (Salvar) */
     _setHeaderOptions() {
         const headerOptions = document.getElementById("headerOptionsContent");
         headerOptions.innerHTML = `
             <button class="btn-primary" onclick="StockPoliciesDetails.save()">Salvar</button>
-            <button class="btn-secondary" onclick="showScreen('stock-policies')">Cancelar</button>
         `;
     },
 
@@ -791,6 +805,7 @@ const StockPoliciesDetails = {
                 });
                 alert("Política criada com sucesso.");
             }
+            this._isDirty = false;
             showScreen("stock-policies");
         } catch (error) {
             alert(error.message || "Erro ao salvar política.");
