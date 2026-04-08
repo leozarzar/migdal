@@ -8,21 +8,22 @@ const Receipts = {
     // ── Estado ──
 
     selectedReceipt: null,
-    _filterRestored: false,
+    _supplierSelect: null,
 
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML da tela e reseta a seleção. */
     render() {
         this.selectedReceipt = null;
-        this._filterRestored = false;
+        this._supplierSelect = null;
         return `
         <div class="receipts-container">
             <div class="receipts-card">
                 <div class="receipts-filters">
-                    <select id="filterSupplier" onchange="Receipts.load()">
-                        <option value="">Fornecedor</option>
-                    </select>
+                    <div class="receipts-filters-icon-wrap">
+                        <span class="material-symbols-outlined receipts-filters-icon">filter_list</span>
+                    </div>
+                    <div id="receiptsSupplierContainer" class="receipts-filter-select-wrap"></div>
                 </div>
                 <div class="receipts-table-container">
                     <table class="receipts-table">
@@ -49,16 +50,26 @@ const Receipts = {
         this._setHeaderOptions();
         try {
             const receipts = await apiCall(API + "/receipts");
-            populateSelect(receipts, "filterSupplier", "supplier", "Fornecedor");
+            const suppliers = [...new Set(receipts.map(r => r.supplier).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
-            const selectEl = document.getElementById("filterSupplier");
-            if (selectEl) {
-                if (!this._filterRestored) {
-                    this._filterRestored = true;
-                    const saved = localStorage.getItem('wcm.receipts.supplier');
-                    if (saved) selectEl.value = saved;
-                }
-                localStorage.setItem('wcm.receipts.supplier', selectEl.value);
+            if (!this._supplierSelect) {
+                this._supplierSelect = createSearchSelect({
+                    id: 'receiptsSupplier',
+                    placeholder: 'Fornecedor',
+                    searchable: true,
+                    multiple: false,
+                    sections: [{ key: 'supplier', items: [] }],
+                    onChange: ({ value }) => {
+                        localStorage.setItem('wcm.receipts.supplier', value != null ? String(value) : '');
+                        Receipts.load();
+                    }
+                });
+                this._supplierSelect.mount(document.getElementById('receiptsSupplierContainer'));
+                this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
+                const saved = localStorage.getItem('wcm.receipts.supplier');
+                if (saved) this._supplierSelect.select('supplier', saved);
+            } else {
+                this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
             }
 
             await this._renderTable(receipts);
@@ -98,7 +109,8 @@ const Receipts = {
 
     /** Renderiza a tabela de recebimentos aplicando o filtro de fornecedor. */
     async _renderTable(receipts) {
-        const supplier = document.getElementById("filterSupplier").value;
+        const sel = this._supplierSelect?.getValue();
+        const supplier = sel ? String(sel.value) : '';
         const tbody = document.getElementById("tableBody");
         tbody.innerHTML = "";
 

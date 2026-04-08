@@ -30,32 +30,27 @@ body {
 
 .receipts-filters {
     display: flex;
+    align-items: center;
     gap: 8px;
     margin-bottom: 12px;
 }
 
-.receipts-filters select {
-    height: 32px;
-    padding: 0 32px 0 10px;
-    font-family: inherit;
-    font-size: 13px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    background: white;
-    color: #0f172a;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    background-image: url("../icons/expand.svg");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 18px;
-    transition: border-color 0.2s;
+.receipts-filters-icon-wrap {
+    display: flex;
+    align-items: center;
+    color: #94a3b8;
+    padding-right: 8px;
+    border-right: 1px solid #e2e8f0;
+    margin-right: 2px;
+    flex-shrink: 0;
 }
 
-.receipts-filters select:focus {
-    outline: none;
-    border-color: #94a3b8;
+.receipts-filters-icon {
+    font-size: 20px;
+}
+
+.receipts-filter-select-wrap {
+    width: 200px;
 }
 
 /* Table container */

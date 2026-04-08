@@ -8,21 +8,22 @@ const Orders = {
     // ── Estado ──
 
     selectedOrder: null,
-    _filterRestored: false,
+    _supplierSelect: null,
 
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML da tela e reseta a seleção. */
     render() {
         this.selectedOrder = null;
-        this._filterRestored = false;
+        this._supplierSelect = null;
         return `
         <div class="orders-container">
             <div class="orders-card">
                 <div class="orders-filters">
-                    <select id="filterSupplier" onchange="Orders.load()">
-                        <option value="">Fornecedor</option>
-                    </select>
+                    <div class="orders-filters-icon-wrap">
+                        <span class="material-symbols-outlined orders-filters-icon">filter_list</span>
+                    </div>
+                    <div id="ordersSupplierContainer" class="orders-filter-select-wrap"></div>
                 </div>
                 <div class="orders-table-container">
                     <table class="orders-table">
@@ -54,18 +55,26 @@ const Orders = {
         this._setHeaderOptions();
         try {
             const orders = await apiCall(API + "/orders");
-            populateSelect(orders, "filterSupplier", "supplier", "Fornecedor");
+            const suppliers = [...new Set(orders.map(o => o.supplier).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
-            const selectEl = document.getElementById("filterSupplier");
-            if (selectEl) {
-                if (!this._filterRestored) {
-                    // Primeira carga após render(): restaura filtro salvo
-                    this._filterRestored = true;
-                    const saved = localStorage.getItem('wcm.orders.supplier');
-                    if (saved) selectEl.value = saved;
-                }
-                // Persiste o filtro atual (seja restaurado ou escolhido pelo usuário)
-                localStorage.setItem('wcm.orders.supplier', selectEl.value);
+            if (!this._supplierSelect) {
+                this._supplierSelect = createSearchSelect({
+                    id: 'ordersSupplier',
+                    placeholder: 'Fornecedor',
+                    searchable: true,
+                    multiple: false,
+                    sections: [{ key: 'supplier', items: [] }],
+                    onChange: ({ value }) => {
+                        localStorage.setItem('wcm.orders.supplier', value != null ? String(value) : '');
+                        Orders.load();
+                    }
+                });
+                this._supplierSelect.mount(document.getElementById('ordersSupplierContainer'));
+                this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
+                const saved = localStorage.getItem('wcm.orders.supplier');
+                if (saved) this._supplierSelect.select('supplier', saved);
+            } else {
+                this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
             }
 
             await this._renderTable(orders);
@@ -105,7 +114,8 @@ const Orders = {
 
     /** Renderiza a tabela de pedidos aplicando o filtro de fornecedor. */
     async _renderTable(orders) {
-        const supplier = document.getElementById("filterSupplier").value;
+        const sel = this._supplierSelect?.getValue();
+        const supplier = sel ? String(sel.value) : '';
         const tbody = document.getElementById("tableBody");
         tbody.innerHTML = "";
 

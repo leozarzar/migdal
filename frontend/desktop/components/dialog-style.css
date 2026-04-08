@@ -1,0 +1,154 @@
+/* ================================================================
+   Dialog — Modal genérico com backdrop
+   Prefixo de classe: dialog-
+   Arquivo: frontend/desktop/components/dialog-style.css
+   ================================================================ */
+
+/* ── Backdrop ─────────────────────────────────────────────────────────────── */
+
+.dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Painel ───────────────────────────────────────────────────────────────── */
+
+.dialog-panel {
+    background: white;
+    border-radius: 12px;
+    padding: 24px 28px;
+    width: 360px;
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.dialog-panel--wide {
+    width: 620px;
+}
+
+/* ── Cabeçalho ────────────────────────────────────────────────────────────── */
+
+.dialog-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.dialog-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0;
+}
+
+.dialog-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 0;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    transition: color 0.15s;
+}
+
+.dialog-close:hover {
+    color: #334155;
+}
+
+.dialog-close .material-symbols-outlined {
+    font-size: 20px;
+}
+
+/* ── Subtítulo ────────────────────────────────────────────────────────────── */
+
+.dialog-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+}
+
+/* ── Corpo ────────────────────────────────────────────────────────────────── */
+
+.dialog-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* ── Campo genérico ───────────────────────────────────────────────────────── */
+
+.dialog-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.dialog-field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.dialog-field input,
+.dialog-field select {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* ── Botões de ação ───────────────────────────────────────────────────────── */
+
+.dialog-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.dialog-actions button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 16px;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    background: white;
+    color: #1a1a1a;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.dialog-actions button:hover {
+    background: #f0f0f0;
+}
+
+.dialog-actions .btn-secondary {
+    color: crimson;
+}
+
+.dialog-actions .btn-secondary:hover {
+    background: #fff0f0;
+}
+
+.dialog-actions button .material-symbols-outlined {
+    font-size: 16px;
+}
