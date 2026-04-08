@@ -45,7 +45,7 @@ router.get("/", (req, res) => {
                 FROM stock_units
                 WHERE material = ?
                   AND date_in <= d.date
-                  AND (date_out IS NULL OR date_out > d.date)
+                  AND (date_out IS NULL OR date_out = '' OR date_out > d.date)
             ) AS balance
         FROM event_dates d
         WHERE d.date IS NOT NULL AND d.date BETWEEN ? AND ?
