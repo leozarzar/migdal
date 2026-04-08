@@ -174,7 +174,7 @@ const Orders = {
 
         // Formata datas de YYYY-MM-DD para DD/MM/YY
         tr.innerHTML = `
-            <td class="orders-col-code">#${order.id}</td>
+            <td class="orders-col-code"><span class="code-badge">#${order.id}</span></td>
             <td class="orders-col-date">${order.date ? order.date.split('-').reverse().join('/').replace(/^(\d{2}\/\d{2}\/)\d{2}(\d{2})$/, '$1$2') : ''}</td>
             <td class="orders-col-supplier">${order.supplier}</td>
             <td class="orders-col-qty">${totalQty}</td>
