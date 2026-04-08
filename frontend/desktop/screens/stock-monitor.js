@@ -60,6 +60,11 @@ const StockMonitor = {
                 <div class="stock-monitor-chart-wrap">
                     <canvas id="stockMonitorChart" height="300"></canvas>
                     <div id="stockMonitorTooltip" class="stock-monitor-tooltip"></div>
+                    <div id="stockMonitorEmptyState" class="stock-monitor-empty-state">
+                        <span class=\"stock-monitor-empty-icon material-symbols-outlined\">inventory_2</span>
+                        <p class="stock-monitor-empty-title">Nenhum material selecionado</p>
+                        <p class="stock-monitor-empty-subtitle">Escolha ao menos um material e um período para visualizar a evolução do saldo.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -75,8 +80,8 @@ const StockMonitor = {
         const thirtyDaysAgo = new Date(today);
         thirtyDaysAgo.setDate(today.getDate() - 30);
 
-        this.startDate = this._formatDate(thirtyDaysAgo);
-        this.endDate = this._formatDate(today);
+        this.startDate = localStorage.getItem('wcm.stockMonitor.startDate') || this._formatDate(thirtyDaysAgo);
+        this.endDate   = localStorage.getItem('wcm.stockMonitor.endDate')   || this._formatDate(today);
         this.selectedMaterials = [];
         this._policyLevels = {};
 
@@ -86,14 +91,15 @@ const StockMonitor = {
 
         this._materialSelect = createSearchSelect({
             id: "stockMonitorMaterial",
-            placeholder: "Selecione materiais",
+            placeholder: "Selecione um material",
             searchable: true,
-            multiple: true,
+            multiple: false,
             sections: [
                 { key: "material", label: "Materiais", items: [] }
             ],
-            onChange: async ({ values }) => {
-                this.selectedMaterials = (values || []).map(v => v.value);
+            onChange: async ({ value }) => {
+                this.selectedMaterials = value != null ? [value] : [];
+                localStorage.setItem('wcm.stockMonitor.material', value || '');
                 await this.refresh();
             }
         });
@@ -110,6 +116,20 @@ const StockMonitor = {
                 label: material,
                 dotColor: this.materialColors[material] || "#64748b"
             })));
+
+            // Restore saved material selection
+            const savedMaterial = localStorage.getItem('wcm.stockMonitor.material') || '';
+            if (savedMaterial && this.materials.includes(savedMaterial)) {
+                this.selectedMaterials = [savedMaterial];
+                this._materialSelect.select('material', savedMaterial);
+            }
+
+            // Sync date inputs with (possibly restored) values
+            const startInput = document.getElementById('stockMonitorStartDate');
+            const endInput   = document.getElementById('stockMonitorEndDate');
+            if (startInput) startInput.value = this.startDate;
+            if (endInput)   endInput.value   = this.endDate;
+
             await this.refresh();
         } catch (error) {
             alert("Erro ao carregar materiais para o Monitor de Estoque");
@@ -128,6 +148,7 @@ const StockMonitor = {
         if (startInput) {
             startInput.onchange = async () => {
                 this.startDate = startInput.value;
+                localStorage.setItem('wcm.stockMonitor.startDate', this.startDate);
                 await this.refresh();
             };
         }
@@ -135,6 +156,7 @@ const StockMonitor = {
         if (endInput) {
             endInput.onchange = async () => {
                 this.endDate = endInput.value;
+                localStorage.setItem('wcm.stockMonitor.endDate', this.endDate);
                 await this.refresh();
             };
         }
@@ -387,12 +409,19 @@ const StockMonitor = {
         );
         const yMax = maxBalance > 0 ? maxBalance * 1.15 : 10;
 
-        CanvasChartUtils.drawYAxis(ctx, padding, chartWidth, chartHeight, yMax);
+        const emptyState = document.getElementById("stockMonitorEmptyState");
+        const isEmpty = !selectedMaterials.length || selectedMaterials.every(m => !(seriesByMaterial[m] || []).length);
 
-        if (!selectedMaterials.length || selectedMaterials.every(m => !(seriesByMaterial[m] || []).length)) {
-            CanvasChartUtils.drawEmptyState(ctx, "Selecione materiais e um período para visualizar o saldo.", width, height);
+        if (isEmpty) {
+            canvas.style.display = "none";
+            if (emptyState) emptyState.style.display = "flex";
             return;
         }
+
+        canvas.style.display = "";
+        if (emptyState) emptyState.style.display = "none";
+
+        CanvasChartUtils.drawYAxis(ctx, padding, chartWidth, chartHeight, yMax);
 
         const tsStart = startDate ? new Date(startDate).getTime() : 0;
         const tsEnd   = endDate   ? new Date(endDate).getTime()   : tsStart + 1;

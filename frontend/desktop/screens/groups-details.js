@@ -10,6 +10,7 @@ const GroupsDetails = {
     groupId: null,
     associatedMaterials: [],
     allMaterials: [],
+    _isDirty: false,
 
     // ── Ciclo de Vida ──
 
@@ -71,13 +72,22 @@ const GroupsDetails = {
         `;
     },
 
+    /** Marca o formulário como modificado */
+    _markDirty() { this._isDirty = true; },
+
+    /** Permite ao router verificar se pode navegar para outra tela */
+    async canLeave() {
+        if (!this._isDirty) return true;
+        return confirm('Você tem alterações não salvas. Deseja sair sem salvar?');
+    },
+
     /** Inicializa a tela: carrega materiais e popula dados do grupo selecionado. */
     async load() {
+        this._isDirty = false;
         const headerOptions = document.getElementById("headerOptionsContent");
         if (headerOptions) {
             headerOptions.innerHTML = `
                 <button class="btn-primary" onclick="GroupsDetails.save()">Salvar</button>
-                <button class="btn-secondary" onclick="showScreen('groups')">Cancelar</button>
             `;
         }
 
@@ -106,6 +116,10 @@ const GroupsDetails = {
 
         this._renderMaterialsSelect();
         this._renderMaterialsTable();
+
+        // Marca o form como sujo em qualquer alteração de campo
+        document.querySelectorAll('#content input, #content select, #content textarea')
+            .forEach(el => el.addEventListener('change', () => this._markDirty()));
     },
 
     // ── Ações Públicas ──
@@ -150,6 +164,7 @@ const GroupsDetails = {
                 }
                 alert("Grupo criado com sucesso");
             }
+            this._isDirty = false;
             showScreen('groups');
         } catch (error) {
             alert(error.message || "Erro ao salvar grupo");

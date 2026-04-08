@@ -9,6 +9,66 @@ body {
 .app {
     display: flex;
     height: 100vh;
+    min-width: 900px;
+}
+
+/* MOBILE REDIRECT BANNER */
+
+.mobile-redirect-banner {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #1e2a38;
+    color: #ffffff;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 32px;
+    text-align: center;
+}
+
+.mobile-redirect-banner__icon {
+    font-size: 48px;
+    color: #7f8c9a;
+}
+
+.mobile-redirect-banner__title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.mobile-redirect-banner__subtitle {
+    margin: 0;
+    font-size: 14px;
+    color: #94a3b8;
+    max-width: 280px;
+    line-height: 1.5;
+}
+
+.mobile-redirect-banner__btn {
+    margin-top: 8px;
+    padding: 12px 24px;
+    background: #3b82f6;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.mobile-redirect-banner__btn:hover {
+    background: #2563eb;
+}
+
+@media (max-width: 767px) {
+    .mobile-redirect-banner {
+        display: flex;
+    }
 }
 
 
@@ -42,6 +102,13 @@ body {
     background: #2c3e50;
 }
 
+.sidebar button.active {
+    background: #2c3e50;
+    font-weight: 600;
+    border-left: 3px solid #4a90d9;
+    padding-left: 9px;
+}
+
 .sidebar-section-label {
     padding: 16px 12px 4px;
     font-size: 10px;
@@ -72,6 +139,39 @@ body {
     padding: 0 15px;
     font-weight: bold;
     justify-content: space-between;
+}
+
+/* Breadcrumb: exibido no lugar do título simples em telas de detalhe */
+.header-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.header-breadcrumb__parent {
+    color: #64748b;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 0;
+    transition: color 0.15s;
+}
+
+.header-breadcrumb__parent:hover {
+    color: #1d4ed8;
+}
+
+.header-breadcrumb__sep {
+    color: #94a3b8;
+    font-size: 16px;
+    line-height: 1;
+    user-select: none;
 }
 
 

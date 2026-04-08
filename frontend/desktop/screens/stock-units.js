@@ -9,11 +9,13 @@ const StockUnits = {
 
     /** Bag selecionado atualmente */
     selectedBag: null,
+    _filterRestored: false,
 
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML da tela */
     render() {
+        this._filterRestored = false;
         return `
         <div class="stock-units-container">
             <div id="stockUnitsEditPanel" class="stock-units-edit-panel" style="display:none">
@@ -85,6 +87,7 @@ const StockUnits = {
                     </select>
                     <input id="search" class="stock-units-search" placeholder="Pesquisar" oninput="StockUnits.load()">
                 </div>
+                <div id="stockUnitsCount" class="stock-units-count"></div>
                 <div class="stock-units-table-container">
                     <table class="stock-units-table">
                         <thead>
@@ -115,7 +118,29 @@ const StockUnits = {
 
         try {
             const stockUnits = await apiCall(API + "/stock-units") || [];
+
+            // _populateFilters preserva o valor atual dos selects ao rebuildar as opções.
+            // Por isso, primeiro populamos, depois restauramos (se primeira carga).
             this._populateFilters(stockUnits);
+
+            if (!this._filterRestored) {
+                this._filterRestored = true;
+                const statusEl   = document.getElementById('filterStatus');
+                const materialEl = document.getElementById('filterMaterial');
+                const supplierEl = document.getElementById('filterSupplier');
+                const searchEl   = document.getElementById('search');
+                if (statusEl)   statusEl.value   = localStorage.getItem('wcm.stockUnits.status')   || '';
+                if (materialEl) materialEl.value = localStorage.getItem('wcm.stockUnits.material') || '';
+                if (supplierEl) supplierEl.value = localStorage.getItem('wcm.stockUnits.supplier') || '';
+                if (searchEl)   searchEl.value   = localStorage.getItem('wcm.stockUnits.search')   || '';
+            }
+
+            // Persiste estado atual dos filtros
+            localStorage.setItem('wcm.stockUnits.status',   document.getElementById('filterStatus')?.value   || '');
+            localStorage.setItem('wcm.stockUnits.material', document.getElementById('filterMaterial')?.value || '');
+            localStorage.setItem('wcm.stockUnits.supplier', document.getElementById('filterSupplier')?.value || '');
+            localStorage.setItem('wcm.stockUnits.search',   document.getElementById('search')?.value         || '');
+
             this._renderTable(stockUnits);
         } catch (error) {
             alert("Erro ao carregar estoque");
@@ -213,6 +238,9 @@ const StockUnits = {
 
         const filtered = bags
             .filter(bag => this._matchesFilters(bag, filters));
+
+        const countEl = document.getElementById('stockUnitsCount');
+        if (countEl) countEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'item' : 'itens'}`;
 
         if (filtered.length === 0) {
             const tr = document.createElement("tr");

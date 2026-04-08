@@ -8,12 +8,14 @@ const Receipts = {
     // ── Estado ──
 
     selectedReceipt: null,
+    _filterRestored: false,
 
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML da tela e reseta a seleção. */
     render() {
         this.selectedReceipt = null;
+        this._filterRestored = false;
         return `
         <div class="receipts-container">
             <div class="receipts-card">
@@ -48,6 +50,17 @@ const Receipts = {
         try {
             const receipts = await apiCall(API + "/receipts");
             populateSelect(receipts, "filterSupplier", "supplier", "Fornecedor");
+
+            const selectEl = document.getElementById("filterSupplier");
+            if (selectEl) {
+                if (!this._filterRestored) {
+                    this._filterRestored = true;
+                    const saved = localStorage.getItem('wcm.receipts.supplier');
+                    if (saved) selectEl.value = saved;
+                }
+                localStorage.setItem('wcm.receipts.supplier', selectEl.value);
+            }
+
             await this._renderTable(receipts);
         } catch (error) {
             alert("Erro ao carregar recebimentos");

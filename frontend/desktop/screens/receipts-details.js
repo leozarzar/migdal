@@ -12,6 +12,9 @@ const ReceiptsDetails = {
     /** Snapshot dos itens originais carregados do banco (para diff na edição) */
     _originalItems: [],
 
+    /** Indica se há alterações não salvas */
+    _isDirty: false,
+
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML e carrega itens existentes (se editando) */
@@ -156,8 +159,18 @@ const ReceiptsDetails = {
         `;
     },
 
+    /** Marca o formulário como modificado */
+    _markDirty() { this._isDirty = true; },
+
+    /** Permite ao router verificar se pode navegar para outra tela */
+    async canLeave() {
+        if (!this._isDirty) return true;
+        return confirm('Você tem alterações não salvas. Deseja sair sem salvar?');
+    },
+
     /** Inicializa a tela: popula selects, preenche campos do recebimento selecionado */
     async load() {
+        this._isDirty = false;
         this._setHeaderOptions();
         await this._populateOrderSelect();
 
@@ -198,6 +211,10 @@ const ReceiptsDetails = {
 
         this._refreshItemsView();
         this._setNextItemCode();
+
+        // Marca o form como sujo em qualquer alteração de campo
+        document.querySelectorAll('#content input, #content select, #content textarea')
+            .forEach(el => el.addEventListener('change', () => this._markDirty()));
     },
 
     // ── Ações Públicas ──
@@ -237,6 +254,7 @@ const ReceiptsDetails = {
                 receiptData.nature
             );
             alert("Recebimento salvo com sucesso");
+            this._isDirty = false;
             showScreen('receipts');
         } catch (error) {
             alert("Erro ao salvar recebimento");
@@ -304,6 +322,7 @@ const ReceiptsDetails = {
             );
 
             alert("Recebimento atualizado com sucesso");
+            this._isDirty = false;
             showScreen('receipts');
         } catch (error) {
             alert("Erro ao atualizar recebimento");
@@ -410,7 +429,7 @@ const ReceiptsDetails = {
         this._updateRequiredIndicators();
     },
 
-    /** Define os botões de ação (Salvar/Editar + Cancelar) no header */
+    /** Define o botão de ação (Salvar / Editar) no header */
     _setHeaderOptions() {
         const headerOptions = document.getElementById("headerOptionsContent");
         const isSaveMode = !Receipts.selectedReceipt;
@@ -419,7 +438,6 @@ const ReceiptsDetails = {
 
         headerOptions.innerHTML = `
             <button id="saveBtn" class="btn-primary" onclick="${buttonAction}">${buttonText}</button>
-            <button class="btn-secondary" onclick="ReceiptsDetails.cancel()">Cancelar</button>
         `;
     },
 
