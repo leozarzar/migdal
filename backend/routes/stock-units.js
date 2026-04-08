@@ -61,10 +61,11 @@ router.post("/", (req, res) => {
         });
     }
 
+    const normalizedDateOut = (date_out == null || date_out === "") ? null : date_out;
     db.run(
         `INSERT INTO stock_units (receipt_id, volume_id, old_id, material, supplier, operator, weight, status, date_in, date_out, notes, deduction_type)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [receipt_id, normalizedVolumeId, old_id || null, material, supplier || null, operator || null, weight, status, date_in, date_out, notes, deduction_type || null],
+        [receipt_id, normalizedVolumeId, old_id || null, material, supplier || null, operator || null, weight, status, date_in, normalizedDateOut, notes, deduction_type || null],
         function (err) {
             if (err) {
                 return res.status(500).json({
@@ -136,12 +137,13 @@ router.put("/:id/in", (req, res) => {
  */
 router.put("/update", (req, res) => {
     const { id, status, date_out, notes, deduction_type } = req.body;
+    const normalizedDateOut = (date_out == null || date_out === "") ? null : date_out;
 
     db.run(
         `UPDATE stock_units
          SET status = ?, date_out = ?, notes = ?, deduction_type = ?
          WHERE id = ?`,
-        [status, date_out, notes, deduction_type !== undefined ? deduction_type : null, id],
+        [status, normalizedDateOut, notes, deduction_type !== undefined ? deduction_type : null, id],
         function (err) {
             if (err) {
                 return res.status(500).json({ 
