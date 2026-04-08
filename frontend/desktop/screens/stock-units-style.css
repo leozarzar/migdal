@@ -331,3 +331,218 @@
     color: #9e9e9e;
     font-size: 13px;
 }
+/* ── Data de saída padrão ─────────────────────────────────────────────────── */
+
+.stock-units-default-date-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.stock-units-default-date-wrap label {
+    font-size: 12px;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.stock-units-default-date-wrap .stock-units-edit-input {
+    min-width: 0;
+    width: 140px;
+}
+
+/* ── Banner de aviso ─────────────────────────────────────────────────────── */
+
+.stock-units-date-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: #fffbeb;
+    border: 1px solid #f59f00;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #78350f;
+}
+
+.stock-units-date-banner .material-symbols-outlined {
+    font-size: 18px;
+    color: #d97706;
+    flex-shrink: 0;
+}
+
+.stock-units-date-banner button {
+    margin-left: auto;
+    padding: 3px 12px;
+    font-size: 12px;
+    font-family: inherit;
+    border: 1px solid #f59f00;
+    border-radius: 6px;
+    background: white;
+    color: #92400e;
+    cursor: pointer;
+}
+
+.stock-units-date-banner button:hover {
+    background: #fef3c7;
+}
+
+/* ── Barra de ações em lote ──────────────────────────────────────────────── */
+
+.stock-units-batch-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: #eff6ff;
+    border: 1px solid #93c5fd;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #1e40af;
+}
+
+.stock-units-batch-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    border: 1px solid #3b82f6;
+    border-radius: 6px;
+    background: #3b82f6;
+    color: white;
+    cursor: pointer;
+}
+
+.stock-units-batch-btn:hover {
+    background: #2563eb;
+}
+
+.stock-units-batch-btn .material-symbols-outlined {
+    font-size: 16px;
+}
+
+.stock-units-batch-cancel {
+    margin-left: auto;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-family: inherit;
+    border: 1px solid #93c5fd;
+    border-radius: 6px;
+    background: white;
+    color: #1e40af;
+    cursor: pointer;
+}
+
+.stock-units-batch-cancel:hover {
+    background: #dbeafe;
+}
+
+/* ── Coluna de checkbox ──────────────────────────────────────────────────── */
+
+.stock-units-col-check {
+    width: 36px;
+    text-align: center;
+}
+
+/* ── Dialog de saída em lote ─────────────────────────────────────────────── */
+
+.stock-units-batch-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stock-units-batch-dialog {
+    background: white;
+    border-radius: 12px;
+    padding: 24px 28px;
+    width: 340px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.stock-units-batch-dialog-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0;
+}
+
+.stock-units-batch-dialog-sub {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+}
+
+.stock-units-batch-dialog-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stock-units-batch-dialog-field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.stock-units-batch-dialog-field .stock-units-edit-input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.stock-units-batch-dialog-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding-top: 4px;
+}
+
+/* ── Botão filtro "Selecionados" ─────────────────────────────────────────── */
+
+.stock-units-filter-selected-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-family: inherit;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #334155;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+
+.stock-units-filter-selected-btn .material-symbols-outlined {
+    font-size: 16px;
+}
+
+.stock-units-filter-selected-btn:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
+
+.stock-units-filter-selected-btn--active {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+}
+
+.stock-units-filter-selected-btn--active:hover {
+    background: #dbeafe;
+}

@@ -22,6 +22,7 @@ Object.assign(MobApp, {
         _selectedPolicyId: null,
         _policyFull: null,
         _balanceRows: [],
+        _groupedMaterialNames: null,
         _leadTimeCache: {},
         _materialColorMap: {},
 
@@ -99,9 +100,10 @@ Object.assign(MobApp, {
             this._selectedPolicyId = policyId || null;
 
             if (!policyId) {
-                this._policyFull        = null;
-                this._balanceRows       = [];
-                this.selectedMaterials  = [];
+                this._policyFull            = null;
+                this._balanceRows           = [];
+                this._groupedMaterialNames  = null;
+                this.selectedMaterials      = [];
                 this._drawStackedChart(this._getWeekDays(), {}, []);
                 this._updateWeekLabel();
                 this._renderBalanceTable();
@@ -356,6 +358,7 @@ Object.assign(MobApp, {
                 grpItems.map(i => apiCall(`${API}/groups/${i.group_id}`).catch(() => null))
             );
             const groupMemberNames = groupDataList.map(g => (g?.materials || []).map(m => m.name).filter(Boolean));
+            this._groupedMaterialNames = new Set(groupMemberNames.flat());
 
             const directNames = matItems.map(i => i.material).filter(Boolean);
             const allNames    = [...new Set([...directNames, ...groupMemberNames.flat()])];

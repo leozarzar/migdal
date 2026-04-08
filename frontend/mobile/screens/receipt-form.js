@@ -125,7 +125,6 @@ Object.assign(MobApp, {
         });
 
         // Limpa campos do formulário de item
-        document.getElementById('mobItemMaterial').value  = '';
         document.getElementById('mobItemQty').value       = '';
         document.getElementById('mobItemOperator').value  = '';
 
