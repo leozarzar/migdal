@@ -22,6 +22,7 @@ const Dashboard = {
 
     policies: [],
     _selectedPolicyId: null,
+    _policySelect: null,
     _policyFull: null,
     _balanceRows: [],
     _groupedMaterialNames: null,
@@ -39,10 +40,8 @@ const Dashboard = {
 
             <div class="consumption-topbar">
                 <div class="consumption-topbar-field">
-                    <label class="consumption-label" for="consumptionPolicySelect">Política de Estoque</label>
-                    <select class="consumption-policy-select" id="consumptionPolicySelect">
-                        <option value="">Selecione uma política...</option>
-                    </select>
+                    <label class="consumption-label">Política de Estoque</label>
+                    <div id="consumptionPolicySelectContainer"></div>
                 </div>
             </div>
 
@@ -122,6 +121,16 @@ const Dashboard = {
             this.policies = policies || [];
             this.selectedMaterials = [];
             this._assignMaterialColors();
+            if (this._policySelect) this._policySelect.destroy();
+            this._policySelect = createSearchSelect({
+                id: 'dashboardPolicy',
+                placeholder: 'Selecione uma política...',
+                searchable: false,
+                multiple: false,
+                sections: [{ key: 'policy', items: [] }],
+                onChange: async () => { await this._onPolicyChange(); }
+            });
+            this._policySelect.mount(document.getElementById('consumptionPolicySelectContainer'));
             this._renderPoliciesSelect();
             await this._onPolicyChange();
         } catch (error) {
@@ -138,7 +147,6 @@ const Dashboard = {
         const prevBtn = document.getElementById("weekPrevBtn");
         const nextBtn = document.getElementById("weekNextBtn");
         const refreshBtn = document.getElementById("consumptionRefreshBtn");
-        const policySelect = document.getElementById("consumptionPolicySelect");
         const balanceRefreshBtn = document.getElementById("consumptionBalanceRefreshBtn");
 
         if (prevBtn) {
@@ -155,10 +163,6 @@ const Dashboard = {
                 localStorage.setItem('wcm.dashboard.weekStart', this._formatDate(this.weekStart));
                 await this.refresh();
             };
-        }
-
-        if (policySelect) {
-            policySelect.onchange = () => this._onPolicyChange();
         }
 
         if (balanceRefreshBtn) {
@@ -599,27 +603,21 @@ const Dashboard = {
     // ─── Policy selector ────────────────────────────────────────────────────────
 
     _renderPoliciesSelect() {
-        const select = document.getElementById("consumptionPolicySelect");
-        if (!select) return;
+        if (!this._policySelect) return;
         if (!this._selectedPolicyId && this.policies.length > 0) {
             this._selectedPolicyId = String(this.policies[0].id);
         }
-        const current = this._selectedPolicyId || "";
-        select.innerHTML = `<option value="">Selecione uma política...</option>`;
-        this.policies.forEach(p => {
-            const opt = document.createElement("option");
-            opt.value = p.id;
-            opt.textContent = p.name;
-            if (String(p.id) === String(current)) opt.selected = true;
-            select.appendChild(opt);
-        });
+        this._policySelect.setItems('policy', this.policies.map(p => ({ value: p.id, label: p.name })));
+        if (this._selectedPolicyId) {
+            this._policySelect.select('policy', this._selectedPolicyId);
+        }
     },
 
     /** Trata mudança de política: carrega itens, resolve grupos, atualiza materiais. */
     async _onPolicyChange() {
-        const select = document.getElementById("consumptionPolicySelect");
-        if (!select) return;
-        const policyId = select.value;
+        if (!this._policySelect) return;
+        const selected = this._policySelect.getValue();
+        const policyId = selected ? String(selected.value) : '';
         this._selectedPolicyId = policyId || null;
         localStorage.setItem('wcm.dashboard.policyId', this._selectedPolicyId || '');
 

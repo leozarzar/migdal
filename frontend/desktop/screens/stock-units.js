@@ -9,8 +9,11 @@ const StockUnits = {
 
     /** Bag selecionado atualmente */
     selectedBag: null,
-    _filterRestored: false,
-    _defaultDateOut: '',
+    _filterStatus: '',
+    _materialSelect: null,
+    _supplierSelect: null,
+    _batchDialog: null,
+    _detailDialog: null,
     _selectedIds: new Set(),
     _showOnlySelected: false,
 
@@ -18,17 +21,16 @@ const StockUnits = {
 
     /** Retorna o template HTML da tela */
     render() {
-        this._filterRestored = false;
-        this._defaultDateOut = '';
+        // Destroi os dialogs e selects do ciclo anterior
+        this._batchDialog?.destroy();  this._batchDialog  = null;
+        this._detailDialog?.destroy(); this._detailDialog = null;
+        this._materialSelect?.destroy(); this._materialSelect = null;
+        this._supplierSelect?.destroy(); this._supplierSelect = null;
+        this._filterStatus = '';
         this._selectedIds = new Set();
         this._showOnlySelected = false;
         return `
         <div class="stock-units-container">
-            <div id="stockUnitsDateBanner" class="stock-units-date-banner" style="display:none">
-                <span class="material-symbols-outlined">warning</span>
-                Saídas rápidas estão usando <strong id="stockUnitsBannerDate"></strong> — não a data de hoje.
-                <button onclick="StockUnits._clearDefaultDate()">Limpar</button>
-            </div>
             <div id="stockUnitsBatchBar" class="stock-units-batch-bar" style="display:none">
                 <span id="stockUnitsBatchCount"></span>
                 <button class="stock-units-batch-btn" onclick="StockUnits.openBatchOut()">
@@ -37,103 +39,23 @@ const StockUnits = {
                 </button>
                 <button class="stock-units-batch-cancel" onclick="StockUnits._clearSelection()">Cancelar seleção</button>
             </div>
-            <div id="stockUnitsBatchDialog" class="stock-units-batch-dialog-backdrop" style="display:none">
-                <div class="stock-units-batch-dialog">
-                    <h3 class="stock-units-batch-dialog-title">Dar saída em lote</h3>
-                    <p class="stock-units-batch-dialog-sub" id="stockUnitsBatchDialogSub"></p>
-                    <div class="stock-units-batch-dialog-field">
-                        <label for="batchDateOut">Data de saída</label>
-                        <input type="date" id="batchDateOut" class="stock-units-edit-input">
-                    </div>
-                    <div class="stock-units-batch-dialog-field">
-                        <label for="batchDeductionType">Tipo de baixa</label>
-                        <select id="batchDeductionType" class="stock-units-edit-input">
-                            <option value="uso">Uso</option>
-                            <option value="ajuste">Ajuste</option>
-                        </select>
-                    </div>
-                    <div class="stock-units-batch-dialog-actions">
-                        <button class="btn-primary" onclick="StockUnits.confirmBatchOut()">Confirmar</button>
-                        <button class="btn-secondary" onclick="StockUnits.closeBatchDialog()">Cancelar</button>
-                    </div>
-                </div>
-            </div>
-            <div id="stockUnitsEditPanel" class="stock-units-edit-panel" style="display:none">
-                <div class="stock-units-edit-fields">
-                    <div class="stock-units-edit-field">
-                        <label>Código</label>
-                        <input readonly id="code" class="stock-units-edit-input" placeholder="Código">
-                    </div>
-                    <div class="stock-units-edit-field">
-                        <label>ID Antigo</label>
-                        <input readonly id="old_id" class="stock-units-edit-input" placeholder="ID Antigo">
-                    </div>
-                    <div class="stock-units-edit-field">
-                        <label>Material</label>
-                        <input readonly id="material" class="stock-units-edit-input" placeholder="Material">
-                    </div>
-                    <div class="stock-units-edit-field">
-                        <label>Fornecedor</label>
-                        <input readonly id="supplier" class="stock-units-edit-input" placeholder="Fornecedor">
-                    </div>
-                    <div class="stock-units-edit-field">
-                        <label>Operador</label>
-                        <input readonly id="operator" class="stock-units-edit-input" placeholder="Operador">
-                    </div>
-                    <div class="stock-units-edit-field">
-                        <label>Peso</label>
-                        <input readonly id="weight" class="stock-units-edit-input" placeholder="Peso">
-                    </div>
-                    <div class="stock-units-edit-field">
-                        <label>Entrada</label>
-                        <input readonly id="date_in" type="date" class="stock-units-edit-input">
-                    </div>
-                    <div class="stock-units-edit-field">
-                        <label>Saída</label>
-                        <input id="date_out" type="date" class="stock-units-edit-input" onchange="StockUnits._onDateOutChange()">
-                    </div>
-                    <div id="deductionTypeField" class="stock-units-edit-field" style="display:none">
-                        <label>Tipo de Baixa</label>
-                        <select id="deduction_type" class="stock-units-edit-input">
-                            <option value="uso">Uso</option>
-                            <option value="ajuste">Ajuste</option>
-                        </select>
-                    </div>
-                    <div class="stock-units-edit-field stock-units-edit-field-obs">
-                        <label>Obs</label>
-                        <input id="notes" class="stock-units-edit-input" placeholder="Observação">
-                    </div>
-                </div>
-                <div class="stock-units-edit-actions">
-                    <button class="btn-primary stock-units-btn-edit" onclick="StockUnits.editStockUnit()">
-                        <span class="material-symbols-outlined">edit</span>
-                        Editar
-                    </button>
-                    <button class="btn-secondary" onclick="StockUnits.cancelEdit()">Cancelar</button>
-                </div>
-            </div>
             <div class="stock-units-card">
                 <div class="stock-units-filters">
-                    <select id="filterStatus" onchange="StockUnits.load()">
-                        <option value="">Status</option>
-                        <option value="IN_STOCK">Em estoque</option>
-                        <option value="OUT_STOCK">Usado</option>
-                    </select>
-                    <select id="filterMaterial" onchange="StockUnits.load()">
-                        <option value="">Material</option>
-                    </select>
-                    <select id="filterSupplier" onchange="StockUnits.load()">
-                        <option value="">Fornecedor</option>
-                    </select>
+                    <div class="stock-units-filters-icon-wrap">
+                        <span class="material-symbols-outlined stock-units-filters-icon">filter_list</span>
+                    </div>
+                    <div class="stock-units-status-pills">
+                        <button class="stock-units-status-pill" data-value="" onclick="StockUnits._setStatus('')">Todos</button>
+                        <button class="stock-units-status-pill" data-value="IN_STOCK" onclick="StockUnits._setStatus('IN_STOCK')">Em estoque</button>
+                        <button class="stock-units-status-pill" data-value="OUT_STOCK" onclick="StockUnits._setStatus('OUT_STOCK')">Usado</button>
+                    </div>
+                    <div id="stockUnitsMaterialContainer" class="stock-units-filter-select-wrap"></div>
+                    <div id="stockUnitsSupplierContainer" class="stock-units-filter-select-wrap"></div>
                     <input id="search" class="stock-units-search" placeholder="Pesquisar" oninput="StockUnits.load()">
                     <button id="filterSelectedBtn" class="stock-units-filter-selected-btn" onclick="StockUnits._toggleShowSelected()" title="Mostrar apenas selecionados">
                         <span class="material-symbols-outlined">checklist</span>
                         Selecionados
                     </button>
-                    <div class="stock-units-default-date-wrap">
-                        <label for="defaultDateOut">Data de saída</label>
-                        <input type="date" id="defaultDateOut" class="stock-units-edit-input" title="Data padrão para saídas rápidas" onchange="StockUnits._onDefaultDateChange()">
-                    </div>
                 </div>
                 <div id="stockUnitsCount" class="stock-units-count"></div>
                 <div class="stock-units-table-container">
@@ -165,37 +87,31 @@ const StockUnits = {
     async load() {
         this._resetForm();
 
+        // Cria os dialogs na primeira carga após render()
+        if (!this._batchDialog)  this._batchDialog  = this._createBatchDialog();
+        if (!this._detailDialog) this._detailDialog = this._createDetailDialog();
+
         try {
             const stockUnits = await apiCall(API + "/stock-units") || [];
 
-            // _populateFilters preserva o valor atual dos selects ao rebuildar as opções.
-            // Por isso, primeiro populamos, depois restauramos (se primeira carga).
+            const isFirstLoad = !this._materialSelect;
             this._populateFilters(stockUnits);
 
-            if (!this._filterRestored) {
-                this._filterRestored = true;
-                const statusEl   = document.getElementById('filterStatus');
-                const materialEl = document.getElementById('filterMaterial');
-                const supplierEl = document.getElementById('filterSupplier');
-                const searchEl   = document.getElementById('search');
-                if (statusEl)   statusEl.value   = localStorage.getItem('wcm.stockUnits.status')   || '';
-                if (materialEl) materialEl.value = localStorage.getItem('wcm.stockUnits.material') || '';
-                if (supplierEl) supplierEl.value = localStorage.getItem('wcm.stockUnits.supplier') || '';
-                if (searchEl)   searchEl.value   = localStorage.getItem('wcm.stockUnits.search')   || '';
+            if (isFirstLoad) {
+                this._filterStatus = localStorage.getItem('wcm.stockUnits.status') || '';
+                const savedMaterial = localStorage.getItem('wcm.stockUnits.material') || '';
+                const savedSupplier = localStorage.getItem('wcm.stockUnits.supplier') || '';
+                const searchEl = document.getElementById('search');
+                if (searchEl) searchEl.value = localStorage.getItem('wcm.stockUnits.search') || '';
+                if (savedMaterial) this._materialSelect.select('material', savedMaterial);
+                if (savedSupplier) this._supplierSelect.select('supplier', savedSupplier);
             }
 
-            // Persiste estado atual dos filtros
-            localStorage.setItem('wcm.stockUnits.status',   document.getElementById('filterStatus')?.value   || '');
-            localStorage.setItem('wcm.stockUnits.material', document.getElementById('filterMaterial')?.value || '');
-            localStorage.setItem('wcm.stockUnits.supplier', document.getElementById('filterSupplier')?.value || '');
-            localStorage.setItem('wcm.stockUnits.search',   document.getElementById('search')?.value         || '');
+            localStorage.setItem('wcm.stockUnits.search', document.getElementById('search')?.value || '');
+            this._updateStatusPills();
 
             this._renderTable(stockUnits);
 
-            // Restaura o campo de data padrão (valor de sessão, não localStorage)
-            const defaultDateEl = document.getElementById('defaultDateOut');
-            if (defaultDateEl) defaultDateEl.value = this._defaultDateOut || '';
-            this._updateDateBanner();
             this._updateSelectedFilterBtn();
             this._updateBatchBar();
         } catch (error) {
@@ -205,7 +121,7 @@ const StockUnits = {
 
     // ── Ações Públicas ──
 
-    /** Seleciona um bag e exibe seus dados no painel de edição */
+    /** Seleciona um bag e abre o dialog de detalhes */
     selectStockUnit(bag, tr) {
         clearTableSelection();
         tr.classList.add("selected");
@@ -217,15 +133,13 @@ const StockUnits = {
         document.getElementById("operator").value = bag.operator || "";
         document.getElementById("weight").value = bag.weight;
         document.getElementById("date_in").value = bag.date_in;
-        document.getElementById("date_out").value = bag.date_out;
+        document.getElementById("date_out").value = bag.date_out || "";
         document.getElementById("notes").value = bag.notes ?? "";
         document.getElementById("deduction_type").value = bag.deduction_type || "uso";
         document.getElementById("deductionTypeField").style.display = bag.date_out ? "" : "none";
 
-        const editPanel = document.getElementById("stockUnitsEditPanel");
-        if (editPanel) editPanel.style.display = "";
-
-        setReadonly(["date_out", "notes"], false);
+        this._detailDialog.setTitle(this._codeFor(bag));
+        this._detailDialog.open();
         this.selectedBag = bag.id;
     },
 
@@ -254,23 +168,10 @@ const StockUnits = {
         }
     },
 
-    /** Marca um bag como usado (saída) — usa data padrão de sessão se definida */
+    /** Marca um bag como usado (saída) */
     async useStockUnit(event, id) {
         event.stopPropagation();
-        if (this._defaultDateOut) {
-            try {
-                await apiCall(`${API}/stock-units/update`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id, date_out: this._defaultDateOut, status: 'OUT_STOCK', notes: '', deduction_type: 'uso' })
-                });
-                this.load();
-            } catch {
-                alert('Erro ao dar saída na unidade de estoque');
-            }
-        } else {
-            await this._updateStockUnitStatus(id, 'out');
-        }
+        await this._updateStockUnitStatus(id, 'out');
     },
 
     /** Devolve um bag ao estoque */
@@ -365,20 +266,55 @@ const StockUnits = {
         return tr;
     },
 
-    /** Popula os selects de filtro de material e fornecedor */
+    /** Popula os SearchSelects de filtro de material e fornecedor */
     _populateFilters(bags) {
-        populateSelect(bags, "filterMaterial", "material", "Material");
-        populateSelect(bags, "filterSupplier", "supplier", "Fornecedor");
+        const materials = [...new Set(bags.map(b => b.material).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+        const suppliers = [...new Set(bags.map(b => b.supplier).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+
+        if (!this._materialSelect) {
+            this._materialSelect = createSearchSelect({
+                id: 'stockUnitsMaterial',
+                placeholder: 'Material',
+                searchable: true,
+                multiple: false,
+                sections: [{ key: 'material', items: [] }],
+                onChange: ({ value }) => {
+                    localStorage.setItem('wcm.stockUnits.material', value != null ? String(value) : '');
+                    StockUnits.load();
+                }
+            });
+            this._materialSelect.mount(document.getElementById('stockUnitsMaterialContainer'));
+        }
+
+        if (!this._supplierSelect) {
+            this._supplierSelect = createSearchSelect({
+                id: 'stockUnitsSupplier',
+                placeholder: 'Fornecedor',
+                searchable: true,
+                multiple: false,
+                sections: [{ key: 'supplier', items: [] }],
+                onChange: ({ value }) => {
+                    localStorage.setItem('wcm.stockUnits.supplier', value != null ? String(value) : '');
+                    StockUnits.load();
+                }
+            });
+            this._supplierSelect.mount(document.getElementById('stockUnitsSupplierContainer'));
+        }
+
+        this._materialSelect.setItems('material', materials.map(m => ({ value: m, label: m })));
+        this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
     },
 
     // ── Utilitários Privados ──
 
     /** Obtém os valores atuais dos filtros */
     _getFilters() {
+        const materialSel = this._materialSelect?.getValue();
+        const supplierSel = this._supplierSelect?.getValue();
         return {
-            status: document.getElementById("filterStatus").value || null,
-            material: document.getElementById("filterMaterial").value || null,
-            supplier: document.getElementById("filterSupplier").value || null,
+            status: this._filterStatus || null,
+            material: materialSel ? String(materialSel.value) : null,
+            supplier: supplierSel ? String(supplierSel.value) : null,
             search: document.getElementById("search").value.toLowerCase() || null,
             onlySelected: this._showOnlySelected
         };
@@ -415,13 +351,11 @@ const StockUnits = {
         return `#${prefix}${bag.receipt_id}-${vol}`;
     },
 
-    /** Reseta o formulário e botões para estado inicial */
+    /** Reseta estado de seleção e fecha o dialog de detalhes */
     _resetForm() {
-        const editPanel = document.getElementById("stockUnitsEditPanel");
-        if (editPanel) editPanel.style.display = "none";
+        this._detailDialog?.close();
         const headerOptions = document.getElementById("headerOptionsContent");
         if (headerOptions) headerOptions.innerHTML = "";
-        setReadonly(["date_out", "notes"], true);
     },
 
     /** Limpa os campos do formulário de edição */
@@ -438,35 +372,6 @@ const StockUnits = {
     _clearAndReload() {
         this._clearForm();
         this.load();
-    },
-
-    /** Reage à mudança da data de saída padrão */
-    _onDefaultDateChange() {
-        this._defaultDateOut = document.getElementById('defaultDateOut')?.value || '';
-        this._updateDateBanner();
-    },
-
-    /** Atualiza o banner de aviso conforme data padrão */
-    _updateDateBanner() {
-        const banner = document.getElementById('stockUnitsDateBanner');
-        const bannerDate = document.getElementById('stockUnitsBannerDate');
-        if (!banner) return;
-        const today = new Date().toISOString().slice(0, 10);
-        if (this._defaultDateOut && this._defaultDateOut !== today) {
-            const [y, m, d] = this._defaultDateOut.split('-');
-            bannerDate.textContent = `${d}/${m}/${y}`;
-            banner.style.display = '';
-        } else {
-            banner.style.display = 'none';
-        }
-    },
-
-    /** Limpa a data padrão e fecha o banner */
-    _clearDefaultDate() {
-        this._defaultDateOut = '';
-        const el = document.getElementById('defaultDateOut');
-        if (el) el.value = '';
-        this._updateDateBanner();
     },
 
     /** Checkbox "selecionar todos" */
@@ -517,6 +422,20 @@ const StockUnits = {
         this.load();
     },
 
+    /** Define o filtro de status e recarrega a tabela */
+    _setStatus(value) {
+        this._filterStatus = value;
+        localStorage.setItem('wcm.stockUnits.status', value);
+        this.load();
+    },
+
+    /** Atualiza o estado visual dos pills de status */
+    _updateStatusPills() {
+        document.querySelectorAll('.stock-units-status-pill').forEach(btn => {
+            btn.classList.toggle('stock-units-status-pill--active', btn.dataset.value === (this._filterStatus || ''));
+        });
+    },
+
     /** Liga/desliga o filtro "mostrar apenas selecionados" */
     _toggleShowSelected() {
         this._showOnlySelected = !this._showOnlySelected;
@@ -533,21 +452,17 @@ const StockUnits = {
 
     /** Abre o dialog de saída em lote */
     openBatchOut() {
-        const dialog = document.getElementById('stockUnitsBatchDialog');
-        const sub = document.getElementById('stockUnitsBatchDialogSub');
-        const dateEl = document.getElementById('batchDateOut');
-        if (!dialog) return;
+        if (!this._batchDialog) return;
         const n = this._selectedIds.size;
-        sub.textContent = `${n} ${n === 1 ? 'item será baixado' : 'itens serão baixados'}.`;
-        dateEl.value = this._defaultDateOut || new Date().toISOString().slice(0, 10);
+        this._batchDialog.setSubtitle(`${n} ${n === 1 ? 'item será baixado' : 'itens serão baixados'}.`);
+        document.getElementById('batchDateOut').value = new Date().toISOString().slice(0, 10);
         document.getElementById('batchDeductionType').value = 'uso';
-        dialog.style.display = '';
+        this._batchDialog.open();
     },
 
     /** Fecha o dialog sem confirmar */
     closeBatchDialog() {
-        const dialog = document.getElementById('stockUnitsBatchDialog');
-        if (dialog) dialog.style.display = 'none';
+        this._batchDialog?.close();
     },
 
     /** Confirma saída em lote */
@@ -582,6 +497,92 @@ const StockUnits = {
         const field = document.getElementById("deductionTypeField");
         field.style.display = dateOut ? "" : "none";
         if (!dateOut) document.getElementById("deduction_type").value = "uso";
+    },
+
+    /** Cria o dialog de saída em lote via utilitário */
+    _createBatchDialog() {
+        return createDialog({
+            title: 'Saída em Lote',
+            subtitle: '',
+            bodyHTML: `
+                <div class="dialog-field">
+                    <label for="batchDateOut">Data de saída</label>
+                    <input type="date" id="batchDateOut" class="stock-units-edit-input">
+                </div>
+                <div class="dialog-field">
+                    <label for="batchDeductionType">Tipo de baixa</label>
+                    <select id="batchDeductionType" class="stock-units-edit-input">
+                        <option value="uso">Uso</option>
+                        <option value="ajuste">Ajuste</option>
+                    </select>
+                </div>
+            `,
+            actions: [
+                { label: 'Confirmar', className: 'btn-primary', onClick: () => StockUnits.confirmBatchOut() },
+                { label: 'Cancelar',  className: 'btn-secondary', onClick: () => StockUnits.closeBatchDialog() },
+            ],
+        });
+    },
+
+    /** Cria o dialog de detalhes/edição de um bag via utilitário */
+    _createDetailDialog() {
+        return createDialog({
+            title: '',
+            wide: true,
+            closeOnBackdrop: true,
+            onClose: () => clearTableSelection(),
+            bodyHTML: `
+                <div class="stock-units-edit-fields">
+                    <div class="stock-units-edit-field">
+                        <label>Código</label>
+                        <input readonly id="code" class="stock-units-edit-input" placeholder="Código">
+                    </div>
+                    <div class="stock-units-edit-field">
+                        <label>ID Antigo</label>
+                        <input readonly id="old_id" class="stock-units-edit-input" placeholder="ID Antigo">
+                    </div>
+                    <div class="stock-units-edit-field">
+                        <label>Material</label>
+                        <input readonly id="material" class="stock-units-edit-input" placeholder="Material">
+                    </div>
+                    <div class="stock-units-edit-field">
+                        <label>Fornecedor</label>
+                        <input readonly id="supplier" class="stock-units-edit-input" placeholder="Fornecedor">
+                    </div>
+                    <div class="stock-units-edit-field">
+                        <label>Operador</label>
+                        <input readonly id="operator" class="stock-units-edit-input" placeholder="Operador">
+                    </div>
+                    <div class="stock-units-edit-field">
+                        <label>Peso</label>
+                        <input readonly id="weight" class="stock-units-edit-input" placeholder="Peso">
+                    </div>
+                    <div class="stock-units-edit-field">
+                        <label>Entrada</label>
+                        <input readonly id="date_in" type="date" class="stock-units-edit-input">
+                    </div>
+                    <div class="stock-units-edit-field">
+                        <label>Saída</label>
+                        <input id="date_out" type="date" class="stock-units-edit-input" onchange="StockUnits._onDateOutChange()">
+                    </div>
+                    <div id="deductionTypeField" class="stock-units-edit-field" style="display:none">
+                        <label>Tipo de Baixa</label>
+                        <select id="deduction_type" class="stock-units-edit-input">
+                            <option value="uso">Uso</option>
+                            <option value="ajuste">Ajuste</option>
+                        </select>
+                    </div>
+                    <div class="stock-units-edit-field stock-units-edit-field-obs">
+                        <label>Obs</label>
+                        <input id="notes" class="stock-units-edit-input" placeholder="Observação">
+                    </div>
+                </div>
+            `,
+            actions: [
+                { label: 'Editar',   icon: 'edit', className: 'btn-primary', onClick: () => StockUnits.editStockUnit() },
+                { label: 'Cancelar', className: 'btn-secondary', onClick: () => StockUnits.cancelEdit() },
+            ],
+        });
     },
 
     /** Atualiza o status de um bag via API (uso ou devolução) */
