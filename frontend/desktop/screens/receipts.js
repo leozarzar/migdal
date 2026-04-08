@@ -139,11 +139,11 @@ const Receipts = {
 
         // Formata data de YYYY-MM-DD para DD/MM/YY
         tr.innerHTML = `
-            <td class="receipts-col-code">#${receiptId}</td>
+            <td class="receipts-col-code"><span class="code-badge">#${receiptId}</span></td>
             <td class="receipts-col-date">${receipt.date ? receipt.date.split('-').reverse().join('/').replace(/^(\d{2}\/\d{2}\/)\d{2}(\d{2})$/, '$1$2') : ''}</td>
             <td class="receipts-col-supplier">${receipt.supplier || ""}</td>
             <td class="receipts-col-qty">${totalQty}</td>
-            <td class="receipts-col-order">${orderDisplay}</td>
+            <td class="receipts-col-order">${receipt.order_id ? `<span class="code-badge receipts-order-link" onclick="Receipts.openOrder(event,${receipt.order_id})">#${receipt.order_id}</span>` : ''}</td>
             <td class="receipts-col-actions">
                 <button onclick="Receipts.deleteReceipt(event,'${receipt.id}')">
                     <span class="material-symbols-outlined">delete</span>
@@ -152,6 +152,20 @@ const Receipts = {
         `;
 
         return tr;
+    },
+
+    /** Navega para os detalhes do pedido vinculado. */
+    async openOrder(event, orderId) {
+        event.stopPropagation();
+        try {
+            const orders = await apiCall(`${API}/orders`);
+            const order = (orders || []).find(o => String(o.id) === String(orderId));
+            if (!order) throw new Error('não encontrado');
+            Orders.selectedOrder = order;
+            showScreen('order-details');
+        } catch {
+            alert('Erro ao carregar pedido');
+        }
     },
 
     /** Injeta botões de ação no header da página. */

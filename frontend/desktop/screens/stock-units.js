@@ -266,7 +266,7 @@ const StockUnits = {
             <td class="stock-units-col-status">
                 ${isInStock ? "" : '<span class="material-symbols-outlined">check_circle</span>'}
             </td>
-            <td class="stock-units-col-code">${this._codeFor(bag)}</td>
+            <td class="stock-units-col-code"><span class="code-badge">${this._codeFor(bag)}</span></td>
             <td class="stock-units-col-old-id">${bag.old_id && bag.old_id !== this._codeFor(bag) ? bag.old_id : ""}</td>
             <td class="stock-units-col-material">${bag.material}</td>
             <td class="stock-units-col-supplier">${bag.supplier || ""}</td>

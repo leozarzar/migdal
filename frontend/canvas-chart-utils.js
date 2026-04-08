@@ -165,17 +165,8 @@ const CanvasChartUtils = {
         ctx.stroke();
         ctx.restore();
 
-        // Pontos (dots) com borda colorida e centro branco
-        pts.forEach(pt => {
-            ctx.beginPath();
-            ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
-            ctx.fillStyle   = '#ffffff';
-            ctx.fill();
-            ctx.strokeStyle = color;
-            ctx.lineWidth   = 2.5;
-            ctx.stroke();
-            if (chartPoints) chartPoints.push(pt);
-        });
+        // Registra pontos para detecção de hover (sem desenhar dots)
+        if (chartPoints) pts.forEach(pt => chartPoints.push(pt));
     },
 
     // ── Tooltip ───────────────────────────────────────────────────────────────
