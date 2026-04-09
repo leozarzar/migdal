@@ -129,14 +129,17 @@ function createSearchSelect(config) {
         if (!labelEl) return;
 
         if (!_multiple) {
+            const clearEl = document.getElementById(_domId('clear'));
             const selected = getValue();
             if (!selected) {
                 labelEl.textContent = config.placeholder || 'Selecione...';
                 labelEl.className = 'sselect-trigger-label sselect-placeholder';
+                if (clearEl) clearEl.style.display = 'none';
                 return;
             }
             labelEl.innerHTML = (selected.item.badge || '') + _esc(selected.label);
             labelEl.className = 'sselect-trigger-label';
+            if (clearEl) clearEl.style.display = 'inline-flex';
             return;
         }
 
@@ -195,10 +198,15 @@ function createSearchSelect(config) {
             ? `<div id="${_domId('label')}" class="sselect-trigger-tags"><span class="sselect-placeholder">${_esc(config.placeholder || 'Selecione...')}</span></div>`
             : `<span id="${_domId('label')}" class="sselect-trigger-label sselect-placeholder">${_esc(config.placeholder || 'Selecione...')}</span>`;
 
+        const clearBtn = !_multiple
+            ? `<span class="sselect-clear" id="${_domId('clear')}" role="button" tabindex="-1" aria-label="Limpar seleção" style="display:none">×</span>`
+            : '';
+
         return `
         <div class="sselect-wrap" id="${_domId('wrap')}">
             <button class="sselect-trigger" id="${_domId('toggle')}" type="button" aria-expanded="false">
                 ${triggerLabel}
+                ${clearBtn}
                 <img class="sselect-caret" src="icons/expand.svg" alt="Expandir">
             </button>
             <div class="sselect-dropdown" id="${_domId('dropdown')}">
@@ -332,6 +340,20 @@ function createSearchSelect(config) {
         if (search) {
             search.oninput = () => {
                 _renderList(_filterSections(search.value.trim()));
+            };
+        }
+
+        const clearBtn = document.getElementById(_domId('clear'));
+        if (clearBtn) {
+            clearBtn.onclick = (e) => {
+                e.stopPropagation();
+                _selectedKey   = null;
+                _selectedValue = null;
+                _renderTriggerSelection();
+                _renderList(_sections);
+                if (config.onChange) {
+                    config.onChange({ key: null, value: null, label: null, item: null });
+                }
             };
         }
 

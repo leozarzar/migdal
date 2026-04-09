@@ -97,6 +97,31 @@
     line-height: 1;
 }
 
+.sselect-clear {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 18px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+}
+
+.sselect-trigger:hover .sselect-clear,
+.sselect-wrap.open .sselect-clear {
+    opacity: 1;
+}
+
+.sselect-clear:hover {
+    color: #475569;
+}
+
 .sselect-caret {
     flex-shrink: 0;
     width: 20px;

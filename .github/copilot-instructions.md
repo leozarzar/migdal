@@ -161,3 +161,7 @@ Apontar a duplicação com um comentário objetivo antes de implementar a abstra
 - Usar `_esc(str)` (disponível em `dialog.js` e `search-select.js`) ao inserir dados do usuário em HTML via template strings
 - Nunca usar `innerHTML` com dados não escapados
 - Queries SQL com parâmetros posicionais `?` — nunca interpolação de string em SQL
+
+## Resposta Final
+
+- A resposta final no chat deve ser sempre em português, mesmo que o código seja em inglês
