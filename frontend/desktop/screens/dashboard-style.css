@@ -37,7 +37,7 @@
 }
 
 .consumption-btn {
-    height: 36px;
+    height: 32px;
     padding: 0 14px;
     border: none;
     border-radius: 8px;
@@ -86,8 +86,8 @@
 }
 
 .consumption-nav-btn {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border: 1px solid #cbd5e1;
     border-radius: 10px;
     background: #ffffff;
@@ -104,7 +104,7 @@
 
 .consumption-week-range {
     min-width: 250px;
-    height: 36px;
+    height: 32px;
     padding: 0 12px;
     border: 1px solid #cbd5e1;
     border-radius: 10px;
@@ -122,7 +122,7 @@
 
 .consumption-multiselect-field {
     width: 100%;
-    min-height: 36px;
+    height: 32px;
     overflow: hidden;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
@@ -131,7 +131,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 4px 8px;
+    padding: 0 8px;
     cursor: pointer;
 }
 

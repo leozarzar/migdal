@@ -15,12 +15,22 @@ const ReceiptsDetails = {
     /** Indica se há alterações não salvas */
     _isDirty: false,
 
+    /** Instâncias dos SearchSelects da tela */
+    _supplierSelect: null,
+    _materialSelect: null,
+    _operatorSelect: null,
+    _orderSelect: null,
+
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML e carrega itens existentes (se editando) */
     async render() {
         this.items = [];
         this._originalItems = [];
+        this._supplierSelect?.destroy(); this._supplierSelect = null;
+        this._materialSelect?.destroy();  this._materialSelect = null;
+        this._operatorSelect?.destroy();  this._operatorSelect = null;
+        this._orderSelect?.destroy();     this._orderSelect = null;
 
         if (Receipts.selectedReceipt) {
             try {
@@ -84,9 +94,12 @@ const ReceiptsDetails = {
                     <div class="card-content">
                         <div class="form-group">
                             <label for="receiptSupplier">Fornecedor <span class="required">*</span></label>
-                            <select id="receiptSupplier" onchange="ReceiptsDetails.onSupplierChange(); ReceiptsDetails._updateHeaderFields()" class="form-control">
-                                <option value="">Selecione um fornecedor</option>
-                            </select>
+                            <div class="select-with-btn">
+                                <div id="receiptSupplierContainer"></div>
+                                <button class="btn-open-tab" onclick="openNewTab('suppliers')" title="Abrir cadastro de fornecedores em nova aba">
+                                    <span class="material-symbols-outlined">open_in_new</span>
+                                </button>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="receiptDate">Data Recebimento <span class="required">*</span></label>
@@ -94,9 +107,12 @@ const ReceiptsDetails = {
                         </div>
                         <div class="form-group">
                             <label for="receiptOrder">Pedido</label>
-                            <select id="receiptOrder" onchange="ReceiptsDetails._updateHeaderFields()" disabled class="form-control">
-                                <option value="">Pedido</option>
-                            </select>
+                            <div class="select-with-btn">
+                                <div id="receiptOrderContainer"></div>
+                                <button class="btn-open-tab" onclick="openNewTab('orders')" title="Abrir cadastro de pedidos em nova aba">
+                                    <span class="material-symbols-outlined">open_in_new</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -126,12 +142,18 @@ const ReceiptsDetails = {
                         <div class="item-form-wrapper">
                             <div class="receipts-details-item-form">
                                 <input id="itemCode" placeholder="Código" type="number" min="0" class="form-control" oninput="ReceiptsDetails.validateItemCode(this)">
-                                <select id="itemMaterial" class="form-control">
-                                    <option value="">Selecione um material</option>
-                                </select>
-                                <select id="itemOperator" class="form-control" style="display:none">
-                                    <option value="">Selecione um operador</option>
-                                </select>
+                                <div class="select-with-btn">
+                                    <div id="itemMaterialContainer"></div>
+                                    <button class="btn-open-tab" onclick="openNewTab('materials')" title="Abrir cadastro de materiais em nova aba">
+                                        <span class="material-symbols-outlined">open_in_new</span>
+                                    </button>
+                                </div>
+                                <div class="select-with-btn" id="itemOperatorWrapper" style="display:none">
+                                    <div id="itemOperatorContainer"></div>
+                                    <button class="btn-open-tab" onclick="openNewTab('operators')" title="Abrir cadastro de operadores em nova aba">
+                                        <span class="material-symbols-outlined">open_in_new</span>
+                                    </button>
+                                </div>
                                 <input id="itemQuantity" placeholder="Quantidade" class="form-control">
                             </div>
                             <button class="btn-add" onclick="ReceiptsDetails.addItem()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
@@ -168,21 +190,60 @@ const ReceiptsDetails = {
         return confirm('Você tem alterações não salvas. Deseja sair sem salvar?');
     },
 
-    /** Inicializa a tela: popula selects, preenche campos do recebimento selecionado */
+    /** Inicializa a tela: cria SearchSelects, popula dados e preenche campos do recebimento selecionado */
     async load() {
         this._isDirty = false;
         this._setHeaderOptions();
-        await this._populateOrderSelect();
+
+        // Criar e montar SearchSelects
+        this._supplierSelect = createSearchSelect({
+            id: 'receiptSupplier',
+            placeholder: 'Selecione um fornecedor',
+            searchable: true,
+            searchPlaceholder: 'Buscar...',
+            sections: [{ key: 'supplier', items: [] }],
+            onChange: () => { ReceiptsDetails.onSupplierChange(); ReceiptsDetails._markDirty(); }
+        });
+        this._supplierSelect.mount(document.getElementById('receiptSupplierContainer'));
+
+        this._orderSelect = createSearchSelect({
+            id: 'receiptOrder',
+            placeholder: 'Pedido',
+            searchable: false,
+            sections: [{ key: 'order', items: [] }],
+            onChange: () => { ReceiptsDetails._updateHeaderFields(); ReceiptsDetails._markDirty(); }
+        });
+        this._orderSelect.mount(document.getElementById('receiptOrderContainer'));
+
+        this._materialSelect = createSearchSelect({
+            id: 'itemMaterial',
+            placeholder: 'Selecione um material',
+            searchable: true,
+            searchPlaceholder: 'Buscar...',
+            sections: [{ key: 'material', items: [] }],
+            onChange: () => ReceiptsDetails._markDirty()
+        });
+        this._materialSelect.mount(document.getElementById('itemMaterialContainer'));
+
+        this._operatorSelect = createSearchSelect({
+            id: 'itemOperator',
+            placeholder: 'Selecione um operador',
+            searchable: true,
+            searchPlaceholder: 'Buscar...',
+            sections: [{ key: 'operator', items: [] }],
+            onChange: () => ReceiptsDetails._markDirty()
+        });
+        this._operatorSelect.mount(document.getElementById('itemOperatorContainer'));
 
         try {
-            const materials = await apiCall(API + "/materials");
-            populateSelect(materials, "itemMaterial", "name", "Selecione um material");
-
-            const suppliers = await apiCall(API + "/suppliers");
-            populateSelect(suppliers, "receiptSupplier", "name", "Selecione um fornecedor");
-
-            const operators = await apiCall(API + "/operators");
-            populateSelect(operators, "itemOperator", "name", "Selecione um operador");
+            const [materials, suppliers, operators] = await Promise.all([
+                apiCall(API + "/materials"),
+                apiCall(API + "/suppliers"),
+                apiCall(API + "/operators")
+            ]);
+            this._materialSelect.setItems('material', (materials || []).map(m => ({ value: m.name, label: m.name })));
+            this._supplierSelect.setItems('supplier', (suppliers || []).map(s => ({ value: s.name, label: s.name })));
+            this._operatorSelect.setItems('operator', (operators || []).map(o => ({ value: o.name, label: o.name })));
         } catch (error) {
             console.error("Erro ao carregar dados:", error);
         }
@@ -191,7 +252,7 @@ const ReceiptsDetails = {
             const saveBtn = document.getElementById("saveBtn");
             saveBtn.textContent = "Editar";
             saveBtn.onclick = () => this.editReceipt();
-            document.getElementById("receiptCode").value = "#" +Receipts.selectedReceipt.nature + Receipts.selectedReceipt.id;
+            document.getElementById("receiptCode").value = "#" + Receipts.selectedReceipt.nature + Receipts.selectedReceipt.id;
 
             // Define a natureza e atualiza visibilidade dos cards conforme tipo
             const nature = Receipts.selectedReceipt.nature;
@@ -200,9 +261,9 @@ const ReceiptsDetails = {
 
             const dateId = nature === "P" ? "receiptDateProduction" : "receiptDate";
             document.getElementById(dateId).value = Receipts.selectedReceipt.date;
-            document.getElementById("receiptSupplier").value = Receipts.selectedReceipt.supplier || "";
+            if (Receipts.selectedReceipt.supplier) this._supplierSelect.select('supplier', Receipts.selectedReceipt.supplier);
             await this.onSupplierChange();
-            document.getElementById("receiptOrder").value = Receipts.selectedReceipt.order_id || "";
+            if (Receipts.selectedReceipt.order_id) this._orderSelect.select('order', Receipts.selectedReceipt.order_id);
         } else {
             const saveBtn = document.getElementById("saveBtn");
             saveBtn.textContent = "Salvar";
@@ -212,7 +273,7 @@ const ReceiptsDetails = {
         this._refreshItemsView();
         this._setNextItemCode();
 
-        // Marca o form como sujo em qualquer alteração de campo
+        // Marca o form como sujo em qualquer alteração de campo (campos nativos restantes)
         document.querySelectorAll('#content input, #content select, #content textarea')
             .forEach(el => el.addEventListener('change', () => this._markDirty()));
     },
@@ -332,10 +393,10 @@ const ReceiptsDetails = {
     /** Adiciona um item ao recebimento */
     addItem() {
         const code = document.getElementById("itemCode").value.trim();
-        const material = document.getElementById("itemMaterial").value;
+        const material = this._materialSelect?.getValue()?.value || '';
         const quantity = document.getElementById("itemQuantity").value;
         const nature = document.getElementById("receiptNature").value;
-        const itemOperator = document.getElementById("itemOperator").value;
+        const itemOperator = this._operatorSelect?.getValue()?.value || '';
 
         if (!code || !material || !quantity) {
             alert("Preencha todos os campos do item");
@@ -362,7 +423,8 @@ const ReceiptsDetails = {
             operator: nature === "P" ? itemOperator : ""
         });
 
-        clearFormInputs(["itemOperator", "itemQuantity"]);
+        this._operatorSelect?.clear();
+        clearFormInputs(["itemQuantity"]);
         this._setNextItemCode();
         this._refreshItemsView();
     },
@@ -462,13 +524,11 @@ const ReceiptsDetails = {
             if (metaOrder) metaOrder.style.display = "";
             if (metaProduction) metaProduction.style.display = "none";
 
-            const supplier = document.getElementById("receiptSupplier").value;
-            const supplierName = supplier
-                ? document.querySelector(`#receiptSupplier option[value="${supplier}"]`)?.textContent ?? "-"
-                : "-";
+            const supplierSel = this._supplierSelect?.getValue();
+            const supplierName = supplierSel?.label ?? "-";
             document.getElementById("receiptSupplierName").textContent = supplierName;
 
-            const orderId = document.getElementById("receiptOrder").value;
+            const orderId = this._orderSelect?.getValue()?.value;
             document.getElementById("receiptOrderNumber").textContent = orderId ? `#${orderId}` : "-";
         } else {
             if (metaSupplier) metaSupplier.style.display = "none";
@@ -483,10 +543,8 @@ const ReceiptsDetails = {
     _updateRequiredIndicators() {
         const nature = document.getElementById("receiptNature")?.value;
         const dateFieldId = nature === "P" ? "receiptDateProduction" : "receiptDate";
-        const requiredFields = nature === "P"
-            ? ["receiptNature", dateFieldId]
-            : ["receiptNature", dateFieldId, "receiptSupplier"];
-        requiredFields.forEach(fieldId => {
+        const nativeFields = ["receiptNature", dateFieldId];
+        nativeFields.forEach(fieldId => {
             const field = document.getElementById(fieldId);
             if (!field) return;
             const label = document.querySelector(`label[for="${fieldId}"]`);
@@ -495,6 +553,12 @@ const ReceiptsDetails = {
             if (!span) return;
             span.style.visibility = field.value ? 'hidden' : 'visible';
         });
+        // Indicador de obrigatório para o SearchSelect de fornecedor (Compra/Retorno)
+        if (nature === "C" || nature === "S") {
+            const supplierLabel = document.querySelector('label[for="receiptSupplier"]');
+            const span = supplierLabel?.querySelector('.required');
+            if (span) span.style.visibility = this._supplierSelect?.getValue() ? 'hidden' : 'visible';
+        }
     },
 
     /** Limpa os botões de ação da barra de header */
@@ -515,30 +579,30 @@ const ReceiptsDetails = {
     updateFormVisibility(nature) {
         const supplierCard = document.getElementById("supplierPurchaseCard");
         const operatorCard = document.getElementById("operatorProductionCard");
-        const itemOperatorField = document.getElementById("itemOperator");
+        const itemOperatorWrapper = document.getElementById("itemOperatorWrapper");
 
         if (nature === "P") {
             // Produção — mostrar detalhes de fornecimento e operador no item
             supplierCard.style.display = "none";
             operatorCard.style.display = "block";
-            if (itemOperatorField) {
-                itemOperatorField.style.display = "";
+            if (itemOperatorWrapper) {
+                itemOperatorWrapper.style.display = "";
             }
         } else if (nature === "C" || nature === "S") {
             // Compra ou Retorno — mostrar fornecedor/pedido, esconder operador do item
             supplierCard.style.display = "block";
             operatorCard.style.display = "none";
-            if (itemOperatorField) {
-                itemOperatorField.style.display = "none";
-                itemOperatorField.value = "";
+            if (itemOperatorWrapper) {
+                itemOperatorWrapper.style.display = "none";
+                this._operatorSelect?.clear();
             }
         } else {
             // Nenhuma natureza selecionada
             supplierCard.style.display = "none";
             operatorCard.style.display = "none";
-            if (itemOperatorField) {
-                itemOperatorField.style.display = "none";
-                itemOperatorField.value = "";
+            if (itemOperatorWrapper) {
+                itemOperatorWrapper.style.display = "none";
+                this._operatorSelect?.clear();
             }
         }
 
@@ -582,64 +646,31 @@ const ReceiptsDetails = {
 
     /** Filtra pedidos ao selecionar fornecedor */
     async onSupplierChange() {
-        const selectedSupplier = document.getElementById("receiptSupplier").value;
-        const selectElement = document.getElementById("receiptOrder");
+        const selectedSupplier = this._supplierSelect?.getValue()?.value || '';
 
-        // Se nenhum fornecedor for selecionado, desabilita o select
         if (!selectedSupplier) {
-            selectElement.disabled = true;
-            selectElement.innerHTML = '<option value="">Pedido</option>';
-            selectElement.value = "";
+            this._orderSelect?.setItems('order', []);
+            this._orderSelect?.clear();
+            this._updateHeaderFields();
             return;
         }
 
         try {
             const orders = await apiCall(API + "/orders");
-
-            // Filtra pedidos pelo fornecedor selecionado e pelo status aberto
             const filteredOrders = orders.filter(order =>
                 order.supplier === selectedSupplier && order.status === "OPEN"
             );
-
-            selectElement.innerHTML = '<option value="">Selecione um pedido</option>';
-
-            if (filteredOrders.length === 0) {
-                selectElement.innerHTML += '<option disabled>Nenhum pedido aberto</option>';
-                selectElement.disabled = true;
-            } else {
-                filteredOrders.forEach(order => {
-                    const displayText = `#${order.id}`;
-                    selectElement.innerHTML += `<option value="${order.id}">${displayText}</option>`;
-                });
-                selectElement.disabled = false;
-            }
-
-            selectElement.value = "";
+            this._orderSelect?.setItems('order', filteredOrders.map(o => ({ value: o.id, label: '#' + o.id })));
+            this._orderSelect?.clear();
         } catch (error) {
             console.error("Erro ao filtrar pedidos:", error);
-            selectElement.disabled = true;
+            this._orderSelect?.setItems('order', []);
         }
+        this._updateHeaderFields();
     },
 
-    /** Popula o select de pedidos com todos os pedidos disponíveis */
-    async _populateOrderSelect() {
-        try {
-            const orders = await apiCall(API + "/orders");
-
-            const selectElement = document.getElementById("receiptOrder");
-            const currentValue = selectElement.value;
-
-            selectElement.innerHTML = '<option value="">Pedido</option>';
-            orders.forEach(order => {
-                const displayText = `#${order.id}`;
-                selectElement.innerHTML += `<option value="${order.id}">${displayText}</option>`;
-            });
-
-            selectElement.value = currentValue;
-        } catch (error) {
-            console.error("Erro ao carregar pedidos:", error);
-        }
-    },
+    /** @deprecated Use onSupplierChange() — mantido para compatibilidade */
+    async _populateOrderSelect() {},
 
     // ── Utilitários Privados ──
 
@@ -662,10 +693,11 @@ const ReceiptsDetails = {
             };
         } else {
             // Compra ou Retorno de Serviço
+            const orderVal = this._orderSelect?.getValue()?.value;
             return {
                 ...baseData,
-                supplier: document.getElementById("receiptSupplier").value,
-                order_id: document.getElementById("receiptOrder").value ? parseInt(document.getElementById("receiptOrder").value) : null,
+                supplier: this._supplierSelect?.getValue()?.value || null,
+                order_id: orderVal ? parseInt(orderVal) : null,
             };
         }
     },

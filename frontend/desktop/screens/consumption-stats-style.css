@@ -147,7 +147,7 @@
    Date input
    --------------------------------------------------- */
 .cstats-date-input {
-    height: 36px;
+    height: 32px;
     padding: 0 10px;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
@@ -171,7 +171,7 @@
 
 .cstats-select-field {
     width: 100%;
-    height: 36px;
+    height: 32px;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     background: #ffffff;
@@ -327,7 +327,7 @@
 }
 
 .cstats-toggle-btn {
-    height: 36px;
+    height: 32px;
     padding: 0 14px;
     border: none;
     border-right: 1px solid #e2e8f0;
@@ -357,7 +357,7 @@
    Native select (forecast method)
    --------------------------------------------------- */
 .cstats-select-native {
-    height: 36px;
+    height: 32px;
     padding: 0 10px;
     border: 1px solid #e2e8f0;
     border-radius: 8px;

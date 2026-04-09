@@ -462,3 +462,43 @@ input[type="date"]::-webkit-datetime-edit-year-field {
 #headerOptionsContent .btn-new .material-symbols-outlined {
     font-size: 18px;
 }
+
+/* ── Select com botão de abrir cadastro em nova aba ── */
+
+.select-with-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.select-with-btn select,
+.select-with-btn > div {
+    flex: 1;
+    min-width: 0;
+}
+
+.btn-open-tab {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #64748b;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn-open-tab:hover {
+    background-color: #f1f5f9;
+    border-color: #94a3b8;
+    color: #334155;
+}
+
+.btn-open-tab .material-symbols-outlined {
+    font-size: 16px;
+}
