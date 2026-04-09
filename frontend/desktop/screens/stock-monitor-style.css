@@ -259,24 +259,6 @@
     vertical-align: middle;
 }
 
-.stock-monitor-legend-line--dotted {
-    border-top-style: dotted;
-    border-top-width: 3px;
-}
-
-.stock-monitor-legend-line--dashed {
-    border-top-style: dashed;
-    border-top-width: 2px;
-    border-top-color: #64748b;
-}
-
-.stock-monitor-legend-line--longdash {
-    border-top-style: dashed;
-    border-top-width: 2px;
-    /* longer dash via background for browsers that don't support dash-array on borders */
-    border-top-color: #475569;
-}
-
 /* Chart */
 .stock-monitor-chart-wrap {
     margin-top: 14px;

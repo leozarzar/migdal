@@ -969,7 +969,7 @@ const ConsumptionStats = {
         canvas.style.display = "";
         if (emptyState) emptyState.style.display = "none";
 
-        CanvasChartUtils.drawYAxis(ctx, padding, chartWidth, chartHeight, yMax);
+        CanvasChartUtils.drawYAxis(ctx, padding, chartWidth, chartHeight, yMax, { withGrid: false });
 
         // Estado vazio — branch removido (tratado acima antes de drawYAxis)
 
