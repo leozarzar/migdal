@@ -12,6 +12,9 @@ const OrdersDetails = {
     /** Instância do SearchSelect para seleção de material/grupo */
     _itemSelect: null,
 
+    /** Instância do SearchSelect para seleção de fornecedor */
+    _supplierSelect: null,
+
     /** Indica se há alterações não salvas */
     _isDirty: false,
 
@@ -21,6 +24,8 @@ const OrdersDetails = {
     async render() {
         this.items = [];
         this.receivedQuantities = {};
+        this._itemSelect?.destroy(); this._itemSelect = null;
+        this._supplierSelect?.destroy(); this._supplierSelect = null;
 
         if (Orders.selectedOrder) {
             try {
@@ -95,9 +100,12 @@ const OrdersDetails = {
                     <div class="card-content">
                         <div class="form-group">
                             <label for="orderSupplier">Fornecedor <span class="required" id="reqSupplier">*</span></label>
-                            <select id="orderSupplier" class="form-control" onchange="OrdersDetails._updateHeaderFields()">
-                                <option value="">Selecione um fornecedor</option>
-                            </select>
+                            <div class="select-with-btn">
+                                <div id="orderSupplierContainer"></div>
+                                <button class="btn-open-tab" onclick="openNewTab('suppliers')" title="Abrir cadastro de fornecedores em nova aba">
+                                    <span class="material-symbols-outlined">open_in_new</span>
+                                </button>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="orderStatus">Status</label>
@@ -140,7 +148,12 @@ const OrdersDetails = {
                         <div class="item-form-section">
                             <div class="item-form-wrapper">
                                 <div class="orders-details-item-form">
-                                    <div id="itemSelectContainer"></div>
+                                    <div class="select-with-btn">
+                                        <div id="itemSelectContainer"></div>
+                                        <button class="btn-open-tab" onclick="openNewTab('materials')" title="Abrir cadastro de materiais em nova aba">
+                                            <span class="material-symbols-outlined">open_in_new</span>
+                                        </button>
+                                    </div>
                                     <input id="itemQuantity" placeholder="Quantidade" class="form-control">
                                 </div>
                                 <button class="btn-add" onclick="OrdersDetails.addItem()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
@@ -179,7 +192,6 @@ const OrdersDetails = {
     /** Inicializa a tela: popula selects, preenche campos do pedido selecionado */
     async load() {
         this._isDirty = false;
-        if (this._itemSelect) this._itemSelect.destroy();
         this._itemSelect = createSearchSelect({
             id: 'orderItem',
             placeholder: 'Selecione material ou grupo',
@@ -192,6 +204,16 @@ const OrdersDetails = {
         });
         this._itemSelect.mount(document.getElementById('itemSelectContainer'));
 
+        this._supplierSelect = createSearchSelect({
+            id: 'orderSupplier',
+            placeholder: 'Selecione um fornecedor',
+            searchable: true,
+            searchPlaceholder: 'Buscar...',
+            sections: [{ key: 'supplier', items: [] }],
+            onChange: () => { OrdersDetails._updateHeaderFields(); OrdersDetails._markDirty(); }
+        });
+        this._supplierSelect.mount(document.getElementById('orderSupplierContainer'));
+
         try {
             const [materials, suppliers, groups] = await Promise.all([
                 apiCall(API + "/materials"),
@@ -202,7 +224,7 @@ const OrdersDetails = {
             this._itemSelect.setItems('material', (materials || []).map(m => ({ value: m.name, label: m.name })));
             this._itemSelect.setItems('group',    (groups   || []).map(g => ({ value: g.id,   label: g.name })));
 
-            populateSelect(suppliers, "orderSupplier", "name", "Selecione um fornecedor");
+            this._supplierSelect.setItems('supplier', (suppliers || []).map(s => ({ value: s.name, label: s.name })));
         } catch (error) {
             console.error("Erro ao carregar dados:", error);
         }
@@ -212,7 +234,7 @@ const OrdersDetails = {
 
         if (Orders.selectedOrder) {
             document.getElementById("orderTitleCode").textContent = `#${Orders.selectedOrder.id}`;
-            document.getElementById("orderSupplier").value = Orders.selectedOrder.supplier;
+            if (Orders.selectedOrder.supplier) this._supplierSelect.select('supplier', Orders.selectedOrder.supplier);
             document.getElementById("orderDate").value = Orders.selectedOrder.date;
             document.getElementById("orderExpected").value = Orders.selectedOrder.expected_date;
             document.getElementById("orderDue").value = Orders.selectedOrder.due_date;
@@ -448,16 +470,14 @@ const OrdersDetails = {
 
     /** Atualiza os textos de fornecedor e status exibidos no header */
     _updateHeaderFields() {
-        const supplierEl = document.getElementById("orderSupplier");
         const statusEl = document.getElementById("orderStatus");
-
-        const supplierName = supplierEl?.options[supplierEl.selectedIndex]?.text;
+        const supplierName = this._supplierSelect?.getValue()?.label;
         const statusText = statusEl?.options[statusEl.selectedIndex]?.text;
 
         const supplierNameEl = document.getElementById("orderSupplierName");
         const statusLabelEl = document.getElementById("orderStatusLabel");
 
-        if (supplierNameEl) supplierNameEl.textContent = (supplierName && supplierName !== 'Selecione um fornecedor') ? supplierName : '-';
+        if (supplierNameEl) supplierNameEl.textContent = supplierName || '-';
         if (statusLabelEl) statusLabelEl.textContent = statusText || '-';
 
         this._updateRequiredIndicators();
@@ -465,13 +485,11 @@ const OrdersDetails = {
 
     /** Oculta/exibe indicadores de campo obrigatório conforme preenchimento */
     _updateRequiredIndicators() {
-        const supplierEl = document.getElementById("orderSupplier");
         const dateEl = document.getElementById("orderDate");
-
         const reqSupplier = document.getElementById("reqSupplier");
         const reqDate = document.getElementById("reqDate");
 
-        if (reqSupplier) reqSupplier.style.display = (supplierEl?.value) ? 'none' : '';
+        if (reqSupplier) reqSupplier.style.display = this._supplierSelect?.getValue() ? 'none' : '';
         if (reqDate) reqDate.style.display = (dateEl?.value) ? 'none' : '';
     },
 
@@ -482,7 +500,7 @@ const OrdersDetails = {
         const titleCode = document.getElementById("orderTitleCode").textContent;
         return {
             id: titleCode.replace('#', '').trim(),
-            supplier: document.getElementById("orderSupplier").value,
+            supplier: this._supplierSelect?.getValue()?.value || '',
             date: document.getElementById("orderDate").value,
             expected_date: document.getElementById("orderExpected").value,
             due_date: document.getElementById("orderDue").value,

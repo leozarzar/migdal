@@ -12,10 +12,14 @@ const GroupsDetails = {
     allMaterials: [],
     _isDirty: false,
 
+    /** Instância do SearchSelect para seleção de material */
+    _materialSelect: null,
+
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML da tela. */
     render() {
+        this._materialSelect?.destroy(); this._materialSelect = null;
         return `
         <div class="gd-container">
             <div class="gd-page-header">
@@ -44,9 +48,12 @@ const GroupsDetails = {
                     </div>
                     <div class="gd-card-content">
                         <div class="gd-add-row">
-                            <select id="gdMaterialSelect" class="gd-form-control gd-select-material">
-                                <option value="">Selecionar material...</option>
-                            </select>
+                            <div class="select-with-btn" style="flex:1">
+                                <div id="gdMaterialSelectContainer"></div>
+                                <button class="btn-open-tab" onclick="openNewTab('materials')" title="Abrir cadastro de materiais em nova aba">
+                                    <span class="material-symbols-outlined">open_in_new</span>
+                                </button>
+                            </div>
                             <button class="gd-btn-add" onclick="GroupsDetails.addMaterial()">
                                 <span class="material-symbols-outlined">playlist_add</span>
                                 Adicionar
@@ -84,6 +91,15 @@ const GroupsDetails = {
     /** Inicializa a tela: carrega materiais e popula dados do grupo selecionado. */
     async load() {
         this._isDirty = false;
+        this._materialSelect = createSearchSelect({
+            id: 'gdMaterialSelect',
+            placeholder: 'Selecionar material...',
+            searchable: true,
+            searchPlaceholder: 'Buscar...',
+            sections: [{ key: 'material', items: [] }]
+        });
+        this._materialSelect.mount(document.getElementById('gdMaterialSelectContainer'));
+
         const headerOptions = document.getElementById("headerOptionsContent");
         if (headerOptions) {
             headerOptions.innerHTML = `
@@ -173,8 +189,9 @@ const GroupsDetails = {
 
     /** Adiciona um material à lista de associados. */
     addMaterial() {
-        const select = document.getElementById("gdMaterialSelect");
-        const id = parseInt(select.value);
+        const sel = this._materialSelect?.getValue();
+        if (!sel) return;
+        const id = parseInt(sel.value);
         if (!id) return;
 
         const material = this.allMaterials.find(m => m.id === id);
@@ -183,7 +200,7 @@ const GroupsDetails = {
         this.associatedMaterials.push(material);
         this._renderMaterialsSelect();
         this._renderMaterialsTable();
-        select.value = "";
+        this._materialSelect.clear();
     },
 
     /** Remove um material da lista de associados. */
@@ -195,21 +212,14 @@ const GroupsDetails = {
 
     // ── Renderização ──
 
-    /** Popula o select com materiais disponíveis (não associados). */
+    /** Popula o SearchSelect com materiais disponíveis (não associados). */
     _renderMaterialsSelect() {
-        const select = document.getElementById("gdMaterialSelect");
-        if (!select) return;
+        if (!this._materialSelect) return;
 
         const associatedIds = new Set(this.associatedMaterials.map(m => m.id));
         const available = this.allMaterials.filter(m => !associatedIds.has(m.id));
 
-        select.innerHTML = `<option value="">Selecionar material...</option>`;
-        available.forEach(m => {
-            const opt = document.createElement("option");
-            opt.value = m.id;
-            opt.textContent = m.name;
-            select.appendChild(opt);
-        });
+        this._materialSelect.setItems('material', available.map(m => ({ value: m.id, label: m.name })));
     },
 
     /** Renderiza a tabela de materiais associados ao grupo. */

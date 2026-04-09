@@ -9,10 +9,14 @@ const Materials = {
 
     selectedMaterial: null,
 
+    /** Instância do SearchSelect para seleção de grupo */
+    _groupSelect: null,
+
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML da tela. */
     render() {
+        this._groupSelect?.destroy(); this._groupSelect = null;
         return `
         <div class="materials-container">
             <div class="materials-card">
@@ -26,10 +30,13 @@ const Materials = {
                         <input type="color" id="materialColor" class="materials-color-input" value="#3b5bdb">
                     </div>
                     <div class="materials-field-group">
-                        <label class="materials-field-label" for="materialGroup">Grupo</label>
-                        <select id="materialGroup" class="materials-input materials-select">
-                            <option value="">Sem grupo</option>
-                        </select>
+                        <label class="materials-field-label">Grupo</label>
+                        <div class="select-with-btn materials-group-field">
+                            <div id="materialGroupContainer"></div>
+                            <button class="btn-open-tab" onclick="openNewTab('groups')" title="Abrir cadastro de grupos em nova aba">
+                                <span class="material-symbols-outlined">open_in_new</span>
+                            </button>
+                        </div>
                     </div>
                     <button class="materials-btn-save" id="materialSaveBtn" onclick="Materials.saveMaterial()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
                     <button class="materials-btn-cancel" id="materialsCancelBtn" style="display:none" onclick="Materials.cancelEdit()">Cancelar</button>
@@ -53,6 +60,15 @@ const Materials = {
 
     /** Inicializa a tela: reseta formulário, configura header e carrega dados. */
     async load() {
+        this._groupSelect = createSearchSelect({
+            id: 'materialGroup',
+            placeholder: 'Sem grupo',
+            searchable: true,
+            searchPlaceholder: 'Buscar...',
+            sections: [{ key: 'group', items: [] }]
+        });
+        this._groupSelect.mount(document.getElementById('materialGroupContainer'));
+
         this._resetForm();
         this._setHeaderOptions();
 
@@ -74,8 +90,8 @@ const Materials = {
     async saveMaterial() {
         const name = document.getElementById("materialName").value.trim();
         const color = document.getElementById("materialColor")?.value || null;
-        const groupVal = document.getElementById("materialGroup")?.value;
-        const group_id = groupVal ? parseInt(groupVal) : null;
+        const groupSel = this._groupSelect?.getValue();
+        const group_id = groupSel ? parseInt(groupSel.value) : null;
 
         if (!name) {
             alert("Digite o nome do material");
@@ -121,8 +137,8 @@ const Materials = {
         document.getElementById("materialName").value = material.name;
         const colorInput = document.getElementById("materialColor");
         if (colorInput) colorInput.value = material.color || "#3b5bdb";
-        const groupSelect = document.getElementById("materialGroup");
-        if (groupSelect) groupSelect.value = material.group_id || "";
+        if (material.group_id) this._groupSelect?.select('group', material.group_id);
+        else this._groupSelect?.clear();
         this.selectedMaterial = material.id;
         const cancelBtn = document.getElementById("materialsCancelBtn");
         if (cancelBtn) cancelBtn.style.display = "";
@@ -205,8 +221,7 @@ const Materials = {
         clearFormInputs(["materialName"]);
         const colorInput = document.getElementById("materialColor");
         if (colorInput) colorInput.value = "#3b5bdb";
-        const groupSelect = document.getElementById("materialGroup");
-        if (groupSelect) groupSelect.value = "";
+        this._groupSelect?.clear();
         clearTableSelection();
         this.selectedMaterial = null;
         const cancelBtn = document.getElementById("materialsCancelBtn");
@@ -215,18 +230,9 @@ const Materials = {
         if (saveBtn) saveBtn.innerHTML = '<span class="material-symbols-outlined">playlist_add</span>Adicionar';
     },
 
-    /** Popula o select de grupos com as opções disponíveis. */
+    /** Popula o SearchSelect de grupos com as opções disponíveis. */
     _populateGroupsSelect(groups) {
-        const select = document.getElementById("materialGroup");
-        if (!select) return;
-        const current = select.value;
-        select.innerHTML = `<option value="">Sem grupo</option>`;
-        groups.forEach(g => {
-            const opt = document.createElement("option");
-            opt.value = g.id;
-            opt.textContent = g.name;
-            select.appendChild(opt);
-        });
-        select.value = current;
+        if (!this._groupSelect) return;
+        this._groupSelect.setItems('group', groups.map(g => ({ value: g.id, label: g.name })));
     },
 };
