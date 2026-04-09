@@ -42,7 +42,7 @@ const Orders = {
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody id="tableBody"></tbody>
+                        <tbody id="ordersTableBody"></tbody>
                     </table>
                 </div>
             </div>
@@ -116,7 +116,7 @@ const Orders = {
     async _renderTable(orders) {
         const sel = this._supplierSelect?.getValue();
         const supplier = sel ? String(sel.value) : '';
-        const tbody = document.getElementById("tableBody");
+        const tbody = document.getElementById("ordersTableBody");
         tbody.innerHTML = "";
 
         const filtered = orders

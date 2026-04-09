@@ -19,7 +19,7 @@ const Operators = {
                 <div class="operators-form-wrapper">
                     <input id="operatorName" class="operators-input" placeholder="Nome do operador">
                     <button class="operators-btn-save" id="operatorSaveBtn" onclick="Operators.saveOperator()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
-                    <button class="operators-btn-cancel" id="cancelBtn" style="display:none" onclick="Operators.cancelEdit()">Cancelar</button>
+                    <button class="operators-btn-cancel" id="operatorsCancelBtn" style="display:none" onclick="Operators.cancelEdit()">Cancelar</button>
                 </div>
                 <div class="operators-table-container">
                     <table class="operators-table">
@@ -29,7 +29,7 @@ const Operators = {
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody id="tableBody"></tbody>
+                        <tbody id="operatorsTableBody"></tbody>
                     </table>
                 </div>
             </div>
@@ -90,7 +90,7 @@ const Operators = {
         tr.classList.add("selected");
         document.getElementById("operatorName").value = operator.name;
         this.selectedOperator = operator.id;
-        const cancelBtn = document.getElementById("cancelBtn");
+        const cancelBtn = document.getElementById("operatorsCancelBtn");
         if (cancelBtn) cancelBtn.style.display = "";
         const saveBtn = document.getElementById("operatorSaveBtn");
         if (saveBtn) saveBtn.innerHTML = 'Salvar';
@@ -119,7 +119,7 @@ const Operators = {
 
     /** Renderiza a tabela de operadores ou mensagem de estado vazio. */
     _renderTable(operators) {
-        const tbody = document.getElementById("tableBody");
+        const tbody = document.getElementById("operatorsTableBody");
         tbody.innerHTML = "";
 
         if (!operators || operators.length === 0) {
@@ -159,7 +159,7 @@ const Operators = {
         clearFormInputs(["operatorName"]);
         clearTableSelection();
         this.selectedOperator = null;
-        const cancelBtn = document.getElementById("cancelBtn");
+        const cancelBtn = document.getElementById("operatorsCancelBtn");
         if (cancelBtn) cancelBtn.style.display = "none";
         const saveBtn = document.getElementById("operatorSaveBtn");
         if (saveBtn) saveBtn.innerHTML = '<span class="material-symbols-outlined">playlist_add</span>Adicionar';

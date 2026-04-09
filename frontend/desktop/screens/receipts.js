@@ -37,7 +37,7 @@ const Receipts = {
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody id="tableBody"></tbody>
+                        <tbody id="receiptsTableBody"></tbody>
                     </table>
                 </div>
             </div>
@@ -111,7 +111,7 @@ const Receipts = {
     async _renderTable(receipts) {
         const sel = this._supplierSelect?.getValue();
         const supplier = sel ? String(sel.value) : '';
-        const tbody = document.getElementById("tableBody");
+        const tbody = document.getElementById("receiptsTableBody");
         tbody.innerHTML = "";
 
         const filtered = receipts
