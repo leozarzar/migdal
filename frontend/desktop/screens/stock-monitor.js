@@ -219,15 +219,15 @@ const StockMonitor = {
             legend.innerHTML += `
                 <span class="stock-monitor-legend-sep"></span>
                 <span class="stock-monitor-legend-item">
-                    <span class="stock-monitor-legend-line stock-monitor-legend-line--dotted"></span>
+                    <span class="stock-monitor-legend-line"></span>
                     Estoque de Segurança
                 </span>
                 <span class="stock-monitor-legend-item">
-                    <span class="stock-monitor-legend-line stock-monitor-legend-line--dashed"></span>
+                    <span class="stock-monitor-legend-line"></span>
                     Ponto de Repo./Crítico
                 </span>
                 <span class="stock-monitor-legend-item">
-                    <span class="stock-monitor-legend-line stock-monitor-legend-line--longdash"></span>
+                    <span class="stock-monitor-legend-line"></span>
                     Estoque Máximo
                 </span>
             `;
@@ -421,7 +421,7 @@ const StockMonitor = {
         canvas.style.display = "";
         if (emptyState) emptyState.style.display = "none";
 
-        CanvasChartUtils.drawYAxis(ctx, padding, chartWidth, chartHeight, yMax);
+        CanvasChartUtils.drawYAxis(ctx, padding, chartWidth, chartHeight, yMax, { withGrid: false });
 
         const tsStart = startDate ? new Date(startDate).getTime() : 0;
         const tsEnd   = endDate   ? new Date(endDate).getTime()   : tsStart + 1;
@@ -447,9 +447,9 @@ const StockMonitor = {
 
         // ── Linhas de referência das políticas ───────────────────────────────
         const levelDefs = [
-            { key: "safety_stock",  alpha: 0.55, dash: [3, 5]  },
-            { key: "reorder_point", alpha: 0.75, dash: [9, 5]  },
-            { key: "max_stock",     alpha: 0.90, dash: [16, 5] },
+            { key: "safety_stock",  alpha: 0.45, dash: [6, 4] },
+            { key: "reorder_point", alpha: 0.65, dash: [6, 4] },
+            { key: "max_stock",     alpha: 0.85, dash: [6, 4] },
         ];
         const levelLbl = { safety_stock: "ES", max_stock: "E.Máx" };
         const usedLabelY = [];
