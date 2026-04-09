@@ -27,7 +27,7 @@ const StockPolicies = {
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody id="tableBody"></tbody>
+                        <tbody id="stockPoliciesTableBody"></tbody>
                     </table>
                 </div>
             </div>
@@ -92,7 +92,7 @@ const StockPolicies = {
 
     /** Renderiza a tabela de políticas ou mensagem de estado vazio. */
     _renderTable(policies) {
-        const tbody = document.getElementById("tableBody");
+        const tbody = document.getElementById("stockPoliciesTableBody");
         tbody.innerHTML = "";
 
         if (!policies || policies.length === 0) {

@@ -32,7 +32,7 @@ const Materials = {
                         </select>
                     </div>
                     <button class="materials-btn-save" id="materialSaveBtn" onclick="Materials.saveMaterial()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
-                    <button class="materials-btn-cancel" id="cancelBtn" style="display:none" onclick="Materials.cancelEdit()">Cancelar</button>
+                    <button class="materials-btn-cancel" id="materialsCancelBtn" style="display:none" onclick="Materials.cancelEdit()">Cancelar</button>
                 </div>
                 <div class="materials-table-container">
                     <table class="materials-table">
@@ -43,7 +43,7 @@ const Materials = {
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody id="tableBody"></tbody>
+                        <tbody id="materialsTableBody"></tbody>
                     </table>
                 </div>
             </div>
@@ -124,7 +124,7 @@ const Materials = {
         const groupSelect = document.getElementById("materialGroup");
         if (groupSelect) groupSelect.value = material.group_id || "";
         this.selectedMaterial = material.id;
-        const cancelBtn = document.getElementById("cancelBtn");
+        const cancelBtn = document.getElementById("materialsCancelBtn");
         if (cancelBtn) cancelBtn.style.display = "";
         const saveBtn = document.getElementById("materialSaveBtn");
         if (saveBtn) saveBtn.innerHTML = 'Salvar';
@@ -153,7 +153,7 @@ const Materials = {
 
     /** Renderiza a tabela de materiais ou mensagem de estado vazio. */
     _renderTable(materials) {
-        const tbody = document.getElementById("tableBody");
+        const tbody = document.getElementById("materialsTableBody");
         tbody.innerHTML = "";
 
         if (!materials || materials.length === 0) {
@@ -209,7 +209,7 @@ const Materials = {
         if (groupSelect) groupSelect.value = "";
         clearTableSelection();
         this.selectedMaterial = null;
-        const cancelBtn = document.getElementById("cancelBtn");
+        const cancelBtn = document.getElementById("materialsCancelBtn");
         if (cancelBtn) cancelBtn.style.display = "none";
         const saveBtn = document.getElementById("materialSaveBtn");
         if (saveBtn) saveBtn.innerHTML = '<span class="material-symbols-outlined">playlist_add</span>Adicionar';

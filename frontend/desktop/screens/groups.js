@@ -25,7 +25,7 @@ const Groups = {
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody id="tableBody"></tbody>
+                        <tbody id="groupsTableBody"></tbody>
                     </table>
                 </div>
             </div>
@@ -90,7 +90,7 @@ const Groups = {
 
     /** Renderiza a tabela de grupos ou mensagem de estado vazio. */
     _renderTable(groups) {
-        const tbody = document.getElementById("tableBody");
+        const tbody = document.getElementById("groupsTableBody");
         tbody.innerHTML = "";
 
         if (!groups || groups.length === 0) {

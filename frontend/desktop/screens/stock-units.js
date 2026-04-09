@@ -75,7 +75,7 @@ const StockUnits = {
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody id="tableBody"></tbody>
+                        <tbody id="stockUnitsTableBody"></tbody>
                     </table>
                 </div>
             </div>
@@ -203,7 +203,7 @@ const StockUnits = {
     /** Renderiza a tabela com os bags filtrados */
     _renderTable(bags) {
         const filters = this._getFilters();
-        const tbody = document.getElementById("tableBody");
+        const tbody = document.getElementById("stockUnitsTableBody");
         tbody.innerHTML = "";
 
         const filtered = bags

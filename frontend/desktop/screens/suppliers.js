@@ -19,7 +19,7 @@ const Suppliers = {
                 <div class="suppliers-form-wrapper">
                     <input id="supplierName" class="suppliers-input" placeholder="Nome do fornecedor">
                     <button class="suppliers-btn-save" id="supplierSaveBtn" onclick="Suppliers.saveSupplier()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
-                    <button class="suppliers-btn-cancel" id="cancelBtn" style="display:none" onclick="Suppliers.cancelEdit()">Cancelar</button>
+                    <button class="suppliers-btn-cancel" id="suppliersCancelBtn" style="display:none" onclick="Suppliers.cancelEdit()">Cancelar</button>
                 </div>
                 <div class="suppliers-table-container">
                     <table class="suppliers-table">
@@ -29,7 +29,7 @@ const Suppliers = {
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody id="tableBody"></tbody>
+                        <tbody id="suppliersTableBody"></tbody>
                     </table>
                 </div>
             </div>
@@ -100,7 +100,7 @@ const Suppliers = {
         tr.classList.add("selected");
         document.getElementById("supplierName").value = supplier.name;
         this.selectedSupplier = supplier.id;
-        const cancelBtn = document.getElementById("cancelBtn");
+        const cancelBtn = document.getElementById("suppliersCancelBtn");
         if (cancelBtn) cancelBtn.style.display = "";
         const saveBtn = document.getElementById("supplierSaveBtn");
         if (saveBtn) saveBtn.innerHTML = 'Salvar';
@@ -129,7 +129,7 @@ const Suppliers = {
 
     /** Renderiza a tabela de fornecedores ou mensagem de estado vazio. */
     _renderTable(suppliers) {
-        const tbody = document.getElementById("tableBody");
+        const tbody = document.getElementById("suppliersTableBody");
         tbody.innerHTML = "";
 
         if (!suppliers || suppliers.length === 0) {
@@ -169,7 +169,7 @@ const Suppliers = {
         clearFormInputs(["supplierName"]);
         clearTableSelection();
         this.selectedSupplier = null;
-        const cancelBtn = document.getElementById("cancelBtn");
+        const cancelBtn = document.getElementById("suppliersCancelBtn");
         if (cancelBtn) cancelBtn.style.display = "none";
         const saveBtn = document.getElementById("supplierSaveBtn");
         if (saveBtn) saveBtn.innerHTML = '<span class="material-symbols-outlined">playlist_add</span>Adicionar';

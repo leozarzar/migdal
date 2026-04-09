@@ -116,6 +116,26 @@ Sempre preferir os utilitários existentes em vez de reimplementar.
 - **Erros**: `try/catch` em toda operação assíncrona; `alert(e.message)` para erros visíveis ao usuário
 - **Filtros**: persistir em `localStorage` com chave `wcm.{tela}.{filtro}` e restaurar no `load()`
 
+### Escopo global e colisões de nomes
+
+Como não há bundler, todos os arquivos compartilham o mesmo escopo global. Dois tipos de colisão devem ser evitados:
+
+**IDs de elementos HTML** — Múltiplos arquivos de tela podem existir simultaneamente no DOM (sistema de abas). Todo `id=` dentro do HTML de uma tela **deve ser prefixado com o nome da tela**:
+```html
+<!-- ✅ correto -->
+<tbody id="ordersTableBody"></tbody>
+<button id="materialsCancelBtn">Cancelar</button>
+
+<!-- ❌ errado — colide entre abas -->
+<tbody id="tableBody"></tbody>
+<button id="cancelBtn">Cancelar</button>
+```
+
+**Símbolos JavaScript no topo do arquivo** — Funções auxiliares e constantes declaradas fora do objeto de tela são globais. Se dois arquivos declararem `function formatRow()` ou `const STATUS_MAP = ...`, o segundo sobrescreve o primeiro silenciosamente. Regras:
+- Todo estado e lógica da tela deve viver **dentro do objeto literal** (como propriedades ou métodos)
+- Funções auxiliares exclusivas de uma tela que precisem ficar fora do objeto devem ter nome prefixado: `function _ordersFormatRow()` ou ser movidas para dentro do objeto como `_formatRow()`
+- Utilitários verdadeiramente compartilhados vão em `utils.js`
+
 ---
 
 ## CSS
