@@ -31,7 +31,7 @@
     position: absolute;
     top: 8px;
     right: 6px;
-    background: #f59e0b;
+    background: #ef4444;
     color: #fff;
     border-radius: 10px;
     font-size: 10px;
@@ -46,14 +46,12 @@
     pointer-events: none;
 }
 
-.notif-badge--critical {
-    background: #ef4444;
-    animation: notif-pulse 2s ease-in-out infinite;
+.notif-badge[hidden] {
+    display: none;
 }
 
-@keyframes notif-pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.55; }
+.notif-badge--critical {
+    background: #ef4444;
 }
 
 /* Painel dropdown */

@@ -51,6 +51,8 @@ const NotificationsManager = {
      */
     /** Gera uma chave composta estável para uma notificação (independente do id do banco). */
     _makeKey(n) {
+        // weekly_report não tem entity — usa created_at como discriminador único
+        if (n.type === 'weekly_report') return `weekly_report|${n.created_at || n.id}`;
         return `${n.type}|${n.entity_type || ''}|${n.entity_id ?? ''}`;
     },
 
@@ -73,24 +75,14 @@ const NotificationsManager = {
      * @param {Array} items
      */
     _processNewItems(items) {
-        const newItems = items.filter(n => !this._knownKeys.has(this._makeKey(n)));
+        // Se o painel está aberto, o badge já foi zerado — não sobrescrever
+        if (this._isOpen) return;
 
-        if (newItems.length > 0) {
-            const toShow = newItems.slice(0, 3);
-            for (const n of toShow) {
-                showToast(n.title, n.severity === 'critical' ? 'danger' : 'warning', 5000);
-            }
-            if (newItems.length > 3) {
-                showToast(`+${newItems.length - 3} novas notificações`, 'info', 4000);
-            }
-        }
+        const unread = items.filter(n => !this._knownKeys.has(this._makeKey(n)));
 
-        this._knownKeys = new Set(items.map(n => this._makeKey(n)));
-        this._saveKnownKeys();
-
-        this._count.total    = items.length;
-        this._count.critical = items.filter(n => n.severity === 'critical').length;
-        this._count.warning  = items.filter(n => n.severity === 'warning').length;
+        this._count.total    = unread.length;
+        this._count.critical = unread.filter(n => n.severity === 'critical').length;
+        this._count.warning  = unread.filter(n => n.severity === 'warning').length;
         this._updateBadge();
     },
 
@@ -178,10 +170,19 @@ const NotificationsManager = {
 
     async openPanel() {
         this._isOpen = true;
+
+        // Zera o badge imediatamente ao abrir — feedback visual instantâneo
+        this._count = { total: 0, critical: 0, warning: 0 };
+        this._updateBadge();
+
         try {
             this._data = await apiCall(API + '/notifications');
-            this._knownIds = new Set(this._data.map(n => n.id));
         } catch { this._data = []; }
+
+        // Marca todas as notificações atuais como vistas e persiste
+        for (const n of this._data) this._knownKeys.add(this._makeKey(n));
+        this._saveKnownKeys();
+
         this._renderPanel();
     },
 
