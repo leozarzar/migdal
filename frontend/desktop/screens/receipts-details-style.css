@@ -187,6 +187,12 @@ body {
     gap: 10px;
 }
 
+.item-form-btns {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
 .receipts-details-container .item-form-wrapper button:not(.btn-open-tab):not(.sselect-trigger) {
     height: 32px;
     padding: 6px 14px;
@@ -325,26 +331,32 @@ body {
 
 .receipts-details-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: separate;
     border-spacing: 0;
     font-size: 13px;
 }
 
 .receipts-details-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     text-align: left;
     font-weight: 600;
+    width: 500px;
     padding: 8px 16px;
-
+    
     background: linear-gradient(#f3f4f6, #e9ebef);
     border-bottom: 1px solid #dcdfe4;
 }
 
 .receipts-details-table tbody td {
-    padding: 6px 16px;
-    border-bottom: 1px solid #eceef2;
+    padding: 3px 16px;
+    border-bottom: 1px solid #f0f1f3;
+    height: 34px;
 }
 
-.receipts-details-table tbody tr:hover {
+.receipts-details-table tbody tr:not(.receipts-details-group-row):hover {
     background-color: #f4f6f8;
 }
 
@@ -370,7 +382,7 @@ body {
     font-size: 16px;
 }
 
-.receipts-details-table tbody tr:hover .btn-action {
+.receipts-details-table tbody tr:not(.receipts-details-group-row):hover .btn-action {
     opacity: 1;
     pointer-events: auto;
 }
@@ -381,26 +393,117 @@ body {
     color: #d32f2f;
 }
 
-.receipts-details-table thead .col-actions,
-.receipts-details-table tbody .col-actions{
-    width: 70px;
+/* Linha em edição inline */
+.receipts-details-item-editing {
+    background-color: #e3f2fd !important;
+    outline: 1px solid #90caf9;
 }
 
-.receipts-details-table thead .col-qty,
-.receipts-details-table tbody .col-qty{
-    width: 150px;
-    text-align: center;
+/* Botão cancelar edição de item */
+.receipts-details-container .item-form-btns .btn-cancel-edit {
+    height: 32px;
+    padding: 0 12px;
+    background: none;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    color: crimson;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.15s;
+}
+
+.receipts-details-container .item-form-btns .btn-cancel-edit:hover {
+    background-color: #fff0f0;
+}
+
+/* Corpo do diálogo de confirmação de baixa */
+.baixa-confirm-section {
+    margin-bottom: 12px;
+}
+
+.baixa-confirm-label {
+    font-weight: 600;
+    font-size: 13px;
+    margin: 0 0 6px 0;
+    color: #555;
+}
+
+.baixa-confirm-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 13px;
+    color: #1a1a1a;
+    line-height: 1.6;
+}
+
+.receipts-details-table thead .col-actions,
+.receipts-details-table tbody .col-actions{
+    width: 56px;
 }
 
 .receipts-details-table thead .col-code,
-.receipts-details-table tbody .col-code{
-    width: 70px;
+.receipts-details-table tbody .col-code {
+    width: 110px;
+    min-width: 110px;
     text-align: center;
+}
+
+.receipts-details-table thead .col-qty,
+.receipts-details-table tbody .col-qty {
+    width: 33%;
+    text-align: center;
+}
+
+.receipts-details-table thead .col-material,
+.receipts-details-table tbody .col-material {
+    width: 33%;
 }
 
 .receipts-details-table thead .col-operator,
 .receipts-details-table tbody .col-operator {
-    width: 220px;
+    width: 33%;
+}
+
+.receipts-details-table tbody tr:not(.receipts-details-item-editing):not(.receipts-details-group-row):hover {
+    background-color: #f5f8ff;
+    cursor: pointer;
+}
+
+/* Linha de cabeçalho de grupo de material */
+.receipts-details-group-row {
+    background-color: #f5f7fa !important;
+    cursor: default !important;
+}
+
+.receipts-details-group-row td {
+    padding: 3px 16px;
+    font-weight: 600;
+    font-size: 13px;
+    color: #374151;
+    border-bottom: 1px solid #e2e5ea;
+}
+
+.group-material-name {
+    font-weight: 600;
+}
+
+.group-badge {
+    background: #e4e4e4;
+    color: #374151;
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    white-space: nowrap;
+}
+
+.group-qty-total {
+    color: #1976d2;
+    font-weight: 700;
 }
 
 /* Buttons */

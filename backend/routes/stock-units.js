@@ -165,6 +165,39 @@ router.put("/update", (req, res) => {
     );
 });
 
+/**
+ * PUT /stock-units/:id - Atualiza dados de uma unidade de estoque sem alterar status e datas
+ */
+router.put("/:id", (req, res) => {
+    const { id } = req.params;
+    const { volume_id, material, weight, operator } = req.body;
+    const normalizedVolumeId = normalizeVolumeId(volume_id);
+
+    if (normalizedVolumeId === null) {
+        return res.status(400).json({
+            success: false,
+            message: "volume_id deve ser um numero inteiro valido"
+        });
+    }
+
+    db.run(
+        `UPDATE stock_units
+         SET volume_id = ?, material = ?, weight = ?, operator = ?
+         WHERE id = ?`,
+        [normalizedVolumeId, material, weight, operator || null, id],
+        function (err) {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    message: "Erro ao atualizar unidade de estoque",
+                    error: err.message
+                });
+            }
+            res.json({ success: true, updated: this.changes });
+        }
+    );
+});
+
 // ── DELETE Endpoints ──────────────────────────────────────────────────────
 
 /**

@@ -15,15 +15,14 @@ const ReceiptsDetails = {
     /** Indica se há alterações não salvas */
     _isDirty: false,
 
+    /** Índice do item sendo editado inline (null = nenhum em edição) */
+    _editingItemIndex: null,
+
     /** Instâncias dos SearchSelects da tela */
     _supplierSelect: null,
     _materialSelect: null,
     _operatorSelect: null,
     _orderSelect: null,
-    _serviceSelect: null,
-
-    /** Cache de materiais (para exibição de UM) */
-    _materialsCache: [],
 
     // ── Ciclo de Vida ──
 
@@ -35,7 +34,6 @@ const ReceiptsDetails = {
         this._materialSelect?.destroy();  this._materialSelect = null;
         this._operatorSelect?.destroy();  this._operatorSelect = null;
         this._orderSelect?.destroy();     this._orderSelect = null;
-        this._serviceSelect?.destroy();   this._serviceSelect = null;
 
         if (Receipts.selectedReceipt) {
             try {
@@ -147,13 +145,7 @@ const ReceiptsDetails = {
                         <div class="item-form-wrapper">
                             <div class="receipts-details-item-form">
                                 <input id="itemCode" placeholder="Código" type="number" min="0" class="form-control" oninput="ReceiptsDetails.validateItemCode(this)">
-                                <div class="select-with-btn" id="itemServiceWrapper" style="display:none">
-                                    <div id="itemServiceContainer"></div>
-                                    <button class="btn-open-tab" onclick="openNewTab('services')" title="Abrir cadastro de serviços em nova aba">
-                                        <span class="material-symbols-outlined">open_in_new</span>
-                                    </button>
-                                </div>
-                                <div class="select-with-btn" id="itemMaterialWrapper">
+                                <div class="select-with-btn">
                                     <div id="itemMaterialContainer"></div>
                                     <button class="btn-open-tab" onclick="openNewTab('materials')" title="Abrir cadastro de materiais em nova aba">
                                         <span class="material-symbols-outlined">open_in_new</span>
@@ -167,7 +159,10 @@ const ReceiptsDetails = {
                                 </div>
                                 <input id="itemQuantity" placeholder="Quantidade" class="form-control">
                             </div>
-                            <button class="btn-add" onclick="ReceiptsDetails.addItem()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
+                            <div class="item-form-btns">
+                                <button id="receiptsDetailsAddBtn" class="btn-add" onclick="ReceiptsDetails.addItem()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
+                                <button id="receiptsDetailsCancelEditBtn" class="btn-cancel-edit" onclick="ReceiptsDetails.cancelEditItem()" style="display:none">Cancelar</button>
+                            </div>
                         </div>
 
                         <!-- Tabela de Itens -->
@@ -246,29 +241,15 @@ const ReceiptsDetails = {
         });
         this._operatorSelect.mount(document.getElementById('itemOperatorContainer'));
 
-        this._serviceSelect = createSearchSelect({
-            id: 'itemService',
-            placeholder: 'Selecione um serviço',
-            searchable: true,
-            searchPlaceholder: 'Buscar...',
-            sections: [{ key: 'service', items: [] }],
-            onChange: () => { ReceiptsDetails._onServiceChange(); ReceiptsDetails._markDirty(); }
-        });
-        this._serviceSelect.mount(document.getElementById('itemServiceContainer'));
-
         try {
-            const [materials, suppliers, operators, services] = await Promise.all([
+            const [materials, suppliers, operators] = await Promise.all([
                 apiCall(API + "/materials"),
                 apiCall(API + "/suppliers"),
-                apiCall(API + "/operators"),
-                apiCall(API + "/services").catch(() => [])
+                apiCall(API + "/operators")
             ]);
-            this._materialsCache = materials || [];
-            this._materialSelect.setItems('material', this._materialsCache.map(m => ({ value: m.name, label: m.name })));
+            this._materialSelect.setItems('material', (materials || []).map(m => ({ value: m.name, label: m.name })));
             this._supplierSelect.setItems('supplier', (suppliers || []).map(s => ({ value: s.name, label: s.name })));
             this._operatorSelect.setItems('operator', (operators || []).map(o => ({ value: o.name, label: o.name })));
-            this._serviceSelect.setItems('service', (services || []).map(sv => ({ value: String(sv.id), label: sv.name, _serviceType: sv.service_type })));
-            this._servicesCache = services || [];
         } catch (error) {
             console.error("Erro ao carregar dados:", error);
         }
@@ -368,21 +349,24 @@ const ReceiptsDetails = {
             return;
         }
 
-        // ── Diff: calcula itens removidos e itens novos ──
+        // ── Diff: calcula itens removidos, modificados e novos ──
         const deletedItems = this._originalItems.filter(orig =>
             !this.items.some(cur => cur._stockUnitId === orig._stockUnitId)
         );
         const newItems = this.items.filter(cur => !cur._stockUnitId);
+        const modifiedItems = this.items.filter(cur => {
+            if (!cur._stockUnitId) return false;
+            const orig = this._originalItems.find(o => o._stockUnitId === cur._stockUnitId);
+            if (!orig) return false;
+            return cur.code !== orig.code || cur.material !== orig.material ||
+                   cur.quantity !== orig.quantity || cur.operator !== orig.operator;
+        });
 
-        // ── Confirmação para itens já baixados que serão deletados ──
-        const loweredItems = deletedItems.filter(i => i._originalStatus === 'OUT_STOCK');
-        if (loweredItems.length > 0) {
-            const list = loweredItems
-                .map(i => `  • Código ${i.code} — ${i.material}`)
-                .join('\n');
-            const confirmed = confirm(
-                `Atenção: os itens abaixo já foram baixados do estoque e serão deletados permanentemente:\n\n${list}\n\nDeseja continuar mesmo assim?`
-            );
+        // ── Confirmação unificada: itens com baixa que serão deletados ou modificados ──
+        const loweredDeleted  = deletedItems.filter(i  => i._originalStatus === 'OUT_STOCK');
+        const loweredModified = modifiedItems.filter(i => i._originalStatus === 'OUT_STOCK');
+        if (loweredDeleted.length > 0 || loweredModified.length > 0) {
+            const confirmed = await this._confirmBaixaDialog(loweredDeleted, loweredModified);
             if (!confirmed) return;
         }
 
@@ -396,6 +380,20 @@ const ReceiptsDetails = {
             // Deleta somente os itens que foram removidos da lista
             for (const item of deletedItems) {
                 await apiCall(API + `/stock-units/${item._stockUnitId}`, { method: "DELETE" });
+            }
+
+            // Atualiza itens modificados preservando status e datas
+            for (const item of modifiedItems) {
+                await apiCall(API + `/stock-units/${item._stockUnitId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        volume_id: Number.parseInt(item.code, 10),
+                        material:  item.material,
+                        weight:    parseInt(item.quantity),
+                        operator:  nature === "P" ? (item.operator || null) : null,
+                    })
+                });
             }
 
             // Insere somente os itens que foram adicionados nesta edição
@@ -418,43 +416,10 @@ const ReceiptsDetails = {
     /** Adiciona um item ao recebimento */
     addItem() {
         const code = document.getElementById("itemCode").value.trim();
+        const material = this._materialSelect?.getValue()?.value || '';
         const quantity = document.getElementById("itemQuantity").value;
         const nature = document.getElementById("receiptNature").value;
         const itemOperator = this._operatorSelect?.getValue()?.value || '';
-
-        if (!/^\d+$/.test(code)) {
-            alert("O código do item deve conter apenas números");
-            return;
-        }
-
-        const normalizedCode = Number.parseInt(code, 10);
-
-        if (nature === "S") {
-            const svcVal = this._serviceSelect?.getValue();
-            if (!svcVal) { alert("Selecione um serviço"); return; }
-            const svcId = Number(svcVal.value);
-            const svcObj = (this._servicesCache || []).find(s => s.id === svcId);
-            const isFixed = svcObj?.service_type === 'fixed';
-
-            if (isFixed) {
-                // Serviço fixo: sem material nem quantidade
-                if (!code) { alert("Preencha o código do item"); return; }
-                this.items.push({ code: normalizedCode, material: null, service_id: svcId, service_name: svcVal.label, quantity: 1, operator: "" });
-            } else {
-                // Serviço por quantidade: material opcional, quantidade obrigatória
-                if (!quantity) { alert("Informe a quantidade"); return; }
-                const material = this._materialSelect?.getValue()?.value || null;
-                this.items.push({ code: normalizedCode, material, service_id: svcId, service_name: svcVal.label, quantity: Number(quantity), operator: "" });
-            }
-            this._serviceSelect?.clear();
-            this._materialSelect?.clear();
-            clearFormInputs(["itemQuantity"]);
-            this._setNextItemCode();
-            this._refreshItemsView();
-            return;
-        }
-
-        const material = this._materialSelect?.getValue()?.value || '';
 
         if (!code || !material || !quantity) {
             alert("Preencha todos os campos do item");
@@ -466,12 +431,34 @@ const ReceiptsDetails = {
             return;
         }
 
-        this.items.push({
-            code: normalizedCode,
-            material,
-            quantity: Number(quantity),
-            operator: nature === "P" ? itemOperator : ""
-        });
+        // Valida se o código contém apenas números
+        if (!/^\d+$/.test(code)) {
+            alert("O código do item deve conter apenas números");
+            return;
+        }
+
+        const normalizedCode = Number.parseInt(code, 10);
+
+        if (this._editingItemIndex !== null) {
+            const origItem = this.items[this._editingItemIndex];
+            this.items[this._editingItemIndex] = {
+                _stockUnitId:    origItem._stockUnitId,
+                _originalStatus: origItem._originalStatus,
+                code:            normalizedCode,
+                material,
+                quantity:        Number(quantity),
+                operator:        nature === "P" ? itemOperator : ""
+            };
+            this._editingItemIndex = null;
+            this._restoreAddItemBtn();
+        } else {
+            this.items.push({
+                code:     normalizedCode,
+                material,
+                quantity: Number(quantity),
+                operator: nature === "P" ? itemOperator : ""
+            });
+        }
 
         this._operatorSelect?.clear();
         clearFormInputs(["itemQuantity"]);
@@ -481,9 +468,40 @@ const ReceiptsDetails = {
 
     /** Remove um item pelo índice */
     deleteItem(index) {
+        if (this._editingItemIndex === index) {
+            this._editingItemIndex = null;
+            this._restoreAddItemBtn();
+        } else if (this._editingItemIndex !== null && this._editingItemIndex > index) {
+            this._editingItemIndex -= 1;
+        }
         this.items.splice(index, 1);
         this._setNextItemCode();
         this._refreshItemsView();
+    },
+
+    /** Ativa o modo de edição inline para o item no índice indicado */
+    startEditItem(index) {
+        this._editingItemIndex = index;
+        const item = this.items[index];
+        document.getElementById("itemCode").value = item.code;
+        this._materialSelect?.select('material', item.material);
+        document.getElementById("itemQuantity").value = item.quantity;
+        if (item.operator) this._operatorSelect?.select('operator', item.operator);
+        const addBtn = document.getElementById("receiptsDetailsAddBtn");
+        if (addBtn) addBtn.innerHTML = '<span class="material-symbols-outlined">stylus</span>Editar Item';
+        const cancelBtn = document.getElementById("receiptsDetailsCancelEditBtn");
+        if (cancelBtn) cancelBtn.style.display = '';
+        this._renderItems();
+    },
+
+    /** Cancela o modo de edição e restaura o formulário de item */
+    cancelEditItem() {
+        this._editingItemIndex = null;
+        this._restoreAddItemBtn();
+        this._operatorSelect?.clear();
+        clearFormInputs(["itemQuantity"]);
+        this._setNextItemCode();
+        this._renderItems();
     },
 
     /** Valida que o campo de código contém apenas dígitos */
@@ -513,26 +531,53 @@ const ReceiptsDetails = {
             return;
         }
 
+        // Agrupar por material mantendo a ordem de inserção
+        const groups = new Map();
         this.items.forEach((item, index) => {
-            const operatorCell = showOperatorColumn
-                ? `<td class="col-operator">${item.operator || "-"}</td>`
-                : "";
-            const materialDisplay = item.service_name
-                ? (item.material ? `${item.service_name} / ${item.material}` : item.service_name)
-                : (item.material || "-");
-            const tr = createTableRow(`
-                <td class="col-code">${item.code}</td>
-                <td class="col-material">${materialDisplay}</td>
-                ${operatorCell}
-                <td class="col-qty">${item.quantity}</td>
-                <td class="col-actions">
-                    <button class="btn-action btn-delete" onclick="ReceiptsDetails.deleteItem(${index})" title="Remover item">
-                        <span class="material-symbols-outlined">delete</span>
-                    </button>
-                </td>
-            `);
-            tbody.appendChild(tr);
+            if (!groups.has(item.material)) groups.set(item.material, []);
+            groups.get(item.material).push({ item, index });
         });
+
+        for (const [material, entries] of groups) {
+            const totalQty = entries.reduce((sum, e) => sum + e.item.quantity, 0);
+            const operatorPlaceholder = showOperatorColumn ? '<td class="col-operator"></td>' : '';
+            const itemLabel = entries.length === 1 ? 'item' : 'itens';
+
+            // Linha de cabeçalho do grupo
+            const groupTr = document.createElement('tr');
+            groupTr.className = 'receipts-details-group-row';
+            groupTr.innerHTML = `
+                <td class="col-code"><span class="group-badge">${entries.length} ${itemLabel}</span></td>
+                <td class="col-material group-material-name">${material}</td>
+                ${operatorPlaceholder}
+                <td class="col-qty group-qty-total">${totalQty}</td>
+                <td class="col-actions"></td>
+            `;
+            tbody.appendChild(groupTr);
+
+            // Linhas de cada item do grupo
+            for (const { item, index } of entries) {
+                const isEditing = this._editingItemIndex === index;
+                const operatorCell = showOperatorColumn
+                    ? `<td class="col-operator">${item.operator || "-"}</td>`
+                    : "";
+                const tr = createTableRow(`
+                    <td class="col-code">${item.code}</td>
+                    <td class="col-material"></td>
+                    ${operatorCell}
+                    <td class="col-qty">${item.quantity}</td>
+                    <td class="col-actions">
+                        <button class="btn-action btn-delete" onclick="event.stopPropagation(); ReceiptsDetails.deleteItem(${index})" title="Remover item">
+                            <span class="material-symbols-outlined">delete</span>
+                        </button>
+                    </td>
+                `);
+                tr.style.cursor = 'pointer';
+                tr.onclick = () => ReceiptsDetails.startEditItem(index);
+                if (isEditing) tr.classList.add('receipts-details-item-editing');
+                tbody.appendChild(tr);
+            }
+        }
     },
 
     /** Atualiza total e tabela de itens sem recarregar os dados do formulário */
@@ -634,37 +679,29 @@ const ReceiptsDetails = {
         const operatorCard = document.getElementById("operatorProductionCard");
         const itemOperatorWrapper = document.getElementById("itemOperatorWrapper");
 
-        const itemServiceWrapper = document.getElementById("itemServiceWrapper");
-        const itemMaterialWrapper = document.getElementById("itemMaterialWrapper");
-
         if (nature === "P") {
             // Produção — mostrar detalhes de fornecimento e operador no item
             supplierCard.style.display = "none";
             operatorCard.style.display = "block";
-            if (itemOperatorWrapper) itemOperatorWrapper.style.display = "";
-            if (itemServiceWrapper) itemServiceWrapper.style.display = "none";
-            if (itemMaterialWrapper) itemMaterialWrapper.style.display = "";
-        } else if (nature === "S") {
-            // Retorno de Serviço — mostrar serviço + material condicional
+            if (itemOperatorWrapper) {
+                itemOperatorWrapper.style.display = "";
+            }
+        } else if (nature === "C" || nature === "S") {
+            // Compra ou Retorno — mostrar fornecedor/pedido, esconder operador do item
             supplierCard.style.display = "block";
             operatorCard.style.display = "none";
-            if (itemOperatorWrapper) { itemOperatorWrapper.style.display = "none"; this._operatorSelect?.clear(); }
-            if (itemServiceWrapper) itemServiceWrapper.style.display = "";
-            if (itemMaterialWrapper) itemMaterialWrapper.style.display = "";
-        } else if (nature === "C") {
-            // Compra — mostrar fornecedor/pedido, esconder operador e serviço
-            supplierCard.style.display = "block";
-            operatorCard.style.display = "none";
-            if (itemOperatorWrapper) { itemOperatorWrapper.style.display = "none"; this._operatorSelect?.clear(); }
-            if (itemServiceWrapper) { itemServiceWrapper.style.display = "none"; this._serviceSelect?.clear(); }
-            if (itemMaterialWrapper) itemMaterialWrapper.style.display = "";
+            if (itemOperatorWrapper) {
+                itemOperatorWrapper.style.display = "none";
+                this._operatorSelect?.clear();
+            }
         } else {
             // Nenhuma natureza selecionada
             supplierCard.style.display = "none";
             operatorCard.style.display = "none";
-            if (itemOperatorWrapper) { itemOperatorWrapper.style.display = "none"; this._operatorSelect?.clear(); }
-            if (itemServiceWrapper) { itemServiceWrapper.style.display = "none"; this._serviceSelect?.clear(); }
-            if (itemMaterialWrapper) itemMaterialWrapper.style.display = "";
+            if (itemOperatorWrapper) {
+                itemOperatorWrapper.style.display = "none";
+                this._operatorSelect?.clear();
+            }
         }
 
         this._toggleOperatorColumn(nature === "P");
@@ -733,19 +770,60 @@ const ReceiptsDetails = {
     /** @deprecated Use onSupplierChange() — mantido para compatibilidade */
     async _populateOrderSelect() {},
 
-    /** Oculta/exibe campo de material e quantidade ao mudar o serviço selecionado */
-    _onServiceChange() {
-        const svcVal = this._serviceSelect?.getValue();
-        if (!svcVal) return;
-        const svcObj = (this._servicesCache || []).find(s => String(s.id) === svcVal.value);
-        const isFixed = svcObj?.service_type === 'fixed';
-        const itemMaterialWrapper = document.getElementById("itemMaterialWrapper");
-        const itemQuantityEl = document.getElementById("itemQuantity");
-        if (itemMaterialWrapper) itemMaterialWrapper.style.display = isFixed ? "none" : "";
-        if (itemQuantityEl) itemQuantityEl.style.display = isFixed ? "none" : "";
+    // ── Utilitários Privados ──
+
+    /** Restaura o botão de adicionar item e oculta o botão de cancelar edição */
+    _restoreAddItemBtn() {
+        const addBtn = document.getElementById("receiptsDetailsAddBtn");
+        if (addBtn) addBtn.innerHTML = '<span class="material-symbols-outlined">playlist_add</span>Adicionar';
+        const cancelBtn = document.getElementById("receiptsDetailsCancelEditBtn");
+        if (cancelBtn) cancelBtn.style.display = 'none';
     },
 
-    // ── Utilitários Privados ──
+    /**
+     * Exibe diálogo de confirmação unificado para itens com baixa que serão deletados ou modificados.
+     * @param {Array} loweredDeleted - Itens deletados com status OUT_STOCK
+     * @param {Array} loweredModified - Itens modificados com status OUT_STOCK
+     * @returns {Promise<boolean>}
+     */
+    _confirmBaixaDialog(loweredDeleted, loweredModified) {
+        return new Promise((resolve) => {
+            let resolved = false;
+            const done = (value) => {
+                if (!resolved) { resolved = true; resolve(value); }
+            };
+            const esc = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            let bodyHTML = '';
+            if (loweredDeleted.length > 0) {
+                bodyHTML += `<div class="baixa-confirm-section">
+                    <p class="baixa-confirm-label">Itens deletados com baixa:</p>
+                    <ul class="baixa-confirm-list">
+                        ${loweredDeleted.map(i => `<li>Código ${esc(i.code)} — ${esc(i.material)}</li>`).join('')}
+                    </ul>
+                </div>`;
+            }
+            if (loweredModified.length > 0) {
+                bodyHTML += `<div class="baixa-confirm-section">
+                    <p class="baixa-confirm-label">Itens editados com baixa:</p>
+                    <ul class="baixa-confirm-list">
+                        ${loweredModified.map(i => `<li>Código ${esc(i.code)} — ${esc(i.material)}</li>`).join('')}
+                    </ul>
+                </div>`;
+            }
+            const dlg = createDialog({
+                title: 'Atenção: itens com baixa serão afetados',
+                subtitle: 'Os itens abaixo já tiveram baixa no estoque. Revise antes de confirmar.',
+                bodyHTML,
+                closeOnBackdrop: false,
+                actions: [
+                    { label: 'Cancelar',           className: 'btn-secondary', onClick: () => { dlg.close(); done(false); } },
+                    { label: 'Confirmar e Salvar', className: 'btn-primary',   onClick: () => { dlg.close(); done(true);  } },
+                ],
+                onClose: () => done(false),
+            });
+            dlg.open();
+        });
+    },
 
     /** Obtém os dados do formulário de recebimento */
     _getReceiptData() {
@@ -785,8 +863,7 @@ const ReceiptsDetails = {
             const bagData = {
                 receipt_id: receiptId,
                 volume_id: Number.parseInt(item.code, 10),
-                material: item.material || null,
-                service_id: item.service_id || null,
+                material: item.material,
                 weight: parseInt(item.quantity),
                 supplier: supplier,
                 operator: operator,
