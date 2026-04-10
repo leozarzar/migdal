@@ -115,14 +115,30 @@ Object.assign(MobApp, {
             ? Number.parseInt(code, 10)
             : this._getNextItemCode();
 
-        this._items.push({
-            code:          nextCode,
-            material,
-            materialLabel: materialEl.options[materialEl.selectedIndex].text,
-            quantity:      qty,
-            operator:      nature === 'P' ? operator : '',
-            operatorLabel: nature === 'P' ? operatorEl.options[operatorEl.selectedIndex].text : '',
-        });
+        if (this._editingItemIndex !== null) {
+            const origItem = this._items[this._editingItemIndex];
+            this._items[this._editingItemIndex] = {
+                _stockUnitId:    origItem._stockUnitId,
+                _originalStatus: origItem._originalStatus,
+                code:            nextCode,
+                material,
+                materialLabel:   materialEl.options[materialEl.selectedIndex].text,
+                quantity:        qty,
+                operator:        nature === 'P' ? operator : '',
+                operatorLabel:   nature === 'P' ? operatorEl.options[operatorEl.selectedIndex].text : '',
+            };
+            this._editingItemIndex = null;
+            this._restoreMobAddBtn();
+        } else {
+            this._items.push({
+                code:          nextCode,
+                material,
+                materialLabel: materialEl.options[materialEl.selectedIndex].text,
+                quantity:      qty,
+                operator:      nature === 'P' ? operator : '',
+                operatorLabel: nature === 'P' ? operatorEl.options[operatorEl.selectedIndex].text : '',
+            });
+        }
 
         // Limpa campos do formulário de item
         document.getElementById('mobItemQty').value       = '';
@@ -132,7 +148,44 @@ Object.assign(MobApp, {
         this._setNextItemCode();
     },
 
+    startEditItem(index) {
+        this._editingItemIndex = index;
+        const item = this._items[index];
+        document.getElementById('mobItemCode').value     = item.code;
+        document.getElementById('mobItemMaterial').value = item.material;
+        document.getElementById('mobItemQty').value      = item.quantity;
+        if (item.operator) document.getElementById('mobItemOperator').value = item.operator;
+        const addBtn = document.getElementById('mobAddItemBtn');
+        if (addBtn) addBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">stylus</span>Editar Item';
+        const cancelBtn = document.getElementById('mobCancelEditBtn');
+        if (cancelBtn) cancelBtn.style.display = '';
+        this._renderItemsList();
+    },
+
+    cancelEditItem() {
+        this._editingItemIndex = null;
+        this._restoreMobAddBtn();
+        document.getElementById('mobItemMaterial').value = '';
+        document.getElementById('mobItemQty').value      = '';
+        document.getElementById('mobItemOperator').value = '';
+        this._setNextItemCode();
+        this._renderItemsList();
+    },
+
+    _restoreMobAddBtn() {
+        const addBtn = document.getElementById('mobAddItemBtn');
+        if (addBtn) addBtn.textContent = '+ Adicionar Item';
+        const cancelBtn = document.getElementById('mobCancelEditBtn');
+        if (cancelBtn) cancelBtn.style.display = 'none';
+    },
+
     removeItem(index) {
+        if (this._editingItemIndex === index) {
+            this._editingItemIndex = null;
+            this._restoreMobAddBtn();
+        } else if (this._editingItemIndex !== null && this._editingItemIndex > index) {
+            this._editingItemIndex -= 1;
+        }
         this._items.splice(index, 1);
         this._renderItemsList();
         this._setNextItemCode();
@@ -173,20 +226,33 @@ Object.assign(MobApp, {
                     }),
                 });
 
-                // Diff: only delete removed items, only insert new items
+                // Diff: calcula itens removidos, modificados e novos
                 const deletedItems = this._originalItems.filter(orig =>
                     !this._items.some(cur => cur._stockUnitId === orig._stockUnitId)
                 );
+                const newItems = this._items.filter(cur => !cur._stockUnitId);
+                const modifiedItems = this._items.filter(cur => {
+                    if (!cur._stockUnitId) return false;
+                    const orig = this._originalItems.find(o => o._stockUnitId === cur._stockUnitId);
+                    if (!orig) return false;
+                    return cur.code !== orig.code || cur.material !== orig.material ||
+                           cur.quantity !== orig.quantity || cur.operator !== orig.operator;
+                });
 
-                // Confirm before deleting any OUT_STOCK item
-                const loweredItems = deletedItems.filter(i => i._originalStatus === 'OUT_STOCK');
-                if (loweredItems.length > 0) {
-                    const list = loweredItems
-                        .map(i => `  • Código ${i.code} — ${i.material}`)
-                        .join('\n');
-                    const ok = confirm(
-                        `Atenção: os itens abaixo já foram baixados do estoque e serão deletados permanentemente:\n\n${list}\n\nDeseja continuar mesmo assim?`
-                    );
+                // Confirmação unificada para itens com baixa afetados
+                const loweredDeleted  = deletedItems.filter(i  => i._originalStatus === 'OUT_STOCK');
+                const loweredModified = modifiedItems.filter(i => i._originalStatus === 'OUT_STOCK');
+                if (loweredDeleted.length > 0 || loweredModified.length > 0) {
+                    let bodyHTML = '';
+                    if (loweredDeleted.length > 0) {
+                        bodyHTML += `<p class="mob-confirm-section-label">Itens deletados com baixa:</p>
+                            <ul>${loweredDeleted.map(i => `<li>Código ${_esc(String(i.code))} — ${_esc(i.material)}</li>`).join('')}</ul>`;
+                    }
+                    if (loweredModified.length > 0) {
+                        bodyHTML += `<p class="mob-confirm-section-label">Itens editados com baixa:</p>
+                            <ul>${loweredModified.map(i => `<li>Código ${_esc(String(i.code))} — ${_esc(i.material)}</li>`).join('')}</ul>`;
+                    }
+                    const ok = await MobApp._mobConfirm('Atenção: itens com baixa serão afetados', bodyHTML);
                     if (!ok) return;
                 }
 
@@ -194,11 +260,20 @@ Object.assign(MobApp, {
                     await apiCall(API + `/stock-units/${item._stockUnitId}`, { method: 'DELETE' });
                 }
 
-                // Only the items without an existing stock-unit ID are new
-                const newItems = this._items.filter(cur => !cur._stockUnitId);
-                receiptId = this._editingReceipt.id;
+                for (const item of modifiedItems) {
+                    await apiCall(API + `/stock-units/${item._stockUnitId}`, {
+                        method:  'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify({
+                            volume_id: Number.parseInt(item.code, 10),
+                            material:  item.material,
+                            weight:    item.quantity,
+                            operator:  item.operator || null,
+                        }),
+                    });
+                }
 
-                // Insert only new items (skip the loop below for existing ones)
+                receiptId = this._editingReceipt.id;
                 for (const item of newItems) {
                     await apiCall(API + '/stock-units', {
                         method:  'POST',
@@ -311,7 +386,7 @@ Object.assign(MobApp, {
         }
 
         list.innerHTML = this._items.map((item, i) => `
-            <li class="mob-item-row">
+            <li class="mob-item-row${this._editingItemIndex === i ? ' mob-item-editing' : ''}" onclick="MobApp.startEditItem(${i})">
                 <div class="mob-item-info">
                     <div class="mob-item-material">${_esc(item.materialLabel)}</div>
                     <div class="mob-item-meta">
@@ -319,7 +394,7 @@ Object.assign(MobApp, {
                         ${item.operatorLabel ? ` &nbsp;·&nbsp; Op: ${_esc(item.operatorLabel)}` : ''}
                     </div>
                 </div>
-                <button class="mob-item-remove" onclick="MobApp.removeItem(${i})" aria-label="Remover item">×</button>
+                <button class="mob-item-remove" onclick="event.stopPropagation(); MobApp.removeItem(${i})" aria-label="Remover item">×</button>
             </li>
         `).join('');
 

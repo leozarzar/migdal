@@ -172,8 +172,11 @@
                     <label class="mob-label" for="mobItemQty">Quantidade <span class="mob-required">*</span></label>
                     <input class="mob-input" type="number" id="mobItemQty" placeholder="Quantidade" min="0" step="any">
                 </div>
-                <button class="mob-btn mob-btn--secondary mob-btn--full" onclick="MobApp.addItem()">
+                <button class="mob-btn mob-btn--secondary mob-btn--full" id="mobAddItemBtn" onclick="MobApp.addItem()">
                     + Adicionar Item
+                </button>
+                <button class="mob-btn mob-btn--ghost mob-btn--full" id="mobCancelEditBtn" onclick="MobApp.cancelEditItem()" style="display:none">
+                    Cancelar edição
                 </button>
             </div>
 
@@ -196,6 +199,18 @@
 
     <!-- Toast de feedback -->
     <div class="mob-toast" id="mobToast"></div>
+
+    <!-- Modal de confirmação reutilizável (MobApp._mobConfirm) -->
+    <div class="mob-confirm-backdrop" id="mobConfirmBackdrop" style="display:none">
+        <div class="mob-confirm-panel">
+            <p class="mob-confirm-title" id="mobConfirmTitle"></p>
+            <div class="mob-confirm-body" id="mobConfirmBody"></div>
+            <div class="mob-confirm-actions">
+                <button class="mob-btn mob-btn--secondary" id="mobConfirmCancel">Cancelar</button>
+                <button class="mob-btn mob-btn--primary" id="mobConfirmOk">Confirmar</button>
+            </div>
+        </div>
+    </div>
 
     <!-- ── Tela: Lista de Estoque ────────────────────────── -->
     <main id="screenStockList" class="mob-screen" style="display:none">

@@ -27,7 +27,8 @@ const MobApp = {
 
     /** Soma das quantidades por recebimento (chave: receipt_id) */
     _receiptItemTotals: {},
-
+    /** \u00cdndice do item sendo editado inline no formul\u00e1rio (null = nenhum) */
+    _editingItemIndex: null,
     /** Tela anterior (para o botão voltar) */
     _previousScreen: 'home',
 
@@ -74,6 +75,7 @@ const MobApp = {
             this.loadReceipts();
         } else if (screen === 'form') {
             this._editingReceipt = null;
+            this._editingItemIndex = null;
             this._previousScreen = 'list';
             document.getElementById('mobHeaderSubtitle').textContent = 'Novo Recebimento';
             document.getElementById('mobSaveBtn').textContent = 'Salvar Recebimento';
@@ -93,6 +95,25 @@ const MobApp = {
     },
 
     // ── Utilitários internos ─────────────────────────────────────────────────
+
+    /**
+     * Exibe um bottom-sheet modal de confirmação.
+     * @param {string} title - Título do modal.
+     * @param {string} bodyHTML - HTML do corpo do modal.
+     * @returns {Promise<boolean>} true se confirmado, false se cancelado.
+     */
+    _mobConfirm(title, bodyHTML) {
+        return new Promise((resolve) => {
+            const backdrop = document.getElementById('mobConfirmBackdrop');
+            document.getElementById('mobConfirmTitle').textContent = title;
+            document.getElementById('mobConfirmBody').innerHTML = bodyHTML;
+            backdrop.style.display = 'flex';
+            const done = (val) => { backdrop.style.display = 'none'; resolve(val); };
+            document.getElementById('mobConfirmOk').onclick     = () => done(true);
+            document.getElementById('mobConfirmCancel').onclick = () => done(false);
+            backdrop.onclick = (e) => { if (e.target === backdrop) done(false); };
+        });
+    },
 
     _toastTimer: null,
 

@@ -45,6 +45,7 @@
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     padding: 10px 12px;
+    cursor: pointer;
 }
 
 .mob-item-info {
@@ -76,6 +77,21 @@
     cursor: pointer;
     padding: 4px;
     flex-shrink: 0;
+}
+
+
+/* Item em modo de edi\u00e7\u00e3o inline */
+.mob-item-editing {
+    background-color: #e3f2fd;
+    border-color: #90caf9;
+}
+
+/* Bot\u00e3o ghost (cancelar edi\u00e7\u00e3o) */
+.mob-btn--ghost {
+    background: none;
+    border: 1px solid #d1d5db;
+    color: #dc2626;
+    font-weight: 600;
 }
 
 /* ── Totalizador ──────────────────────────────────────────── */
