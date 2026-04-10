@@ -47,7 +47,7 @@
 
 /* Inputs and selects scoped to spd-container */
 
-.spd-container input,
+.spd-container input:not(.sselect-search),
 .spd-container select {
     height: 32px;
     padding: 0 10px;
@@ -71,7 +71,7 @@
     padding-right: 32px;
 }
 
-.spd-container input:focus,
+.spd-container input:not(.sselect-search):focus,
 .spd-container select:focus {
     outline: none;
     border-color: #94a3b8;
