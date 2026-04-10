@@ -25,6 +25,8 @@
     <link rel="stylesheet" href="desktop/screens/groups-style.css">
     <link rel="stylesheet" href="desktop/screens/groups-details-style.css">
     <link rel="stylesheet" href="desktop/screens/kpi-dashboard-style.css">
+    <link rel="stylesheet" href="desktop/components/toast-style.css">
+    <link rel="stylesheet" href="desktop/components/notifications-style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 
 </head>
@@ -126,6 +128,11 @@
 
             <div class="header-tabs" id="headerTabs"></div>
 
+            <button id="notifBell" class="notif-bell" onclick="NotificationsManager.togglePanel()" title="Notificações">
+                <span class="material-symbols-outlined">notifications</span>
+                <span class="notif-badge" id="notifBadge" hidden></span>
+            </button>
+
             <div id="headerOptionsContent"></div>
 
         </div>
@@ -164,6 +171,8 @@
 <script src="desktop/screens/groups.js"></script>
 <script src="desktop/screens/groups-details.js"></script>
 <script src="desktop/screens/kpi-dashboard.js"></script>
+<script src="desktop/components/toast.js"></script>
+<script src="desktop/components/notifications.js"></script>
 <script src="desktop/app.js"></script>
 
 </body>
