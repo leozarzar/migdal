@@ -21,6 +21,7 @@ const ROUTES = {
     // ── Analítico ──
     dashboard:              { title: "Dashboard",              module: Dashboard },
     'consumption-stats':    { title: "Estatística de Consumo", module: ConsumptionStats },
+    'kpi-dashboard':        { title: "KPIs",                   module: KpiDashboard },
 
     // ── Estoque ──
     'stock-units':            { title: "Estoque",             module: StockUnits },

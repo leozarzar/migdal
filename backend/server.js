@@ -29,7 +29,7 @@ const materialsRoutes = require("./routes/materials");       // Material catalog
 const groupsRoutes = require("./routes/groups");             // Material groups
 const operatorsRoutes = require("./routes/operators");       // Operator registry
 const consumptionRoutes = require("./routes/consumption");   // Consumption statistics
-
+const kpisRoutes         = require('./routes/kpis');          // KPI dashboard
 // ── Middleware ────────────────────────────────────────────────────────────
 
 const app = express();
@@ -67,8 +67,7 @@ app.use("/suppliers", suppliersRoutes);
 app.use("/materials", materialsRoutes);
 app.use("/groups", groupsRoutes);
 app.use("/operators", operatorsRoutes);
-app.use("/consumption", consumptionRoutes);
-
+app.use("/consumption", consumptionRoutes);app.use('/kpis',        kpisRoutes);
 // ── Server Startup ────────────────────────────────────────────────────────
 
 app.listen(3000, () => {
