@@ -690,9 +690,15 @@ const Dashboard = {
         const directNames = matItems.map(i => i.material).filter(Boolean);
         const allNames    = [...new Set([...directNames, ...groupMemberNames.flat()])];
 
-        const [stocksMap, openOrdersMap] = await Promise.all([
+        // Monta mapa group_id → membros para resolver pedidos de grupo
+        const groupIdToMembersMap = {};
+        grpItems.forEach((item, i) => {
+            groupIdToMembersMap[String(item.group_id)] = groupMemberNames[i];
+        });
+
+        const [stocksMap, { byMaterial: openOrdersMap, byGroup: openGroupOrdersMap }] = await Promise.all([
             this._fetchCurrentStocks(allNames),
-            this._fetchOpenOrders(allNames)
+            this._fetchOpenOrders(allNames, groupIdToMembersMap)
         ]);
 
         // Compute KPIs for material and group items in parallel
@@ -711,7 +717,8 @@ const Dashboard = {
                 const currentStock = members.length
                     ? members.reduce((s, n) => s + (stocksMap[n] ?? 0), 0)
                     : null;
-                const onOrder  = members.reduce((s, n) => s + (openOrdersMap[n] ?? 0), 0);
+                const onOrder  = members.reduce((s, n) => s + (openOrdersMap[n] ?? 0), 0)
+                               + (openGroupOrdersMap[String(item.group_id)] ?? 0);
                 const target   = kpi.maxStock !== null ? kpi.maxStock : kpi.reorderPoint;
                 // Necessidade = max(0, alvo − estoque_atual − pedido_aberto)
                 const need     = target !== null && currentStock !== null
@@ -785,19 +792,26 @@ const Dashboard = {
         return result;
     },
 
-    /** Calcula quantidade pendente em pedidos abertos por material. */
-    async _fetchOpenOrders(materialNames) {
+    /**
+     * Calcula quantidade pendente em pedidos abertos por material e por grupo.
+     * @param {string[]} materialNames - Nomes de materiais a rastrear.
+     * @param {Object} groupIdToMembersMap - Mapa de group_id → [nomes dos membros].
+     * @returns {{ byMaterial: Object, byGroup: Object }}
+     */
+    async _fetchOpenOrders(materialNames, groupIdToMembersMap = {}) {
         const result = {};
         materialNames.forEach(m => { result[m] = 0; });
+        const groupResult = {};
+        Object.keys(groupIdToMembersMap).forEach(gid => { groupResult[gid] = 0; });
         const openStatuses = ["open"];
         try {
             const orders = await apiCall(`${API}/orders`);
-            if (!orders || !orders.length) return result;
+            if (!orders || !orders.length) return { byMaterial: result, byGroup: groupResult };
             const openOrders = orders.filter(o => {
                 const s = (o.status || "").toLowerCase().trim();
                 return openStatuses.includes(s);
             });
-            if (!openOrders.length) return result;
+            if (!openOrders.length) return { byMaterial: result, byGroup: groupResult };
 
             // For each open order fetch ordered items AND already-received stock units in parallel
             const [allItems, allReceived] = await Promise.all([
@@ -817,15 +831,23 @@ const Dashboard = {
                 });
 
                 items.forEach(item => {
-                    if (!Object.prototype.hasOwnProperty.call(result, item.material)) return;
-                    const ordered  = Number(item.quantity || 0);
-                    const alreadyIn = receivedByMaterial[item.material] || 0;
-                    const pending  = Math.max(0, ordered - alreadyIn);
-                    result[item.material] += pending;
+                    const gid = item.group_id != null ? String(item.group_id) : null;
+                    if (gid && Object.prototype.hasOwnProperty.call(groupResult, gid)) {
+                        // Item de grupo: desconta já recebido pelos materiais membros
+                        const members = groupIdToMembersMap[gid] || [];
+                        const receivedForGroup = members.reduce((s, m) => s + (receivedByMaterial[m] || 0), 0);
+                        const pending = Math.max(0, Number(item.group_quantity || 0) - receivedForGroup);
+                        groupResult[gid] += pending;
+                    } else if (Object.prototype.hasOwnProperty.call(result, item.material)) {
+                        const ordered   = Number(item.quantity || 0);
+                        const alreadyIn = receivedByMaterial[item.material] || 0;
+                        const pending   = Math.max(0, ordered - alreadyIn);
+                        result[item.material] += pending;
+                    }
                 });
             });
         } catch { /* return zeros */ }
-        return result;
+        return { byMaterial: result, byGroup: groupResult };
     },
 
     /** Busca lead time médio (em dias) para um material, com cache. */
