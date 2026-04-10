@@ -124,7 +124,7 @@ body {
     gap: 6px;
 }
 
-.receipts-details-container input,
+.receipts-details-container input:not(.sselect-search),
 .receipts-details-container select {
     height: 32px;
     padding: 0 10px;
@@ -155,7 +155,7 @@ body {
     background-size: 18px;  
 }
 
-.details-card input:focus,
+.details-card input:not(.sselect-search):focus,
 .details-card select:focus {
     outline: none;
     border-color: #94a3b8;

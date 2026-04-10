@@ -45,7 +45,7 @@
 
 /* Inputs e selects */
 
-.orders-details-container input,
+.orders-details-container input:not(.sselect-search),
 .orders-details-container select {
     height: 32px;
     padding: 0 10px;
@@ -77,7 +77,7 @@
     background-size: 18px;
 }
 
-.orders-details-container input:focus,
+.orders-details-container input:not(.sselect-search):focus,
 .orders-details-container select:focus {
     outline: none;
     border-color: #94a3b8;
