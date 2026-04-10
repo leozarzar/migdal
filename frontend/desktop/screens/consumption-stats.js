@@ -241,9 +241,9 @@ const ConsumptionStats = {
         this.aggregation    = localStorage.getItem('wcm.cstats.aggregation')   || "daily";
         this.forecastMethod = localStorage.getItem('wcm.cstats.method')        || "moving-average";
         this.serviceLevel   = Number(localStorage.getItem('wcm.cstats.serviceLevel')) || 95;
-        this.removeZeros    = localStorage.getItem('wcm.cstats.removeZeros')   === 'true';
-        this.treatOutliers  = localStorage.getItem('wcm.cstats.treatOutliers') === 'true';
-        this.removeNoActivity = false;
+        this.removeZeros      = localStorage.getItem('wcm.cstats.removeZeros')      === 'true';
+        this.treatOutliers    = localStorage.getItem('wcm.cstats.treatOutliers')    === 'true';
+        this.removeNoActivity = localStorage.getItem('wcm.cstats.removeNoActivity') === 'true';
         const _savedParams  = (() => { try { return JSON.parse(localStorage.getItem('wcm.cstats.forecastParams')); } catch { return null; } })();
         this.forecastParams = (_savedParams && typeof _savedParams === 'object') ? _savedParams : { period: 7, alpha: 0.3, regressionPeriod: 30 };
 
@@ -347,6 +347,9 @@ const ConsumptionStats = {
 
         const treatOutliersChk = document.getElementById('cstatsTreatOutliers');
         if (treatOutliersChk) treatOutliersChk.checked = this.treatOutliers;
+
+        const removeNoActivityChk = document.getElementById('cstatsRemoveNoActivity');
+        if (removeNoActivityChk) removeNoActivityChk.checked = this.removeNoActivity;
 
         this._drawChart([]);
 
@@ -474,6 +477,7 @@ const ConsumptionStats = {
         if (removeNoActivityChk) {
             removeNoActivityChk.addEventListener('change', async () => {
                 this.removeNoActivity = removeNoActivityChk.checked;
+                this._saveFilters();
                 await this.refresh();
             });
         }
@@ -493,8 +497,9 @@ const ConsumptionStats = {
             localStorage.setItem('wcm.cstats.method',         this.forecastMethod);
             localStorage.setItem('wcm.cstats.forecastParams', JSON.stringify(this.forecastParams));
             localStorage.setItem('wcm.cstats.serviceLevel',   String(this.serviceLevel));
-            localStorage.setItem('wcm.cstats.removeZeros',    String(this.removeZeros));
-            localStorage.setItem('wcm.cstats.treatOutliers',  String(this.treatOutliers));
+            localStorage.setItem('wcm.cstats.removeZeros',      String(this.removeZeros));
+            localStorage.setItem('wcm.cstats.treatOutliers',    String(this.treatOutliers));
+            localStorage.setItem('wcm.cstats.removeNoActivity', String(this.removeNoActivity));
             if (this.selectedType === 'group' && this.selectedGroupData) {
                 localStorage.setItem('wcm.cstats.type',      'group');
                 localStorage.setItem('wcm.cstats.material',  '');
