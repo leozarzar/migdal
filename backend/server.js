@@ -4,9 +4,12 @@
  * Configures middleware, mounts route modules, and starts the HTTP server.
  */
 
+require("dotenv").config();
+
 const express = require("express");
 const cors    = require("cors");
 const path    = require("path");
+const cron    = require("node-cron");
 
 // ── Database Initialization ───────────────────────────────────────────────
 
@@ -28,8 +31,10 @@ const suppliersRoutes = require("./routes/suppliers"); // Supplier registry
 const materialsRoutes = require("./routes/materials");       // Material catalog
 const groupsRoutes = require("./routes/groups");             // Material groups
 const operatorsRoutes = require("./routes/operators");       // Operator registry
-const consumptionRoutes = require("./routes/consumption");   // Consumption statistics
-const kpisRoutes         = require('./routes/kpis');          // KPI dashboard
+const consumptionRoutes      = require("./routes/consumption");    // Consumption statistics
+const kpisRoutes             = require('./routes/kpis');            // KPI dashboard
+const notificationsRoutes    = require("./routes/notifications");   // Notification alerts
+const weeklyReportRoutes     = require("./routes/weekly-report");   // Weekly AI report
 // ── Middleware ────────────────────────────────────────────────────────────
 
 const app = express();
@@ -67,7 +72,20 @@ app.use("/suppliers", suppliersRoutes);
 app.use("/materials", materialsRoutes);
 app.use("/groups", groupsRoutes);
 app.use("/operators", operatorsRoutes);
-app.use("/consumption", consumptionRoutes);app.use('/kpis',        kpisRoutes);
+app.use("/consumption", consumptionRoutes);
+app.use('/kpis', kpisRoutes);
+app.use("/notifications", notificationsRoutes);
+app.use("/weekly-report", weeklyReportRoutes);
+
+// ── Cron: relatório semanal às segunda-feira 07:00 ────────────────────────
+
+cron.schedule("0 7 * * 1", () => {
+    console.log("[cron] Gerando relatório semanal...");
+    const http = require("http");
+    const req  = http.request({ hostname: "localhost", port: 3000, path: "/weekly-report/generate", method: "POST" });
+    req.on("error", err => console.error("[cron] Erro ao gerar relatório:", err.message));
+    req.end();
+}, { timezone: "America/Sao_Paulo" });
 // ── Server Startup ────────────────────────────────────────────────────────
 
 app.listen(3000, () => {

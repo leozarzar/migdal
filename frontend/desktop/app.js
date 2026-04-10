@@ -371,4 +371,6 @@ async function showScreen(name) {
 
     const activeTab = _tabs.find(t => t.id === _activeTabId);
     await _loadRoute(activeTab ? activeTab.route : 'dashboard', _activeTabId);
+
+    NotificationsManager.init();
 })();

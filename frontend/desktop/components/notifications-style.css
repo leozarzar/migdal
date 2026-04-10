@@ -1,0 +1,324 @@
+/* ── Notifications component ─────────────────────────────────────────────── */
+
+/* Botão sino no header */
+.notif-bell {
+    position: relative;
+    background: none;
+    border: none;
+    border-right: 1px solid #e9eef3;
+    cursor: pointer;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    height: 100%;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+
+.notif-bell:hover {
+    background: #f8fafc;
+    color: #1e293b;
+}
+
+.notif-bell .material-symbols-outlined {
+    font-size: 20px;
+}
+
+/* Badge de contagem */
+.notif-badge {
+    position: absolute;
+    top: 8px;
+    right: 6px;
+    background: #f59e0b;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.notif-badge--critical {
+    background: #ef4444;
+    animation: notif-pulse 2s ease-in-out infinite;
+}
+
+@keyframes notif-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.55; }
+}
+
+/* Painel dropdown */
+.notif-panel {
+    position: fixed;
+    z-index: 8000;
+    width: 390px;
+    max-height: 480px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14), 0 1px 4px rgba(0, 0, 0, 0.07);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    transition: max-height 0.25s ease;
+}
+
+.notif-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e9eef3;
+    flex-shrink: 0;
+}
+
+.notif-panel-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.notif-panel-dismiss-all {
+    background: none;
+    border: none;
+    font-size: 12px;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.notif-panel-dismiss-all:hover {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.notif-panel-list {
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Estado vazio */
+.notif-panel-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 16px;
+    color: #94a3b8;
+    gap: 8px;
+}
+
+.notif-panel-empty .material-symbols-outlined {
+    font-size: 40px;
+}
+
+.notif-panel-empty p {
+    margin: 0;
+    font-size: 13px;
+}
+
+/* Cards de notificação */
+.notif-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.1s;
+}
+
+.notif-card:last-child {
+    border-bottom: none;
+}
+
+.notif-card:hover {
+    background: #f8fafc;
+}
+
+.notif-card--critical .notif-card__icon { color: #ef4444; }
+.notif-card--warning  .notif-card__icon { color: #f59e0b; }
+.notif-card--info     .notif-card__icon { color: #3b82f6; }
+
+.notif-card__icon {
+    font-size: 20px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.notif-card__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.notif-card__title {
+    margin: 0 0 2px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.notif-card__msg {
+    margin: 0;
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.notif-card__time {
+    margin: 3px 0 0;
+    font-size: 10px;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+.notif-card__dismiss {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0;
+    flex-shrink: 0;
+    transition: color 0.1s;
+}
+
+.notif-card__dismiss:hover {
+    color: #475569;
+}
+
+/* Card de relatório semanal */
+.notif-card--report {
+    background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+    border-left: 3px solid #3b82f6;
+    align-items: center;
+}
+
+.notif-card--report .notif-card__icon {
+    color: #3b82f6;
+}
+
+.notif-card__report-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.notif-card__view-btn {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 5px;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+
+.notif-card__view-btn:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
+}
+
+.notif-card__view-btn .material-symbols-outlined {
+    font-size: 13px;
+}
+
+/* ── Conteúdo da dialog de relatório ───────────────────────────────────── */
+
+.notif-report-dlg-body {
+    padding: 4px 0 8px;
+}
+
+.notif-report-dlg-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 7px;
+    margin: 16px 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.notif-report-dlg-section:first-child {
+    margin-top: 4px;
+}
+
+.notif-report-dlg-section .material-symbols-outlined {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.notif-report-dlg-section--blue   { background: #eff6ff; color: #1d4ed8; }
+.notif-report-dlg-section--amber  { background: #fffbeb; color: #b45309; }
+.notif-report-dlg-section--green  { background: #f0fdf4; color: #15803d; }
+.notif-report-dlg-section--purple { background: #faf5ff; color: #7e22ce; }
+.notif-report-dlg-section--teal   { background: #f0fdfa; color: #0f766e; }
+
+.notif-report-dlg-para {
+    margin: 0 0 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #334155;
+}
+
+.notif-report-dlg-list {
+    margin: 4px 0 10px;
+    padding-left: 20px;
+    color: #334155;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.notif-report-dlg-list li {
+    margin-bottom: 2px;
+}
+
+/* Faixa de metadados: período + data de emissão */
+.notif-report-dlg-meta {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 7px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #475569;
+    flex-wrap: wrap;
+}
+
+.notif-report-dlg-meta > span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 500;
+}
+
+.notif-report-dlg-meta .material-symbols-outlined {
+    font-size: 15px;
+    color: #94a3b8;
+}
