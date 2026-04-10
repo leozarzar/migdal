@@ -831,14 +831,17 @@ const ConsumptionStats = {
             .filter(r => r.date)
             .sort((a, b) => a.date.localeCompare(b.date));
 
-        // Fill gaps: generate every expected period key in [startDate, cutoff)
+        // Fill gaps: generate every expected period key in [startDate, endDate].
+        // If endDate >= today, stop before the current incomplete period.
         const rangeStart = new Date((this.startDate || todayKey) + "T00:00:00");
+        const rangeEndKey = this.endDate && this.endDate < todayKey ? this.endDate : null;
 
         if (aggregation === "daily") {
             const cursor = new Date(rangeStart);
             while (true) {
                 const key = this._formatDate(cursor);
-                if (key >= todayKey) break;
+                // Stop at endDate (inclusive) when in the past; stop before today otherwise
+                if (rangeEndKey ? key > rangeEndKey : key >= todayKey) break;
                 if (!buckets.has(key)) {
                     const dd = String(cursor.getDate()).padStart(2, "0");
                     const mm = String(cursor.getMonth() + 1).padStart(2, "0");
@@ -853,7 +856,7 @@ const ConsumptionStats = {
             cursor.setDate(cursor.getDate() + (dow === 0 ? -6 : 1 - dow));
             while (true) {
                 const key = this._formatDate(cursor);
-                if (key >= currentWeekKey) break;
+                if (rangeEndKey ? key > rangeEndKey : key >= currentWeekKey) break;
                 if (!buckets.has(key)) {
                     const dd = String(cursor.getDate()).padStart(2, "0");
                     const mm = String(cursor.getMonth() + 1).padStart(2, "0");
@@ -863,10 +866,13 @@ const ConsumptionStats = {
             }
         } else {
             // Monthly
+            const rangeEndMonthKey = rangeEndKey
+                ? `${new Date(rangeEndKey + "T00:00:00").getFullYear()}-${String(new Date(rangeEndKey + "T00:00:00").getMonth() + 1).padStart(2, "0")}`
+                : null;
             const cursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
             while (true) {
                 const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
-                if (key >= currentMonthKey) break;
+                if (rangeEndMonthKey ? key > rangeEndMonthKey : key >= currentMonthKey) break;
                 if (!buckets.has(key)) {
                     buckets.set(key, { key, label: `${monthNames[cursor.getMonth()]}/${String(cursor.getFullYear()).slice(2)}`, value: 0, hasStock: false });
                 }

@@ -1,0 +1,274 @@
+.kpid-container {
+    width: 100%;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ── Card principal ─────────────────────────────────────── */
+
+.kpid-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    padding: 20px;
+}
+
+.kpid-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.kpid-title {
+    margin: 0;
+    font-size: 34px;
+    line-height: 1;
+    color: #1f2937;
+    letter-spacing: 0.2px;
+}
+
+.kpid-subtitle {
+    margin: 6px 0 0;
+    font-size: 14px;
+    color: #475569;
+}
+
+/* ── Filtros ────────────────────────────────────────────── */
+
+.kpid-filters {
+    margin-top: 18px;
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.kpid-filter-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.kpid-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.kpid-label--invisible {
+    visibility: hidden;
+}
+
+/* ── Select e inputs ────────────────────────────── */
+
+.kpid-select {
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+    min-width: 200px;
+}
+
+.kpid-select:focus {
+    border-color: #94a3b8;
+}
+
+.kpid-date-input {
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+}
+
+.kpid-date-input:focus {
+    border-color: #94a3b8;
+}
+
+/* ── Checkbox considerar ajustes ────────────────────────── */
+
+.kpid-filter-adjust {
+    justify-content: flex-end;
+}
+
+.kpid-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    font-size: 13px;
+    color: #374151;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.kpid-checkbox-label input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: #111827;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* ── Gráfico ────────────────────────────────────────────── */
+
+.kpid-chart-wrap {
+    position: relative;
+    margin-top: 24px;
+    min-height: 280px;
+}
+
+.kpid-chart-wrap canvas {
+    width: 100%;
+    display: block;
+}
+
+.kpid-empty-state {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.kpid-empty-icon {
+    font-size: 40px;
+    color: #cbd5e1;
+}
+
+.kpid-empty-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.kpid-empty-sub {
+    margin: 0;
+    font-size: 13px;
+    color: #b0bec5;
+}
+
+.kpid-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.75);
+    border-radius: 8px;
+}
+
+.kpid-loading-text {
+    font-size: 14px;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* ── Tooltip ────────────────────────────────────────────── */
+
+.kpid-tooltip {
+    display: none;
+    position: absolute;
+    background: rgba(15, 23, 42, 0.92);
+    color: #f8fafc;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    pointer-events: none;
+    z-index: 10;
+    min-width: 160px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.kpid-tooltip-period {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.kpid-tooltip-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 4px;
+}
+
+.kpid-tooltip-delta {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* ── Cards de resumo ────────────────────────────────────── */
+
+.kpid-summary-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.kpid-summary-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.kpid-summary-icon {
+    color: #3b82f6;
+    margin-bottom: 4px;
+}
+
+.kpid-summary-icon .material-symbols-outlined {
+    font-size: 22px;
+}
+
+.kpid-summary-label {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.kpid-summary-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.1;
+}
+
+.kpid-summary-unit {
+    font-size: 13px;
+    font-weight: 400;
+    color: #64748b;
+}
+
+.kpid-summary-sub {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
