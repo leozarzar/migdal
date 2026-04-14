@@ -404,6 +404,12 @@ async function showScreen(name) {
 // ══════════════════════════════════════════════════════════════════
 
 (async function init() {
+    // ── Redirecionamento por tamanho de tela ─────────────────
+    if (window.innerWidth < 768) {
+        window.location.replace('/mobile/app');
+        return;
+    }
+
     // ── Guarda de autenticação ────────────────────────────────
     // Se não há token, redireciona para /login imediatamente.
     // O backend já bloqueia todas as chamadas de API sem token,

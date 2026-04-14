@@ -1,0 +1,224 @@
+/* ══════════════════════════════════════════════════════════════
+   MOBILE LOGIN PAGE
+   Segue o vocabulário visual do mobile app (mob-card, mob-input,
+   mob-btn etc.) — não usa o card flutuante do desktop.
+   ══════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f0f2f5;
+    color: #1e2a38;
+    min-height: 100dvh;
+}
+
+/* ── Hero (topo escuro igual ao header do app) ───────────────── */
+
+.mob-login-hero {
+    background: #1e2a38;
+    padding: 40px 20px 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.mob-login-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    background: #3b82f6;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    border-radius: 14px;
+    margin-bottom: 4px;
+}
+
+.mob-login-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.3;
+}
+
+.mob-login-subtitle {
+    font-size: 13px;
+    color: #7f8c9a;
+}
+
+/* ── Corpo do formulário ─────────────────────────────────────── */
+
+.mob-login-body {
+    padding: 0 16px;
+    margin-top: -24px; /* sobrepõe levemente o hero */
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 40px;
+}
+
+.mob-login-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 20px 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+/* ── Abas ────────────────────────────────────────────────────── */
+
+.mob-login-tabs {
+    display: flex;
+    background: #f0f2f5;
+    border-radius: 10px;
+    padding: 3px;
+    margin-bottom: 20px;
+    gap: 2px;
+}
+
+.mob-login-tab {
+    flex: 1;
+    padding: 11px 0;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.mob-login-tab--active {
+    background: #fff;
+    color: #1e2a38;
+    box-shadow: 0 1px 4px rgba(0,0,0,.1);
+}
+
+/* ── Campos ──────────────────────────────────────────────────── */
+
+.mob-login-field {
+    margin-bottom: 14px;
+}
+
+.mob-login-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+}
+
+/* Reutiliza o input do app mobile */
+.mob-login-input {
+    width: 100%;
+    height: 46px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    padding: 0 14px;
+    font-size: 15px;
+    color: #1e2a38;
+    background: #fff;
+    outline: none;
+    -webkit-appearance: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.mob-login-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+}
+
+/* ── Campos de cadastro (ocultos por padrão) ─────────────────── */
+
+.mob-login-register-fields {
+    display: none;
+}
+
+/* ── Lembrar e-mail ──────────────────────────────────────────── */
+
+.mob-login-remember-row {
+    margin-bottom: 4px;
+}
+
+.mob-login-remember-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #374151;
+    cursor: pointer;
+    padding: 4px 0;
+}
+
+.mob-login-remember-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #1e2a38;
+    flex-shrink: 0;
+}
+
+/* ── Mensagens ───────────────────────────────────────────────── */
+
+.mob-login-error {
+    min-height: 18px;
+    font-size: 13px;
+    color: #ef4444;
+    padding: 0 2px;
+    margin-bottom: 4px;
+}
+
+.mob-login-success {
+    font-size: 13px;
+    color: #16a34a;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 4px;
+}
+
+/* ── Botão de submit — mesmo padrão do mob-btn--primary ─────── */
+
+.mob-login-btn-submit {
+    width: 100%;
+    height: 48px;
+    background: #1e2a38;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    margin-top: 8px;
+}
+
+.mob-login-btn-submit:active {
+    opacity: 0.75;
+}
+
+.mob-login-btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ── Rodapé ──────────────────────────────────────────────────── */
+
+.mob-login-footer {
+    text-align: center;
+    font-size: 11px;
+    color: #9ca3af;
+    padding: 4px 0 8px;
+}

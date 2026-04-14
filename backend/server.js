@@ -67,8 +67,19 @@ app.get("/app", (req, res) => {
     res.sendFile(path.join(frontendDir, "index.html"));
 });
 
-// Mobile app   →  GET /mobile
+// Mobile: raiz redireciona para o login mobile
 app.get("/mobile", (req, res) => {
+    res.redirect("/mobile/login");
+});
+
+// Mobile login page  →  GET /mobile/login
+app.get("/mobile/login", (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.sendFile(path.join(frontendDir, "mobile-login.html"));
+});
+
+// Mobile app         →  GET /mobile/app
+app.get("/mobile/app", (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.sendFile(path.join(frontendDir, "mobile.html"));
 });

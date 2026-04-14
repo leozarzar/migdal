@@ -15,6 +15,11 @@ const _API = window.location.origin;
 // ── Verificação inicial ───────────────────────────────────────
 // Se já há token, valida no backend e redireciona para o app.
 (async function checkExistingSession() {
+    // Tela pequena → versão mobile
+    if (window.innerWidth < 768) {
+        window.location.replace('/mobile/login');
+        return;
+    }
     const token = localStorage.getItem('wcm.auth.token');
     if (!token) {
         _restoreRememberedEmail();

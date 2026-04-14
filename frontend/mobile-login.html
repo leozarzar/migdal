@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WCM — Login</title>
+    <base href="/">
+    <link rel="stylesheet" href="mobile/screens/mobile-login-style.css">
+</head>
+<body>
+
+    <!-- ── Hero / Branding ────────────────────────────────────── -->
+    <div class="mob-login-hero">
+        <div class="mob-login-logo">WCM</div>
+        <h1 class="mob-login-title">Warehouse Control Management</h1>
+        <p class="mob-login-subtitle">Gestão de estoque e recebimentos</p>
+    </div>
+
+    <!-- ── Formulário ─────────────────────────────────────────── -->
+    <div class="mob-login-body">
+
+        <div class="mob-login-card">
+
+            <!-- Abas -->
+            <div class="mob-login-tabs">
+                <button id="mobLoginTabLogin"    class="mob-login-tab mob-login-tab--active" onclick="MobLoginPage.setMode('login')">Entrar</button>
+                <button id="mobLoginTabRegister" class="mob-login-tab"                       onclick="MobLoginPage.setMode('register')">Cadastrar</button>
+            </div>
+
+            <form onsubmit="event.preventDefault(); MobLoginPage.submit();">
+
+                <!-- ── Campos exclusivos de LOGIN ── -->
+                <div id="mobLoginLoginFields">
+                    <div class="mob-login-field">
+                        <label class="mob-login-label" for="mobLoginEmail">E-mail</label>
+                        <input id="mobLoginEmail" type="email" class="mob-login-input"
+                               placeholder="seu@email.com" autocomplete="email"
+                               inputmode="email">
+                    </div>
+                    <div class="mob-login-field">
+                        <label class="mob-login-label" for="mobLoginPassword">Senha</label>
+                        <input id="mobLoginPassword" type="password" class="mob-login-input"
+                               placeholder="••••••••" autocomplete="current-password">
+                    </div>
+                    <div class="mob-login-remember-row">
+                        <label class="mob-login-remember-label">
+                            <input id="mobLoginRememberEmail" type="checkbox" class="mob-login-remember-checkbox">
+                            Lembrar e-mail
+                        </label>
+                    </div>
+                </div>
+
+                <!-- ── Campos exclusivos de CADASTRO ── -->
+                <div id="mobLoginRegisterFields" class="mob-login-register-fields">
+                    <div class="mob-login-field">
+                        <label class="mob-login-label" for="mobLoginRegisterName">Nome</label>
+                        <input id="mobLoginRegisterName" type="text" class="mob-login-input"
+                               placeholder="Seu nome completo" autocomplete="name">
+                    </div>
+                    <div class="mob-login-field">
+                        <label class="mob-login-label" for="mobLoginRegisterEmail">E-mail</label>
+                        <input id="mobLoginRegisterEmail" type="email" class="mob-login-input"
+                               placeholder="seu@email.com" autocomplete="email"
+                               inputmode="email">
+                    </div>
+                    <div class="mob-login-field">
+                        <label class="mob-login-label" for="mobLoginRegisterPassword">Senha</label>
+                        <input id="mobLoginRegisterPassword" type="password" class="mob-login-input"
+                               placeholder="••••••••" autocomplete="new-password">
+                    </div>
+                    <div class="mob-login-field">
+                        <label class="mob-login-label" for="mobLoginRegisterConfirmPassword">Confirmar senha</label>
+                        <input id="mobLoginRegisterConfirmPassword" type="password" class="mob-login-input"
+                               placeholder="••••••••" autocomplete="new-password">
+                    </div>
+                    <div class="mob-login-field">
+                        <label class="mob-login-label" for="mobLoginRegisterReleaseCode">Código de liberação</label>
+                        <input id="mobLoginRegisterReleaseCode" type="text" class="mob-login-input"
+                               placeholder="Código do administrador"
+                               autocomplete="off">
+                    </div>
+                </div>
+
+                <p id="mobLoginError"   class="mob-login-error"></p>
+                <p id="mobLoginSuccess" class="mob-login-success" hidden></p>
+
+                <button id="mobLoginSubmitBtn" type="submit" class="mob-login-btn-submit">Entrar</button>
+            </form>
+        </div>
+
+        <p class="mob-login-footer">WCM App — Versão Mobile</p>
+    </div>
+
+    <script src="mobile/screens/mobile-login.js"></script>
+</body>
+</html>

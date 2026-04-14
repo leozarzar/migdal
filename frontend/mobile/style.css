@@ -38,6 +38,28 @@ body {
 .mob-header-subtitle {
     font-size: 14px;
     opacity: 0.7;
+    flex: 1;
+}
+
+.mob-header-logout-btn {
+    background: none;
+    border: none;
+    color: #7f8c9a;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    transition: color 0.2s;
+    margin-left: auto;
+}
+
+.mob-header-logout-btn:hover {
+    color: #ef4444;
+}
+
+.mob-header-logout-btn .material-symbols-outlined {
+    font-size: 20px;
 }
 
 .mob-back-btn {

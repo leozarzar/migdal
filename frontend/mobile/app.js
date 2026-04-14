@@ -35,6 +35,33 @@ const MobApp = {
     // ── Inicialização ────────────────────────────────────────────────────────
 
     async init() {
+        // ── Redirecionamento por tamanho de tela ─────────────────
+        if (window.innerWidth >= 768) {
+            window.location.replace('/app');
+            return;
+        }
+
+        // ── Guarda de autenticação ────────────────────────────────
+        const token = localStorage.getItem('wcm.auth.token');
+        if (!token) {
+            window.location.replace('/mobile/login');
+            return;
+        }
+        try {
+            const res = await fetch(`${API}/auth/verify`, {
+                headers: { 'x-auth-token': token }
+            });
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            if (data.name) localStorage.setItem('wcm.auth.name', data.name);
+        } catch {
+            localStorage.removeItem('wcm.auth.token');
+            localStorage.removeItem('wcm.auth.email');
+            localStorage.removeItem('wcm.auth.name');
+            window.location.replace('/mobile/login');
+            return;
+        }
+
         try {
             const [suppliers, materials, operators] = await Promise.all([
                 apiCall(API + '/suppliers'),
@@ -129,6 +156,26 @@ const MobApp = {
 };
 
 // ── Funções auxiliares de escopo global ──────────────────────────────────────
+
+/**
+ * Encerra a sessão do usuário: invalida o token no backend,
+ * limpa o localStorage e redireciona para /mobile/login.
+ */
+async function mobLogout() {
+    const token = localStorage.getItem('wcm.auth.token');
+    if (token) {
+        try {
+            await fetch(`${API}/auth/logout`, {
+                method: 'POST',
+                headers: { 'x-auth-token': token }
+            });
+        } catch { /* ignora erros de rede */ }
+    }
+    localStorage.removeItem('wcm.auth.token');
+    localStorage.removeItem('wcm.auth.email');
+    localStorage.removeItem('wcm.auth.name');
+    window.location.replace('/mobile/login');
+}
 
 function _esc(value) {
     return String(value)
