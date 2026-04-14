@@ -55,12 +55,12 @@ const StockPolicies = {
     _setHeaderOptions() {
         const headerOptions = document.getElementById("headerOptionsContent");
         if (headerOptions) {
-            headerOptions.innerHTML = `
+            headerOptions.innerHTML = hasPermission('inventory', 'stock-policies', 'create') ? `
                 <button class="btn-new" onclick="StockPolicies.newPolicy()">
                     <span class="material-symbols-outlined">add</span>
                     Nova Política
                 </button>
-            `;
+            ` : '';
         }
     },
 
@@ -120,9 +120,9 @@ const StockPolicies = {
             <td>${policy.service_level}%</td>
             <td>${policy.item_count ?? '—'}</td>
             <td class="stock-policies-col-actions">
-                <button onclick="StockPolicies.deletePolicy(event, ${policy.id})">
+                ${hasPermission('inventory', 'stock-policies', 'delete') ? `<button onclick="StockPolicies.deletePolicy(event, ${policy.id})">
                     <span class="material-symbols-outlined">delete</span>
-                </button>
+                </button>` : ''}
             </td>
         `;
         return tr;

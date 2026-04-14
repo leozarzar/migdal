@@ -14,6 +14,12 @@ const StockPoliciesDetails = {
     _itemSelect: null,
     _isDirty: false,     // indica se há alterações não salvas
 
+    /** Retorna true se a tela está em modo somente leitura (sem permissão de edição) */
+    _isReadOnly() {
+        if (!StockPolicies.selectedPolicy) return false;
+        return !hasPermission('inventory', 'stock-policies', 'edit');
+    },
+
     // ══════════════════════════════════════════════════════════════════════
     // ── Ciclo de Vida ──
     // ══════════════════════════════════════════════════════════════════════
@@ -251,6 +257,16 @@ const StockPoliciesDetails = {
         // Marca o form como sujo em qualquer alteração de campo (após preencher)
         document.querySelectorAll('#content input, #content select, #content textarea')
             .forEach(el => el.addEventListener('change', () => this._markDirty()));
+
+        // Modo somente leitura: desabilita campos e oculta área de adição de materiais
+        if (this._isReadOnly()) {
+            document.querySelectorAll('#content input, #content select, #content textarea')
+                .forEach(el => el.disabled = true);
+            document.querySelectorAll('#content .sselect-wrap')
+                .forEach(el => el.classList.add('sselect-disabled'));
+            const addRow = document.querySelector('.spd-material-add-row');
+            if (addRow) addRow.style.display = 'none';
+        }
     },
 
     /** Preenche o formulário com os dados de uma política existente */
@@ -600,6 +616,7 @@ const StockPoliciesDetails = {
                     return `<td>${m.max_stock !== null ? m.max_stock.toFixed(1) : "—"}</td>`;
                 }
                 if (c.key === "actions") {
+                    if (this._isReadOnly()) return `<td class="spd-col-actions"></td>`;
                     const _rk = m.type === 'group' ? `g_${m.id}` : m.id;
                     return `<td class="spd-col-actions"><button onclick="StockPoliciesDetails.removeMaterial('${_rk}')"><span class="material-symbols-outlined">delete</span></button></td>`;
                 }
@@ -730,9 +747,11 @@ const StockPoliciesDetails = {
     /** Define o botão de ação no header (Salvar) */
     _setHeaderOptions() {
         const headerOptions = document.getElementById("headerOptionsContent");
-        headerOptions.innerHTML = `
-            <button class="btn-primary" onclick="StockPoliciesDetails.save()">Salvar</button>
-        `;
+        const isEditing = !!StockPolicies.selectedPolicy;
+        const action = isEditing ? 'edit' : 'create';
+        headerOptions.innerHTML = hasPermission('inventory', 'stock-policies', action)
+            ? `<button class="btn-primary" onclick="StockPoliciesDetails.save()">Salvar</button>`
+            : '';
     },
 
     /** Salva ou atualiza a política de estoque com seus itens */

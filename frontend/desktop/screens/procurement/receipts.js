@@ -159,9 +159,9 @@ const Receipts = {
             <td class="receipts-col-qty">${totalQty}</td>
             <td class="receipts-col-order">${receipt.order_id ? `<span class="code-badge receipts-order-link" onclick="Receipts.openOrder(event,${receipt.order_id})">#${receipt.order_id}</span>` : ''}</td>
             <td class="receipts-col-actions">
-                <button onclick="Receipts.deleteReceipt(event,'${receipt.id}')">
+                ${hasPermission('procurement', 'receipts', 'delete') ? `<button onclick="Receipts.deleteReceipt(event,'${receipt.id}')">
                     <span class="material-symbols-outlined">delete</span>
-                </button>
+                </button>` : ''}
             </td>
         `;
 
@@ -185,11 +185,11 @@ const Receipts = {
     /** Injeta botões de ação no header da página. */
     _setHeaderOptions() {
         const headerOptions = document.getElementById("headerOptionsContent");
-        headerOptions.innerHTML = `
+        headerOptions.innerHTML = hasPermission('procurement', 'receipts', 'create') ? `
             <button class="btn-new" onclick="Receipts.newReceipt()">
                 <span class="material-symbols-outlined">add</span>
                 Novo Recebimento
             </button>
-        `;
+        ` : '';
     },
 };

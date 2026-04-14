@@ -6,6 +6,7 @@
 
 const router = require("express").Router();
 const db = require("../db");
+const requirePermission = require('../middleware/require-permission');
 
 // ── Table Setup ──────────────────────────────────────────────────────────
 
@@ -77,7 +78,7 @@ router.get("/items/:id", (req, res) => {
 /**
  * POST /receipts - Cria um novo recebimento
  */
-router.post("/", (req, res) => {
+router.post("/", requirePermission('procurement', 'receipts', 'create'), (req, res) => {
     const { code, nature, date, supplier, order_id, operator } = req.body;
 
     // Validação
@@ -115,7 +116,7 @@ router.post("/", (req, res) => {
 /**
  * PUT /receipts/update - Atualiza um recebimento
  */
-router.put("/update", (req, res) => {
+router.put("/update", requirePermission('procurement', 'receipts', 'edit'), (req, res) => {
     const { id, nature, date, supplier, order_id, operator } = req.body;
 
     // Validação
@@ -153,7 +154,7 @@ router.put("/update", (req, res) => {
 /**
  * DELETE /receipts/:id - Deleta um recebimento
  */
-router.delete("/:id", (req, res) => {
+router.delete("/:id", requirePermission('procurement', 'receipts', 'delete'), (req, res) => {
     const { id } = req.params;
 
     if (!id) {
@@ -186,7 +187,7 @@ router.delete("/:id", (req, res) => {
 /**
  * DELETE /receipts/items/:id - Deleta todas as unidades de estoque de um recebimento
  */
-router.delete("/items/:id", (req, res) => {
+router.delete("/items/:id", requirePermission('procurement', 'receipts', 'edit'), (req, res) => {
     const { id } = req.params;
 
     if (!id) {

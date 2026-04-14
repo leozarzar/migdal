@@ -7,6 +7,7 @@
 
 const router = require("express").Router();
 const db = require("../db");
+const requirePermission = require('../middleware/require-permission');
 
 // ── Table Setup: stock_policies ──────────────────────────────────────────
 //
@@ -362,7 +363,7 @@ router.get("/:id", (req, res) => {
  * POST /stock-policies
  * Cria uma nova política de estoque com seus itens.
  */
-router.post("/", (req, res) => {
+router.post("/", requirePermission('inventory', 'stock-policies', 'create'), (req, res) => {
     const {
         name, description, service_level,
         review_type, review_period, review_period_days,
@@ -411,7 +412,7 @@ router.post("/", (req, res) => {
  * PUT /stock-policies/:id
  * Atualiza uma política e substitui seus itens.
  */
-router.put("/:id", (req, res) => {
+router.put("/:id", requirePermission('inventory', 'stock-policies', 'edit'), (req, res) => {
     const { id } = req.params;
     const {
         name, description, service_level,
@@ -465,7 +466,7 @@ router.put("/:id", (req, res) => {
  * DELETE /stock-policies/:id
  * Remove uma política (itens removidos em cascata pela FK).
  */
-router.delete("/:id", (req, res) => {
+router.delete("/:id", requirePermission('inventory', 'stock-policies', 'delete'), (req, res) => {
     db.run(`DELETE FROM stock_policies WHERE id = ?`, [req.params.id], function (err) {
         if (err) return res.status(500).json({ message: "Erro ao deletar política", error: err.message });
         if (this.changes === 0) return res.status(404).json({ message: "Política não encontrada" });
@@ -479,7 +480,7 @@ router.delete("/:id", (req, res) => {
  * POST /stock-policies/:id/items
  * Adiciona um item a uma política existente.
  */
-router.post("/:id/items", (req, res) => {
+router.post("/:id/items", requirePermission('inventory', 'stock-policies', 'edit'), (req, res) => {
     const { id } = req.params;
     const { material_id, forecast_model, forecast_param, lead_time_days, coverage_days } = req.body;
 
@@ -505,7 +506,7 @@ router.post("/:id/items", (req, res) => {
  * DELETE /stock-policies/:id/items/:itemId
  * Remove um item de uma política.
  */
-router.delete("/:id/items/:itemId", (req, res) => {
+router.delete("/:id/items/:itemId", requirePermission('inventory', 'stock-policies', 'edit'), (req, res) => {
     db.run(
         `DELETE FROM stock_policy_items WHERE id = ? AND policy_id = ?`,
         [req.params.itemId, req.params.id],
@@ -522,7 +523,7 @@ router.delete("/:id/items/:itemId", (req, res) => {
  * Vincula a configuração de previsão da tela de Estatística de Consumo ao item de política.
  * Saves forecast parameters (model, param, start date, aggregation, flags).
  */
-router.put("/items/:itemId/forecast", (req, res) => {
+router.put("/items/:itemId/forecast", requirePermission('inventory', 'stock-policies', 'edit'), (req, res) => {
     const { itemId } = req.params;
     const {
         forecast_model,

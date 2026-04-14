@@ -1,0 +1,212 @@
+/* ══════════════════════════════════════════════════════════════
+   Admin — Papel Detalhes (edição de permissões)
+   ══════════════════════════════════════════════════════════════ */
+
+.admin-roles-details-container {
+    width: 100%;
+    padding: 10px;
+}
+
+.admin-roles-details-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    padding: 20px;
+    max-width: 700px;
+}
+
+.admin-roles-details-form {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 16px;
+    margin-bottom: 20px;
+    align-items: start;
+}
+
+.admin-roles-details-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.admin-roles-details-field label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.admin-roles-details-field input,
+.admin-roles-details-field textarea {
+    padding: 10px 12px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    color: #1e293b;
+    transition: border-color 0.15s;
+    resize: vertical;
+}
+
+.admin-roles-details-field input {
+    height: 40px;
+}
+
+.admin-roles-details-field textarea {
+    min-height: 80px;
+    font-family: inherit;
+    line-height: 1.5;
+}
+
+/* ── Árvore de permissões ── */
+
+.admin-perm-tree {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.admin-perm-tree-header {
+    background: #f8fafc;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.admin-perm-module {
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.admin-perm-module:last-child {
+    border-bottom: none;
+}
+
+.admin-perm-module-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.1s;
+}
+
+.admin-perm-module-header:hover {
+    background: #f8fafc;
+}
+
+.admin-perm-module-header input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #3b82f6;
+    cursor: pointer;
+}
+
+.admin-perm-module-header .material-symbols-outlined {
+    font-size: 18px;
+    color: #64748b;
+}
+
+.admin-perm-module-name {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.admin-perm-screens {
+    padding-left: 28px;
+}
+
+.admin-perm-screen {
+    border-top: 1px solid #f1f5f9;
+    padding: 8px 14px;
+}
+
+.admin-perm-screen-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-perm-screen-header input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: #3b82f6;
+    cursor: pointer;
+}
+
+.admin-perm-screen-name {
+    flex: 1;
+    font-size: 13px;
+    color: #334155;
+    font-weight: 500;
+}
+
+.admin-perm-actions {
+    display: flex;
+    gap: 12px;
+    padding: 6px 0 4px 26px;
+}
+
+.admin-perm-action-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #64748b;
+    cursor: pointer;
+    user-select: none;
+}
+
+.admin-perm-action-label input[type="checkbox"] {
+    width: 13px;
+    height: 13px;
+    accent-color: #3b82f6;
+    cursor: pointer;
+}
+
+/* ── Botões de ação ── */
+
+.admin-roles-details-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.admin-roles-details-actions .btn-save {
+    padding: 8px 20px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.admin-roles-details-actions .btn-save:hover {
+    background: #2563eb;
+}
+
+.admin-roles-details-actions .btn-cancel {
+    padding: 8px 20px;
+    background: white;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.admin-roles-details-actions .btn-cancel:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}

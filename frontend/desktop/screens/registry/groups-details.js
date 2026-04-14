@@ -102,9 +102,10 @@ const GroupsDetails = {
 
         const headerOptions = document.getElementById("headerOptionsContent");
         if (headerOptions) {
-            headerOptions.innerHTML = `
+            const action = Groups.selectedGroup ? 'edit' : 'create';
+            headerOptions.innerHTML = hasPermission('registry', 'groups', action) ? `
                 <button class="btn-primary" onclick="GroupsDetails.save()">Salvar</button>
-            `;
+            ` : '';
         }
 
         this.groupId = null;
@@ -132,6 +133,13 @@ const GroupsDetails = {
 
         this._renderMaterialsSelect();
         this._renderMaterialsTable();
+
+        // Trava campos e formulário de adição se sem permissão de edição
+        const canEdit = hasPermission('registry', 'groups', 'edit');
+        const nameInput = document.getElementById('gdName');
+        if (nameInput) nameInput.disabled = !canEdit;
+        const addRow = document.querySelector('.gd-add-row');
+        if (addRow) addRow.style.display = canEdit ? '' : 'none';
 
         // Marca o form como sujo em qualquer alteração de campo
         document.querySelectorAll('#content input, #content select, #content textarea')
@@ -250,14 +258,13 @@ const GroupsDetails = {
             const swatch = m.color
                 ? `<span class="gd-color-swatch" style="background:${m.color}"></span>`
                 : `<span class="gd-color-swatch gd-color-swatch--none"></span>`;
+            const deleteBtn = hasPermission('registry', 'groups', 'edit')
+                ? `<button onclick="GroupsDetails.removeMaterial(${m.id})"><span class="material-symbols-outlined">close</span></button>`
+                : '';
             tr.innerHTML = `
                 <td class="gd-col-color">${swatch}</td>
                 <td>${m.name}</td>
-                <td class="gd-col-actions">
-                    <button onclick="GroupsDetails.removeMaterial(${m.id})">
-                        <span class="material-symbols-outlined">close</span>
-                    </button>
-                </td>
+                <td class="gd-col-actions">${deleteBtn}</td>
             `;
             tbody.appendChild(tr);
         });

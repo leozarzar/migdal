@@ -202,9 +202,9 @@ const Orders = {
             })()}</td>
             <td class="orders-col-status">${this._statusBadge(order)}</td>
             <td class="orders-col-actions">
-                <button onclick="Orders.deleteOrder(event,${order.id})">
+                ${hasPermission('procurement', 'orders', 'delete') ? `<button onclick="Orders.deleteOrder(event,${order.id})">
                     <span class="material-symbols-outlined">delete</span>
-                </button>
+                </button>` : ''}
             </td>
         `;
 
@@ -247,11 +247,11 @@ const Orders = {
     /** Injeta botões de ação no header da página. */
     _setHeaderOptions() {
         const headerOptions = document.getElementById("headerOptionsContent");
-        headerOptions.innerHTML = `
+        headerOptions.innerHTML = hasPermission('procurement', 'orders', 'create') ? `
             <button class="btn-new" onclick="Orders.newOrder()">
                 <span class="material-symbols-outlined">add</span>
                 Novo Pedido
             </button>
-        `;
+        ` : '';
     },
 };

@@ -43,6 +43,9 @@ const Operators = {
         const headerOptions = document.getElementById("headerOptionsContent");
         if (headerOptions) headerOptions.innerHTML = "";
 
+        const formWrapper = document.querySelector('.operators-form-wrapper');
+        if (formWrapper) formWrapper.style.display = hasPermission('registry', 'operators', 'create') ? '' : 'none';
+
         try {
             const operators = await apiCall(API + "/operators");
             this._renderTable(operators);
@@ -57,6 +60,9 @@ const Operators = {
 
     /** Salva um novo operador ou atualiza o selecionado. */
     async saveOperator() {
+        const action = this.selectedOperator ? 'edit' : 'create';
+        if (!hasPermission('registry', 'operators', action)) return;
+
         const name = document.getElementById("operatorName").value.trim();
 
         if (!name) {
@@ -131,9 +137,14 @@ const Operators = {
             return;
         }
 
+        const canEdit = hasPermission('registry', 'operators', 'edit');
         operators.forEach(operator => {
             const tr = this._createTableRow(operator);
-            tr.onclick = () => this.selectOperator(operator, tr);
+            if (canEdit) {
+                tr.onclick = () => this.selectOperator(operator, tr);
+            } else {
+                tr.style.cursor = 'default';
+            }
             tbody.appendChild(tr);
         });
     },
@@ -145,9 +156,9 @@ const Operators = {
         tr.innerHTML = `
             <td class="operators-col-name">${operator.name}</td>
             <td class="operators-col-actions">
-                <button onclick="Operators.deleteOperator(event, ${operator.id})">
+                ${hasPermission('registry', 'operators', 'delete') ? `<button onclick="Operators.deleteOperator(event, ${operator.id})">
                     <span class="material-symbols-outlined">delete</span>
-                </button>
+                </button>` : ''}
             </td>
         `;
 

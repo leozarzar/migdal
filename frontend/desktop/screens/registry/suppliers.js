@@ -42,7 +42,10 @@ const Suppliers = {
         this._resetForm();
         const headerOptions = document.getElementById("headerOptionsContent");
         if (headerOptions) headerOptions.innerHTML = "";
-        
+
+        const formWrapper = document.querySelector('.suppliers-form-wrapper');
+        if (formWrapper) formWrapper.style.display = hasPermission('registry', 'suppliers', 'create') ? '' : 'none';
+
         try {
             const suppliers = await apiCall(API + "/suppliers");
             this._renderTable(suppliers);
@@ -57,6 +60,9 @@ const Suppliers = {
 
     /** Salva um novo fornecedor ou atualiza o selecionado. */
     async saveSupplier() {
+        const action = this.selectedSupplier ? 'edit' : 'create';
+        if (!hasPermission('registry', 'suppliers', action)) return;
+
         const name = document.getElementById("supplierName").value.trim();
 
         if (!name) {
@@ -141,9 +147,14 @@ const Suppliers = {
             return;
         }
 
+        const canEdit = hasPermission('registry', 'suppliers', 'edit');
         suppliers.forEach(supplier => {
             const tr = this._createTableRow(supplier);
-            tr.onclick = () => this.selectSupplier(supplier, tr);
+            if (canEdit) {
+                tr.onclick = () => this.selectSupplier(supplier, tr);
+            } else {
+                tr.style.cursor = 'default';
+            }
             tbody.appendChild(tr);
         });
     },
@@ -155,9 +166,9 @@ const Suppliers = {
         tr.innerHTML = `
             <td class="suppliers-col-name">${supplier.name}</td>
             <td class="suppliers-col-actions">
-                <button onclick="Suppliers.deleteSupplier(event, ${supplier.id})">
+                ${hasPermission('registry', 'suppliers', 'delete') ? `<button onclick="Suppliers.deleteSupplier(event, ${supplier.id})">
                     <span class="material-symbols-outlined">delete</span>
-                </button>
+                </button>` : ''}
             </td>
         `;
 

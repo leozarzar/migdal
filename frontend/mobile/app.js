@@ -54,6 +54,10 @@ const MobApp = {
             if (!res.ok) throw new Error();
             const data = await res.json();
             if (data.name) localStorage.setItem('wcm.auth.name', data.name);
+
+            // Armazena usuário e permissões (mesma estrutura do desktop)
+            window.AppUser = data.user || null;
+            window.AppPermissions = data.permissions || [];
         } catch {
             localStorage.removeItem('wcm.auth.token');
             localStorage.removeItem('wcm.auth.email');
@@ -77,12 +81,38 @@ const MobApp = {
             this._toast('Erro ao carregar dados do servidor', 'error');
         }
 
+        this._applyMobilePermissions();
         this.showScreen('home');
     },
 
     // ── Navegação entre telas ────────────────────────────────────────────────
 
+    /** Mapa de telas mobile → permissão necessária (módulo + tela) */
+    _screenPermissions: {
+        'list':          { module: 'procurement', screen: 'receipts' },
+        'form':          { module: 'procurement', screen: 'receipts' },
+        'stock-list':    { module: 'inventory',   screen: 'stock-units' },
+        'stock-details': { module: 'inventory',   screen: 'stock-units' },
+    },
+
+    /**
+     * Oculta atalhos do home que o usuário não tem permissão de ver.
+     */
+    _applyMobilePermissions() {
+        const receiptsBtn = document.getElementById('mobShortcutReceipts');
+        const stockBtn    = document.getElementById('mobShortcutStock');
+        if (receiptsBtn) receiptsBtn.style.display = hasScreenAccess('procurement', 'receipts') ? '' : 'none';
+        if (stockBtn)    stockBtn.style.display    = hasScreenAccess('inventory', 'stock-units') ? '' : 'none';
+    },
+
     showScreen(screen) {
+        // Verificar permissão (home é sempre acessível)
+        const perm = this._screenPermissions[screen];
+        if (perm && !hasScreenAccess(perm.module, perm.screen)) {
+            this._toast('Sem permissão para acessar esta tela', 'error');
+            return;
+        }
+
         document.getElementById('screenHome').style.display         = screen === 'home'          ? '' : 'none';
         document.getElementById('screenList').style.display         = screen === 'list'          ? '' : 'none';
         document.getElementById('screenForm').style.display         = screen === 'form'          ? '' : 'none';

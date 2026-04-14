@@ -4,6 +4,67 @@
  * Funções reutilizáveis de DOM, formatação, validação e comunicação com API.
  */
 
+// ── Segurança ──
+
+/**
+ * Escapa caracteres HTML especiais para prevenir XSS ao inserir dados em templates.
+ * @param {*} value - Valor a escapar
+ * @returns {string}
+ */
+function _esc(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// ── Permissões ──
+
+/**
+ * Verifica se o usuário tem acesso a um módulo.
+ * Admin tem acesso total. Usuários sem role não têm acesso a nada.
+ * @param {string} moduleId - ID do módulo (ex: 'inventory', 'procurement')
+ * @returns {boolean}
+ */
+function hasModuleAccess(moduleId) {
+    const user = window.AppUser;
+    if (!user) return false;
+    if (user.isAdmin) return true;
+    const perms = window.AppPermissions || [];
+    return perms.some(p => p.module === moduleId);
+}
+
+/**
+ * Verifica se o usuário tem acesso a uma tela específica.
+ * @param {string} moduleId - ID do módulo
+ * @param {string} screenId - ID da tela (ex: 'stock-units', 'orders')
+ * @returns {boolean}
+ */
+function hasScreenAccess(moduleId, screenId) {
+    const user = window.AppUser;
+    if (!user) return false;
+    if (user.isAdmin) return true;
+    const perms = window.AppPermissions || [];
+    return perms.some(p => p.module === moduleId && p.screen === screenId && p.actions.includes('view'));
+}
+
+/**
+ * Verifica se o usuário tem permissão para uma ação em uma tela.
+ * @param {string} moduleId - ID do módulo
+ * @param {string} screenId - ID da tela
+ * @param {string} action - Ação ('view', 'create', 'edit', 'delete')
+ * @returns {boolean}
+ */
+function hasPermission(moduleId, screenId, action) {
+    const user = window.AppUser;
+    if (!user) return false;
+    if (user.isAdmin) return true;
+    const perms = window.AppPermissions || [];
+    return perms.some(p => p.module === moduleId && p.screen === screenId && p.actions.includes(action));
+}
+
 // ── Cálculos ──
 
 /**

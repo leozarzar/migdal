@@ -53,12 +53,12 @@ const Groups = {
     _setHeaderOptions() {
         const headerOptions = document.getElementById("headerOptionsContent");
         if (headerOptions) {
-            headerOptions.innerHTML = `
+            headerOptions.innerHTML = hasPermission('registry', 'groups', 'create') ? `
                 <button class="btn-new" onclick="Groups.newGroup()">
                     <span class="material-symbols-outlined">add</span>
                     Novo Grupo
                 </button>
-            `;
+            ` : '';
         }
     },
 
@@ -116,9 +116,9 @@ const Groups = {
             <td>${group.name}</td>
             <td>${group.material_count ?? 0}</td>
             <td class="groups-col-actions">
-                <button onclick="Groups.deleteGroup(event, ${group.id})">
+                ${hasPermission('registry', 'groups', 'delete') ? `<button onclick="Groups.deleteGroup(event, ${group.id})">
                     <span class="material-symbols-outlined">delete</span>
-                </button>
+                </button>` : ''}
             </td>
         `;
         return tr;

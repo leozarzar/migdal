@@ -48,7 +48,8 @@
     transition: border-color 0.2s;
 }
 
-.stock-units-edit-input[readonly] {
+.stock-units-edit-input[readonly],
+.stock-units-edit-input:disabled {
     background-color: #f5f5f5;
     color: #666;
     cursor: default;

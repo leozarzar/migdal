@@ -237,7 +237,7 @@ const StockUnits = {
 
         tr.innerHTML = `
             <td class="stock-units-col-check" onclick="event.stopPropagation()">
-                ${isInStock ? `<input type="checkbox" class="stock-units-row-check" data-id="${bag.id}" onchange="StockUnits._onRowCheck(this,'${bag.id}')" ${isChecked ? 'checked' : ''}>` : ''}
+                ${isInStock && hasPermission('inventory', 'stock-units', 'edit') ? `<input type="checkbox" class="stock-units-row-check" data-id="${bag.id}" onchange="StockUnits._onRowCheck(this,'${bag.id}')" ${isChecked ? 'checked' : ''}>` : ''}
             </td>
             <td class="stock-units-col-status">
                 ${isInStock ? "" : '<span class="material-symbols-outlined">check_circle</span>'}
@@ -251,17 +251,17 @@ const StockUnits = {
             <td class="stock-units-col-wait">${daysDiff}d</td>
             <td class="stock-units-col-obs">${bag.notes ?? ""}</td>
             <td class="stock-units-col-actions">
-                ${isInStock
+                ${hasPermission('inventory', 'stock-units', 'edit') ? (isInStock
                     ? `<button onclick="StockUnits.useStockUnit(event,'${bag.id}')">
                         <span class="material-symbols-outlined">output</span>
                        </button>`
                     : `<button onclick="StockUnits.returnStockUnit(event,'${bag.id}')">
                         <span class="material-symbols-outlined">undo</span>
                        </button>`
-                }
-                <button onclick="StockUnits.deleteStockUnit(event,'${bag.id}')">
+                ) : ''}
+                ${hasPermission('inventory', 'stock-units', 'delete') ? `<button onclick="StockUnits.deleteStockUnit(event,'${bag.id}')">
                     <span class="material-symbols-outlined">delete</span>
-                </button>
+                </button>` : ''}
             </td>
         `;
 
@@ -565,25 +565,27 @@ const StockUnits = {
                     </div>
                     <div class="stock-units-edit-field">
                         <label>Saída</label>
-                        <input id="date_out" type="date" class="stock-units-edit-input" onchange="StockUnits._onDateOutChange()">
+                        <input id="date_out" type="date" class="stock-units-edit-input" onchange="StockUnits._onDateOutChange()" ${hasPermission('inventory', 'stock-units', 'edit') ? '' : 'disabled'}>
                     </div>
                     <div id="deductionTypeField" class="stock-units-edit-field" style="display:none">
                         <label>Tipo de Baixa</label>
-                        <select id="deduction_type" class="stock-units-edit-input">
+                        <select id="deduction_type" class="stock-units-edit-input" ${hasPermission('inventory', 'stock-units', 'edit') ? '' : 'disabled'}>
                             <option value="uso">Uso</option>
                             <option value="ajuste">Ajuste</option>
                         </select>
                     </div>
                     <div class="stock-units-edit-field stock-units-edit-field-obs">
                         <label>Obs</label>
-                        <input id="notes" class="stock-units-edit-input" placeholder="Observação">
+                        <input id="notes" class="stock-units-edit-input" placeholder="Observação" ${hasPermission('inventory', 'stock-units', 'edit') ? '' : 'disabled'}>
                     </div>
                 </div>
             `,
-            actions: [
-                { label: 'Editar',   icon: 'edit', className: 'btn-primary', onClick: () => StockUnits.editStockUnit() },
-                { label: 'Cancelar', className: 'btn-secondary', onClick: () => StockUnits.cancelEdit() },
-            ],
+            actions: hasPermission('inventory', 'stock-units', 'edit')
+                ? [
+                    { label: 'Editar',   icon: 'edit', className: 'btn-primary', onClick: () => StockUnits.editStockUnit() },
+                    { label: 'Cancelar', className: 'btn-secondary', onClick: () => StockUnits.cancelEdit() },
+                ]
+                : [],
         });
     },
 

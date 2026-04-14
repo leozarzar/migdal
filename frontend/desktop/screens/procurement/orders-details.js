@@ -18,6 +18,12 @@ const OrdersDetails = {
     /** Indica se há alterações não salvas */
     _isDirty: false,
 
+    /** Verifica se a tela está em modo somente leitura (sem permissão de edição) */
+    _isReadOnly() {
+        if (!Orders.selectedOrder) return false;
+        return !hasPermission('procurement', 'orders', 'edit');
+    },
+
     /** Índice do item sendo editado inline (null = nenhum em edição) */
     _editingItemIndex: null,
 
@@ -302,9 +308,19 @@ const OrdersDetails = {
 
         this._renderItems();
 
-        // Marca o form como sujo em qualquer alteração de campo
-        document.querySelectorAll('#content input, #content select, #content textarea')
-            .forEach(el => el.addEventListener('change', () => this._markDirty()));
+        // Modo somente leitura: desabilita campos e oculta formulário de itens
+        if (this._isReadOnly()) {
+            document.querySelectorAll('#content input, #content select, #content textarea')
+                .forEach(el => el.disabled = true);
+            document.querySelectorAll('#content .sselect-wrap')
+                .forEach(el => el.classList.add('sselect-disabled'));
+            const formWrapper = document.querySelector('.item-form-wrapper');
+            if (formWrapper) formWrapper.style.display = 'none';
+        } else {
+            // Marca o form como sujo em qualquer alteração de campo
+            document.querySelectorAll('#content input, #content select, #content textarea')
+                .forEach(el => el.addEventListener('change', () => this._markDirty()));
+        }
     },
 
     async _refreshSelects() {
@@ -547,6 +563,7 @@ const OrdersDetails = {
 
         this.items.forEach((item, index) => {
             const isEditing = this._editingItemIndex === index;
+            const readOnly = this._isReadOnly();
             let tr;
             if (item.type === 'group') {
                 tr = createTableRow(`
@@ -554,9 +571,9 @@ const OrdersDetails = {
                     <td class="col-qty">${item.group_quantity}</td>
                     <td class="col-received">${item.receivedQuantity || ''}</td>
                     <td class="orders-details-col-actions">
-                        <button class="btn-action btn-delete" onclick="event.stopPropagation(); OrdersDetails.deleteItem(${index})" title="Remover item">
+                        ${readOnly ? '' : `<button class="btn-action btn-delete" onclick="event.stopPropagation(); OrdersDetails.deleteItem(${index})" title="Remover item">
                             <span class="material-symbols-outlined">delete</span>
-                        </button>
+                        </button>`}
                     </td>
                 `);
             } else {
@@ -565,14 +582,16 @@ const OrdersDetails = {
                     <td class="col-qty">${item.quantity}</td>
                     <td class="col-received">${item.receivedQuantity || ''}</td>
                     <td class="orders-details-col-actions">
-                        <button class="btn-action btn-delete" onclick="event.stopPropagation(); OrdersDetails.deleteItem(${index})" title="Remover item">
+                        ${readOnly ? '' : `<button class="btn-action btn-delete" onclick="event.stopPropagation(); OrdersDetails.deleteItem(${index})" title="Remover item">
                             <span class="material-symbols-outlined">delete</span>
-                        </button>
+                        </button>`}
                     </td>
                 `);
             }
-            tr.style.cursor = 'pointer';
-            tr.onclick = () => OrdersDetails.startEditItem(index);
+            if (!readOnly) {
+                tr.style.cursor = 'pointer';
+                tr.onclick = () => OrdersDetails.startEditItem(index);
+            }
             if (isEditing) tr.classList.add('orders-details-item-editing');
             tbody.appendChild(tr);
         });
@@ -586,8 +605,10 @@ const OrdersDetails = {
                 <td class="orders-details-col-actions"></td>
             `);
             tr.classList.add('orders-details-ghost-row');
-            tr.title = 'Material recebido mas não adicionado ao pedido. Clique para adicionar.';
-            tr.onclick = () => OrdersDetails.startEditGhost(ghost.material);
+            if (!this._isReadOnly()) {
+                tr.title = 'Material recebido mas não adicionado ao pedido. Clique para adicionar.';
+                tr.onclick = () => OrdersDetails.startEditGhost(ghost.material);
+            }
             tbody.appendChild(tr);
         }
     },
@@ -624,9 +645,10 @@ const OrdersDetails = {
     _setHeaderOptions() {
         const headerOptions = document.getElementById("headerOptionsContent");
         const isEditing = !!Orders.selectedOrder;
-        headerOptions.innerHTML = `
-            <button class="btn-primary" onclick="OrdersDetails.${isEditing ? 'editOrder' : 'save'}()">${isEditing ? 'Editar' : 'Salvar'}</button>
-        `;
+        const action = isEditing ? 'edit' : 'create';
+        headerOptions.innerHTML = hasPermission('procurement', 'orders', action)
+            ? `<button class="btn-primary" onclick="OrdersDetails.${isEditing ? 'editOrder' : 'save'}()">${isEditing ? 'Editar' : 'Salvar'}</button>`
+            : '';
     },
 
     /** Atualiza os textos de fornecedor e status exibidos no header */

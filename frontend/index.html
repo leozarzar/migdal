@@ -9,22 +9,36 @@
     <link rel="stylesheet" href="desktop/components/search-select-style.css">
     <link rel="stylesheet" href="desktop/components/number-input-style.css">
     <link rel="stylesheet" href="desktop/components/dialog-style.css">
-    <link rel="stylesheet" href="desktop/screens/stock-units-style.css">
-    <link rel="stylesheet" href="desktop/screens/orders-style.css">
-    <link rel="stylesheet" href="desktop/screens/orders-details-style.css">
-    <link rel="stylesheet" href="desktop/screens/receipts-style.css">
-    <link rel="stylesheet" href="desktop/screens/receipts-details-style.css">
-    <link rel="stylesheet" href="desktop/screens/materials-style.css">
-    <link rel="stylesheet" href="desktop/screens/suppliers-style.css">
-    <link rel="stylesheet" href="desktop/screens/operators-style.css">
-    <link rel="stylesheet" href="desktop/screens/dashboard-style.css">
-    <link rel="stylesheet" href="desktop/screens/stock-monitor-style.css">
-    <link rel="stylesheet" href="desktop/screens/consumption-stats-style.css">
-    <link rel="stylesheet" href="desktop/screens/stock-policies-style.css">
-    <link rel="stylesheet" href="desktop/screens/stock-policies-details-style.css">
-    <link rel="stylesheet" href="desktop/screens/groups-style.css">
-    <link rel="stylesheet" href="desktop/screens/groups-details-style.css">
-    <link rel="stylesheet" href="desktop/screens/kpi-dashboard-style.css">
+
+    <!-- Panel -->
+    <link rel="stylesheet" href="desktop/screens/panel/dashboard-style.css">
+    <link rel="stylesheet" href="desktop/screens/panel/kpi-dashboard-style.css">
+
+    <!-- Inventory -->
+    <link rel="stylesheet" href="desktop/screens/inventory/stock-units-style.css">
+    <link rel="stylesheet" href="desktop/screens/inventory/stock-monitor-style.css">
+    <link rel="stylesheet" href="desktop/screens/inventory/consumption-stats-style.css">
+    <link rel="stylesheet" href="desktop/screens/inventory/stock-policies-style.css">
+    <link rel="stylesheet" href="desktop/screens/inventory/stock-policies-details-style.css">
+
+    <!-- Procurement -->
+    <link rel="stylesheet" href="desktop/screens/procurement/orders-style.css">
+    <link rel="stylesheet" href="desktop/screens/procurement/orders-details-style.css">
+    <link rel="stylesheet" href="desktop/screens/procurement/receipts-style.css">
+    <link rel="stylesheet" href="desktop/screens/procurement/receipts-details-style.css">
+
+    <!-- Registry -->
+    <link rel="stylesheet" href="desktop/screens/registry/materials-style.css">
+    <link rel="stylesheet" href="desktop/screens/registry/suppliers-style.css">
+    <link rel="stylesheet" href="desktop/screens/registry/operators-style.css">
+    <link rel="stylesheet" href="desktop/screens/registry/groups-style.css">
+    <link rel="stylesheet" href="desktop/screens/registry/groups-details-style.css">
+
+    <!-- Admin -->
+    <link rel="stylesheet" href="desktop/screens/admin/admin-roles-style.css">
+    <link rel="stylesheet" href="desktop/screens/admin/admin-roles-details-style.css">
+    <link rel="stylesheet" href="desktop/screens/admin/admin-users-style.css">
+
     <link rel="stylesheet" href="desktop/components/toast-style.css">
     <link rel="stylesheet" href="desktop/components/notifications-style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
@@ -52,80 +66,31 @@
             WCM
         </div>
 
-        <div class="sidebar-section-label">Análises</div>
-
-        <button data-route="dashboard" onclick="showScreen('dashboard')">
-            <span class="material-symbols-outlined">dashboard</span>
-            Dashboard
-        </button>
-
-        <button data-route="stock-monitor" onclick="showScreen('stock-monitor')">
-            <span class="material-symbols-outlined">monitoring</span>
-            Monitor de Estoque
-        </button>
-
-        <button data-route="consumption-stats" onclick="showScreen('consumption-stats')">
-            <span class="material-symbols-outlined">bar_chart</span>
-            Estat. de Consumo
-        </button>
-
-        <button data-route="kpi-dashboard" onclick="showScreen('kpi-dashboard')">
-            <span class="material-symbols-outlined">query_stats</span>
-            KPIs
-        </button>
-
-        <button data-route="stock-policies" onclick="showScreen('stock-policies')">
-            <span class="material-symbols-outlined">policy</span>
-            Política de Estoque
-        </button>
-
-        <div class="sidebar-section-label">Operacional</div>
-
-        <button data-route="stock-units" onclick="showScreen('stock-units')">
-            <span class="material-symbols-outlined">inventory_2</span>
-            Estoque
-        </button>
-
-        <button data-route="orders" onclick="showScreen('orders')">
-            <span class="material-symbols-outlined">shopping_cart</span>
-            Pedidos
-        </button>
-
-        <button data-route="receipts" onclick="showScreen('receipts')">
-            <span class="material-symbols-outlined">move_to_inbox</span>
-            Recebimentos
-        </button>
-
-        <div class="sidebar-section-label">Cadastros</div>
-
-        <button data-route="materials" onclick="showScreen('materials')">
-            <span class="material-symbols-outlined">category</span>
-            Materiais
-        </button>
-
-        <button data-route="suppliers" onclick="showScreen('suppliers')">
-            <span class="material-symbols-outlined">store</span>
-            Fornecedores
-        </button>
-
-        <button data-route="operators" onclick="showScreen('operators')">
-            <span class="material-symbols-outlined">badge</span>
-            Operadores
-        </button>
-
-        <button data-route="groups" onclick="showScreen('groups')">
-            <span class="material-symbols-outlined">folder</span>
-            Grupos
-        </button>
+        <!-- Navegação gerada dinamicamente por _renderSidebar() em app.js -->
+        <nav id="sidebarNav" class="sidebar-nav"></nav>
 
         <!-- Usuário logado -->
-        <div class="sidebar-user">
-            <div class="sidebar-user-avatar" id="sidebarUserAvatar"></div>
-            <span class="sidebar-user-email" id="sidebarUserEmail"></span>
-            <button class="sidebar-user-logout" onclick="appLogout()" title="Sair">
-                <span class="material-symbols-outlined">logout</span>
+        <div class="sidebar-user-section">
+            <button class="sidebar-user" title="Perfil do usuário" disabled>
+                <div class="sidebar-user-avatar" id="sidebarUserAvatar"></div>
+                <div class="sidebar-user-info">
+                    <span class="sidebar-user-name" id="sidebarUserName"></span>
+                    <span class="sidebar-user-email" id="sidebarUserEmail"></span>
+                </div>
             </button>
         </div>
+
+        <!-- Logout -->
+        <button class="sidebar-settings" onclick="appLogout()" title="Sair">
+            <span class="material-symbols-outlined">logout</span>
+            Log out
+        </button>
+
+        <!-- Configurações -->
+        <button class="sidebar-settings" title="Configurações">
+            <span class="material-symbols-outlined">settings</span>
+            Configurações
+        </button>
 
     </div>
 
@@ -165,22 +130,34 @@
 <script src="desktop/components/search-select.js"></script>
 <script src="desktop/components/number-input.js"></script>
 <script src="desktop/components/dialog.js"></script>
-<script src="desktop/screens/stock-units.js"></script>
-<script src="desktop/screens/orders.js"></script>
-<script src="desktop/screens/orders-details.js"></script>
-<script src="desktop/screens/receipts.js"></script>
-<script src="desktop/screens/receipts-details.js"></script>
-<script src="desktop/screens/materials.js"></script>
-<script src="desktop/screens/suppliers.js"></script>
-<script src="desktop/screens/operators.js"></script>
-<script src="desktop/screens/dashboard.js"></script>
-<script src="desktop/screens/stock-monitor.js"></script>
-<script src="desktop/screens/consumption-stats.js"></script>
-<script src="desktop/screens/stock-policies.js"></script>
-<script src="desktop/screens/stock-policies-details.js"></script>
-<script src="desktop/screens/groups.js"></script>
-<script src="desktop/screens/groups-details.js"></script>
-<script src="desktop/screens/kpi-dashboard.js"></script>
+<!-- Panel -->
+<script src="desktop/screens/panel/dashboard.js"></script>
+<script src="desktop/screens/panel/kpi-dashboard.js"></script>
+
+<!-- Inventory -->
+<script src="desktop/screens/inventory/stock-units.js"></script>
+<script src="desktop/screens/inventory/stock-monitor.js"></script>
+<script src="desktop/screens/inventory/consumption-stats.js"></script>
+<script src="desktop/screens/inventory/stock-policies.js"></script>
+<script src="desktop/screens/inventory/stock-policies-details.js"></script>
+
+<!-- Procurement -->
+<script src="desktop/screens/procurement/orders.js"></script>
+<script src="desktop/screens/procurement/orders-details.js"></script>
+<script src="desktop/screens/procurement/receipts.js"></script>
+<script src="desktop/screens/procurement/receipts-details.js"></script>
+
+<!-- Registry -->
+<script src="desktop/screens/registry/materials.js"></script>
+<script src="desktop/screens/registry/suppliers.js"></script>
+<script src="desktop/screens/registry/operators.js"></script>
+<script src="desktop/screens/registry/groups.js"></script>
+<script src="desktop/screens/registry/groups-details.js"></script>
+
+<!-- Admin -->
+<script src="desktop/screens/admin/admin-roles.js"></script>
+<script src="desktop/screens/admin/admin-roles-details.js"></script>
+<script src="desktop/screens/admin/admin-users.js"></script>
 <script src="desktop/components/toast.js"></script>
 <script src="desktop/components/notifications.js"></script>
 <script src="desktop/app.js"></script>

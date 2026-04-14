@@ -15,6 +15,12 @@ const ReceiptsDetails = {
     /** Indica se há alterações não salvas */
     _isDirty: false,
 
+    /** Verifica se a tela está em modo somente leitura (sem permissão de edição) */
+    _isReadOnly() {
+        if (!Receipts.selectedReceipt) return false;
+        return !hasPermission('procurement', 'receipts', 'edit');
+    },
+
     /** Índice do item sendo editado inline (null = nenhum em edição) */
     _editingItemIndex: null,
 
@@ -245,8 +251,10 @@ const ReceiptsDetails = {
 
         if (Receipts.selectedReceipt) {
             const saveBtn = document.getElementById("saveBtn");
-            saveBtn.textContent = "Editar";
-            saveBtn.onclick = () => this.editReceipt();
+            if (saveBtn) {
+                saveBtn.textContent = "Editar";
+                saveBtn.onclick = () => this.editReceipt();
+            }
             document.getElementById("receiptCode").value = "#" + Receipts.selectedReceipt.nature + Receipts.selectedReceipt.id;
 
             // Define a natureza e atualiza visibilidade dos cards conforme tipo
@@ -261,16 +269,28 @@ const ReceiptsDetails = {
             if (Receipts.selectedReceipt.order_id) this._orderSelect.select('order', Receipts.selectedReceipt.order_id);
         } else {
             const saveBtn = document.getElementById("saveBtn");
-            saveBtn.textContent = "Salvar";
-            saveBtn.onclick = () => this.save();
+            if (saveBtn) {
+                saveBtn.textContent = "Salvar";
+                saveBtn.onclick = () => this.save();
+            }
         }
 
         this._refreshItemsView();
         this._setNextItemCode();
 
-        // Marca o form como sujo em qualquer alteração de campo (campos nativos restantes)
-        document.querySelectorAll('#content input, #content select, #content textarea')
-            .forEach(el => el.addEventListener('change', () => this._markDirty()));
+        // Modo somente leitura: desabilita campos e oculta formulário de itens
+        if (this._isReadOnly()) {
+            document.querySelectorAll('#content input, #content select, #content textarea')
+                .forEach(el => el.disabled = true);
+            document.querySelectorAll('#content .sselect-wrap')
+                .forEach(el => el.classList.add('sselect-disabled'));
+            const formWrapper = document.querySelector('.item-form-wrapper');
+            if (formWrapper) formWrapper.style.display = 'none';
+        } else {
+            // Marca o form como sujo em qualquer alteração de campo (campos nativos restantes)
+            document.querySelectorAll('#content input, #content select, #content textarea')
+                .forEach(el => el.addEventListener('change', () => this._markDirty()));
+        }
     },
 
     async _refreshSelects() {
@@ -563,6 +583,7 @@ const ReceiptsDetails = {
             // Linhas de cada item do grupo
             for (const { item, index } of entries) {
                 const isEditing = this._editingItemIndex === index;
+                const readOnly = this._isReadOnly();
                 const operatorCell = showOperatorColumn
                     ? `<td class="col-operator">${item.operator || "-"}</td>`
                     : "";
@@ -572,13 +593,15 @@ const ReceiptsDetails = {
                     ${operatorCell}
                     <td class="col-qty">${item.quantity}</td>
                     <td class="col-actions">
-                        <button class="btn-action btn-delete" onclick="event.stopPropagation(); ReceiptsDetails.deleteItem(${index})" title="Remover item">
+                        ${readOnly ? '' : `<button class="btn-action btn-delete" onclick="event.stopPropagation(); ReceiptsDetails.deleteItem(${index})" title="Remover item">
                             <span class="material-symbols-outlined">delete</span>
-                        </button>
+                        </button>`}
                     </td>
                 `);
-                tr.style.cursor = 'pointer';
-                tr.onclick = () => ReceiptsDetails.startEditItem(index);
+                if (!readOnly) {
+                    tr.style.cursor = 'pointer';
+                    tr.onclick = () => ReceiptsDetails.startEditItem(index);
+                }
                 if (isEditing) tr.classList.add('receipts-details-item-editing');
                 tbody.appendChild(tr);
             }
@@ -598,12 +621,13 @@ const ReceiptsDetails = {
     _setHeaderOptions() {
         const headerOptions = document.getElementById("headerOptionsContent");
         const isSaveMode = !Receipts.selectedReceipt;
+        const action = isSaveMode ? 'create' : 'edit';
         const buttonText = isSaveMode ? "Salvar" : "Editar";
         const buttonAction = isSaveMode ? "ReceiptsDetails.save()" : "ReceiptsDetails.editReceipt()";
 
-        headerOptions.innerHTML = `
+        headerOptions.innerHTML = hasPermission('procurement', 'receipts', action) ? `
             <button id="saveBtn" class="btn-primary" onclick="${buttonAction}">${buttonText}</button>
-        `;
+        ` : '';
     },
 
     /** Atualiza os campos exibidos no header conforme natureza selecionada */

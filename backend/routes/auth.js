@@ -171,9 +171,11 @@ router.get('/verify', (req, res) => {
     }
 
     db.get(
-        `SELECT s.token, u.email, u.name
+        `SELECT s.token, s.user_id, u.email, u.name, u.role_id,
+                r.name AS role_name, r.is_admin
          FROM sessions s
          JOIN users u ON s.user_id = u.id
+         LEFT JOIN roles r ON r.id = u.role_id
          WHERE s.token = ? AND s.expires_at > datetime('now')`,
         [token],
         (err, session) => {
@@ -183,7 +185,50 @@ router.get('/verify', (req, res) => {
             if (!session) {
                 return res.status(401).json({ success: false, message: 'Sessão inválida ou expirada.' });
             }
-            res.json({ success: true, email: session.email, name: session.name });
+
+            // Se admin, retorna direto sem buscar permissões granulares
+            if (session.is_admin) {
+                return res.json({
+                    success: true,
+                    email: session.email,
+                    name: session.name,
+                    user: { id: session.user_id, name: session.name, role: session.role_name, isAdmin: true },
+                    permissions: []
+                });
+            }
+
+            // Buscar permissões granulares do papel
+            if (!session.role_id) {
+                return res.json({
+                    success: true,
+                    email: session.email,
+                    name: session.name,
+                    user: { id: session.user_id, name: session.name, role: null, isAdmin: false },
+                    permissions: []
+                });
+            }
+
+            db.all(
+                `SELECT module, screen, actions FROM role_permissions WHERE role_id = ?`,
+                [session.role_id],
+                (err2, perms) => {
+                    if (err2) {
+                        return res.status(500).json({ success: false, message: 'Erro ao buscar permissões.', error: err2.message });
+                    }
+                    const parsed = (perms || []).map(p => ({
+                        module: p.module,
+                        screen: p.screen,
+                        actions: JSON.parse(p.actions || '[]')
+                    }));
+                    res.json({
+                        success: true,
+                        email: session.email,
+                        name: session.name,
+                        user: { id: session.user_id, name: session.name, role: session.role_name, isAdmin: false },
+                        permissions: parsed
+                    });
+                }
+            );
         }
     );
 });

@@ -6,6 +6,7 @@
 
 const router = require("express").Router();
 const db = require("../db");
+const requirePermission = require('../middleware/require-permission');
 
 // ── Table Setup ──────────────────────────────────────────────────────────
 
@@ -117,7 +118,7 @@ router.get("/:id/stock-units", (req, res) => {
 /**
  * POST /orders - Cria um novo pedido
  */
-router.post("/", (req, res) => {
+router.post("/", requirePermission('procurement', 'orders', 'create'), (req, res) => {
     const { date, supplier, due_date, expected_date, status } = req.body;
 
     db.run(
@@ -140,7 +141,7 @@ router.post("/", (req, res) => {
 /**
  * POST /orders/items - Adiciona um item a um pedido
  */
-router.post("/items", (req, res) => {
+router.post("/items", requirePermission('procurement', 'orders', 'edit'), (req, res) => {
     const { order_id, material, quantity, group_id, group_quantity } = req.body;
 
     db.run(
@@ -165,7 +166,7 @@ router.post("/items", (req, res) => {
 /**
  * PUT /orders/update - Atualiza um pedido existente
  */
-router.put("/update", (req, res) => {
+router.put("/update", requirePermission('procurement', 'orders', 'edit'), (req, res) => {
     const { id, date, supplier, due_date, expected_date, status } = req.body;
 
     db.run(
@@ -195,7 +196,7 @@ router.put("/update", (req, res) => {
 /**
  * DELETE /orders/items - Deleta todos os itens de um pedido por order_id
  */
-router.delete("/items", (req, res) => {
+router.delete("/items", requirePermission('procurement', 'orders', 'edit'), (req, res) => {
     const { id } = req.body;
 
     db.run(
@@ -222,7 +223,7 @@ router.delete("/items", (req, res) => {
 /**
  * DELETE /orders/:id - Deleta um pedido e todos os seus itens
  */
-router.delete("/:id", (req, res) => {
+router.delete("/:id", requirePermission('procurement', 'orders', 'delete'), (req, res) => {
     const { id } = req.params;
 
     // Deleta itens do pedido primeiro

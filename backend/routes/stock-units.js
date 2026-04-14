@@ -6,6 +6,7 @@
 
 const router = require("express").Router();
 const db = require("../db");
+const requirePermission = require('../middleware/require-permission');
 
 function normalizeVolumeId(volumeId) {
     if (volumeId === null || volumeId === undefined || String(volumeId).trim() === "") {
@@ -50,7 +51,7 @@ router.get("/", (req, res) => {
 /**
  * POST /stock-units - Cria uma nova unidade de estoque
  */
-router.post("/", (req, res) => {
+router.post("/", requirePermission('inventory', 'stock-units', 'create'), (req, res) => {
     const { receipt_id, volume_id, old_id, material, supplier, operator, weight, status, date_in, date_out, notes, deduction_type } = req.body;
     const normalizedVolumeId = normalizeVolumeId(volume_id);
 
@@ -85,7 +86,7 @@ router.post("/", (req, res) => {
  * PUT /stock-units/:id/out - Marca unidade como saída (OUT_STOCK)
  * Sets the date_out to today and deduction_type to "uso".
  */
-router.put("/:id/out", (req, res) => {
+router.put("/:id/out", requirePermission('inventory', 'stock-units', 'edit'), (req, res) => {
     const { id } = req.params;
     const date = new Date().toISOString().slice(0, 10);
 
@@ -111,7 +112,7 @@ router.put("/:id/out", (req, res) => {
  * PUT /stock-units/:id/in - Reverte unidade para estoque (IN_STOCK)
  * Clears date_out and deduction_type.
  */
-router.put("/:id/in", (req, res) => {
+router.put("/:id/in", requirePermission('inventory', 'stock-units', 'edit'), (req, res) => {
     const { id } = req.params;
 
     db.run(
@@ -135,7 +136,7 @@ router.put("/:id/in", (req, res) => {
 /**
  * PUT /stock-units/update - Atualiza campos de uma unidade de estoque
  */
-router.put("/update", (req, res) => {
+router.put("/update", requirePermission('inventory', 'stock-units', 'edit'), (req, res) => {
     const { id, status, date_out, notes, deduction_type } = req.body;
     const normalizedDateOut = (date_out == null || date_out === "") ? null : date_out;
 
@@ -164,7 +165,7 @@ router.put("/update", (req, res) => {
 /**
  * PUT /stock-units/:id - Atualiza dados de uma unidade de estoque sem alterar status e datas
  */
-router.put("/:id", (req, res) => {
+router.put("/:id", requirePermission('inventory', 'stock-units', 'edit'), (req, res) => {
     const { id } = req.params;
     const { volume_id, material, weight, operator } = req.body;
     const normalizedVolumeId = normalizeVolumeId(volume_id);
@@ -199,7 +200,7 @@ router.put("/:id", (req, res) => {
 /**
  * DELETE /stock-units/:id - Deleta uma unidade de estoque
  */
-router.delete("/:id", (req, res) => {
+router.delete("/:id", requirePermission('inventory', 'stock-units', 'delete'), (req, res) => {
     const { id } = req.params;
 
     db.run(

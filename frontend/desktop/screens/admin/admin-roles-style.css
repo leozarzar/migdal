@@ -1,0 +1,164 @@
+/* ══════════════════════════════════════════════════════════════
+   Admin — Papéis (lista)
+   ══════════════════════════════════════════════════════════════ */
+
+.admin-roles-container {
+    width: 100%;
+    padding: 10px;
+}
+
+.admin-roles-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    padding: 16px;
+    overflow: hidden;
+}
+
+.admin-roles-table-container {
+    max-height: 490px;
+    overflow: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.admin-roles-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.admin-roles-table thead th {
+    text-align: left;
+    font-weight: 600;
+    padding: 8px 16px;
+    background: linear-gradient(#f3f4f6, #e9ebef);
+    border-bottom: 1px solid #dcdfe4;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.admin-roles-table tbody td {
+    padding: 6px 16px;
+    border-bottom: 1px solid #eceef2;
+}
+
+.admin-roles-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-roles-table tbody tr:hover {
+    background-color: #f4f6f8;
+    cursor: pointer;
+}
+
+/* Badge de tipo */
+
+.admin-roles-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.admin-roles-badge--admin {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.admin-roles-badge--custom {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+/* Ações */
+
+.admin-roles-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.admin-roles-actions button {
+    background: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    transition: all 0.15s;
+}
+
+.admin-roles-actions button:hover {
+    background: #f8fafc;
+    color: #1e293b;
+    border-color: #cbd5e1;
+}
+
+.admin-roles-actions button.btn-danger:hover {
+    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fca5a5;
+}
+
+.admin-roles-actions .material-symbols-outlined {
+    font-size: 16px;
+}
+
+.admin-roles-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.admin-roles-badge--admin {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.admin-roles-badge--custom {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.admin-roles-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.admin-roles-actions button {
+    background: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s;
+}
+
+.admin-roles-actions button:hover {
+    background: #f8fafc;
+    color: #1e293b;
+    border-color: #cbd5e1;
+}
+
+.admin-roles-actions button.btn-danger:hover {
+    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fca5a5;
+}
+
+.admin-roles-actions .material-symbols-outlined {
+    font-size: 16px;
+}

@@ -72,6 +72,9 @@ const Materials = {
         this._resetForm();
         this._setHeaderOptions();
 
+        const formWrapper = document.querySelector('.materials-form-wrapper');
+        if (formWrapper) formWrapper.style.display = hasPermission('registry', 'materials', 'create') ? '' : 'none';
+
         try {
             const [materials, groups] = await Promise.all([
                 apiCall(API + "/materials"),
@@ -90,6 +93,9 @@ const Materials = {
 
     /** Salva um novo material ou atualiza o selecionado. */
     async saveMaterial() {
+        const action = this.selectedMaterial ? 'edit' : 'create';
+        if (!hasPermission('registry', 'materials', action)) return;
+
         const name = document.getElementById("materialName").value.trim();
         const color = document.getElementById("materialColor")?.value || null;
         const groupSel = this._groupSelect?.getValue();
@@ -181,9 +187,14 @@ const Materials = {
             return;
         }
 
+        const canEdit = hasPermission('registry', 'materials', 'edit');
         materials.forEach(material => {
             const tr = this._createTableRow(material);
-            tr.onclick = () => this.selectMaterial(material, tr);
+            if (canEdit) {
+                tr.onclick = () => this.selectMaterial(material, tr);
+            } else {
+                tr.style.cursor = 'default';
+            }
             tbody.appendChild(tr);
         });
     },
@@ -200,9 +211,9 @@ const Materials = {
             <td class="materials-col-color">${swatch}</td>
             <td class="materials-col-name">${material.name}</td>
             <td class="materials-col-actions">
-                <button onclick="Materials.deleteMaterial(event, ${material.id})">
+                ${hasPermission('registry', 'materials', 'delete') ? `<button onclick="Materials.deleteMaterial(event, ${material.id})">
                     <span class="material-symbols-outlined">delete</span>
-                </button>
+                </button>` : ''}
             </td>
         `;
 

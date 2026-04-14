@@ -36,6 +36,7 @@ const kpisRoutes             = require('./routes/kpis');            // KPI dashb
 const notificationsRoutes    = require("./routes/notifications");   // Notification alerts
 const weeklyReportRoutes     = require("./routes/weekly-report");   // Weekly AI report
 const authRoutes             = require("./routes/auth");             // Authentication
+const rolesRoutes            = require("./routes/roles");            // Roles & permissions
 // ── Middleware ────────────────────────────────────────────────────────────
 
 const app = express();
@@ -102,18 +103,45 @@ app.use((req, res, next) => {
     }
 
     db.get(
-        `SELECT user_id FROM sessions WHERE token = ? AND expires_at > datetime('now')`,
+        `SELECT s.user_id, u.name, u.role_id, r.is_admin
+         FROM sessions s
+         JOIN users u ON s.user_id = u.id
+         LEFT JOIN roles r ON r.id = u.role_id
+         WHERE s.token = ? AND s.expires_at > datetime('now')`,
         [token],
         (err, session) => {
             if (err || !session) {
                 return res.status(401).json({ success: false, message: 'Sessão inválida ou expirada.' });
             }
+            req.user = {
+                id: session.user_id,
+                name: session.name,
+                roleId: session.role_id,
+                isAdmin: !!session.is_admin
+            };
             next();
         }
     );
 });
 
+const requirePermission = require('./middleware/require-permission');
+
 // ── Route Mounting ────────────────────────────────────────────────────────
+
+// Helper: aplica requirePermission por método HTTP a um router montado
+function withPermissions(routeModule, module, screen) {
+    const wrapper = express.Router();
+    wrapper.use((req, res, next) => {
+        let action = null;
+        if (req.method === 'POST')   action = 'create';
+        if (req.method === 'PUT' || req.method === 'PATCH') action = 'edit';
+        if (req.method === 'DELETE') action = 'delete';
+        if (!action) return next(); // GET → sem restrição de ação
+        requirePermission(module, screen, action)(req, res, next);
+    });
+    wrapper.use(routeModule);
+    return wrapper;
+}
 
 app.use("/stock-units", stockUnitsRoutes);
 app.use("/stock-monitor", stockMonitorRoutes);
@@ -121,16 +149,17 @@ app.use("/stock-policies", stockPoliciesRoutes);
 
 app.use("/orders", ordersRoutes);
 app.use("/receipts", receiptsRoutes);
-app.use("/suppliers", suppliersRoutes);
+app.use("/suppliers", withPermissions(suppliersRoutes, 'registry', 'suppliers'));
 
-app.use("/materials", materialsRoutes);
-app.use("/groups", groupsRoutes);
-app.use("/operators", operatorsRoutes);
+app.use("/materials", withPermissions(materialsRoutes, 'registry', 'materials'));
+app.use("/groups", withPermissions(groupsRoutes, 'registry', 'groups'));
+app.use("/operators", withPermissions(operatorsRoutes, 'registry', 'operators'));
 app.use("/consumption", consumptionRoutes);
 app.use('/kpis', kpisRoutes);
 app.use("/notifications", notificationsRoutes);
 app.use("/weekly-report", weeklyReportRoutes);
 app.use("/auth", authRoutes);
+app.use("/roles", rolesRoutes);
 
 // ── Cron: relatório semanal às segunda-feira 07:00 ────────────────────────
 

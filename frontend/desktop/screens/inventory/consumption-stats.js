@@ -635,6 +635,11 @@ const ConsumptionStats = {
         const linkBtn = document.getElementById("cstatsLinkBtn");
         if (!linkBtn) return;
 
+        if (!hasPermission('inventory', 'consumption-stats', 'edit')) {
+            linkBtn.style.display = "none";
+            return;
+        }
+
         this._policyItems = [];
 
         if (this.selectedType === 'group') {

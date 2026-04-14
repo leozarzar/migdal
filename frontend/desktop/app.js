@@ -33,35 +33,93 @@ async function appLogout() {
     window.location.replace('/login');
 }
 
+// ══════════════════════════════════════════════════════════════════
+// ══ Registro de Módulos ══
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * Registro central de módulos do ERP.
+ * Cada módulo agrupa telas relacionadas e define metadados para a sidebar.
+ *
+ * Propriedades de tela:
+ *   title  — título exibido na sidebar e na aba
+ *   module — objeto literal da tela (Screen Object)
+ *   icon   — ícone Material Symbols (opcional; para itens da sidebar)
+ *   parent — rota pai para breadcrumb (telas de detalhe)
+ *   hidden — se true, não aparece na sidebar (telas de detalhe)
+ */
+const MODULE_REGISTRY = {
+    panel: {
+        name: 'Painel',
+        icon: 'dashboard',
+        order: 1,
+        screens: {
+            dashboard:       { title: 'Dashboard',    module: Dashboard,    icon: 'dashboard',    actions: ['view'] },
+            'kpi-dashboard': { title: 'KPIs',         module: KpiDashboard, icon: 'query_stats',  actions: ['view'] },
+        }
+    },
+    inventory: {
+        name: 'Estoque',
+        icon: 'inventory_2',
+        order: 2,
+        screens: {
+            'stock-units':            { title: 'Estoque',             module: StockUnits,           icon: 'inventory_2', actions: ['view', 'edit', 'delete'] },
+            'stock-monitor':          { title: 'Monitor de Estoque',  module: StockMonitor,         icon: 'monitoring',  actions: ['view'] },
+            'consumption-stats':      { title: 'Estat. de Consumo',   module: ConsumptionStats,     icon: 'bar_chart',   actions: ['view', 'edit'] },
+            'stock-policies':         { title: 'Política de Estoque', module: StockPolicies,        icon: 'policy',      actions: ['view', 'create', 'edit', 'delete'] },
+            'stock-policies-details': { title: 'Política de Estoque', module: StockPoliciesDetails, parent: 'stock-policies', hidden: true },
+        }
+    },
+    procurement: {
+        name: 'Compras',
+        icon: 'shopping_cart',
+        order: 3,
+        screens: {
+            orders:            { title: 'Pedidos',       module: Orders,          icon: 'shopping_cart',  actions: ['view', 'create', 'edit', 'delete'] },
+            'order-details':   { title: 'Detalhes',      module: OrdersDetails,   parent: 'orders',   hidden: true },
+            receipts:          { title: 'Recebimentos',  module: Receipts,        icon: 'move_to_inbox',  actions: ['view', 'create', 'edit', 'delete'] },
+            'receipt-details': { title: 'Detalhes',      module: ReceiptsDetails, parent: 'receipts', hidden: true },
+        }
+    },
+    registry: {
+        name: 'Cadastros',
+        icon: 'app_registration',
+        order: 4,
+        screens: {
+            materials:        { title: 'Materiais',    module: Materials,     icon: 'category',  actions: ['view', 'create', 'edit', 'delete'] },
+            suppliers:        { title: 'Fornecedores', module: Suppliers,     icon: 'store',     actions: ['view', 'create', 'edit', 'delete'] },
+            operators:        { title: 'Operadores',   module: Operators,     icon: 'badge',     actions: ['view', 'create', 'edit', 'delete'] },
+            groups:           { title: 'Grupos',       module: Groups,        icon: 'folder',    actions: ['view', 'create', 'edit', 'delete'] },
+            'groups-details': { title: 'Grupo',        module: GroupsDetails, parent: 'groups', hidden: true },
+        }
+    },
+    admin: {
+        name: 'Admin',
+        icon: 'admin_panel_settings',
+        order: 99,
+        screens: {
+            'admin-roles':         { title: 'Papéis',    module: AdminRoles,        icon: 'shield_person',  actions: ['view', 'create', 'edit', 'delete'] },
+            'admin-roles-details': { title: 'Detalhes',  module: AdminRolesDetails, parent: 'admin-roles', hidden: true },
+            'admin-users':         { title: 'Usuários',  module: AdminUsers,        icon: 'group',          actions: ['view', 'create', 'edit', 'delete'] },
+        }
+    },
+};
+
 /**
  * Mapa de rotas da aplicação.
- * Define título e módulo renderizador para cada tela.
+ * Gerado automaticamente a partir do MODULE_REGISTRY.
  */
-const ROUTES = {
-    // ── Analítico ──
-    dashboard:              { title: "Dashboard",              module: Dashboard },
-    'consumption-stats':    { title: "Estatística de Consumo", module: ConsumptionStats },
-    'kpi-dashboard':        { title: "KPIs",                   module: KpiDashboard },
-
-    // ── Estoque ──
-    'stock-units':            { title: "Estoque",             module: StockUnits },
-    'stock-monitor':          { title: "Monitor de Estoque",  module: StockMonitor },
-    'stock-policies':         { title: "Política de Estoque", module: StockPolicies },
-    'stock-policies-details': { title: "Política de Estoque", module: StockPoliciesDetails, parent: 'stock-policies' },
-
-    // ── Compras ──
-    orders:            { title: "Pedidos",                 module: Orders },
-    "order-details":   { title: "Detalhes",                module: OrdersDetails,         parent: 'orders' },
-    receipts:          { title: "Recebimentos",            module: Receipts },
-    "receipt-details": { title: "Detalhes",                module: ReceiptsDetails,        parent: 'receipts' },
-
-    // ── Cadastros ──
-    materials:        { title: "Materiais",    module: Materials },
-    suppliers:        { title: "Fornecedores", module: Suppliers },
-    operators:        { title: "Operadores",   module: Operators },
-    groups:           { title: "Grupos",       module: Groups },
-    'groups-details': { title: "Grupo",        module: GroupsDetails, parent: 'groups' },
-};
+const ROUTES = {};
+for (const [moduleId, mod] of Object.entries(MODULE_REGISTRY)) {
+    for (const [screenId, screen] of Object.entries(mod.screens)) {
+        ROUTES[screenId] = {
+            title:  screen.title,
+            module: screen.module,
+            parent: screen.parent || undefined,
+            _moduleId: moduleId,
+        };
+    }
+}
 
 // ══════════════════════════════════════════════════════════════════
 // ══ Estado de abas ══
@@ -164,6 +222,76 @@ function _renderTabBar() {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// ══ Sidebar dinâmica ══
+// ══════════════════════════════════════════════════════════════════
+
+const SIDEBAR_STORAGE_PREFIX = 'wcm.sidebar.';
+
+/**
+ * Gera o HTML da sidebar a partir do MODULE_REGISTRY.
+ * Cada módulo é uma seção colapsável (accordion).
+ * Módulos/telas são filtrados conforme permissões do usuário.
+ * O estado aberto/fechado é salvo em localStorage.
+ */
+function _renderSidebar() {
+    const nav = document.getElementById('sidebarNav');
+    if (!nav) return;
+
+    const sorted = Object.entries(MODULE_REGISTRY)
+        .sort(([, a], [, b]) => a.order - b.order);
+
+    let html = '';
+    for (const [moduleId, mod] of sorted) {
+        // Filtrar por permissão de módulo
+        if (!hasModuleAccess(moduleId)) continue;
+
+        // Coletar telas visíveis (não hidden e com permissão)
+        const visibleScreens = Object.entries(mod.screens)
+            .filter(([, s]) => !s.hidden)
+            .filter(([screenId]) => hasScreenAccess(moduleId, screenId));
+
+        if (visibleScreens.length === 0) continue;
+
+        const storageKey = SIDEBAR_STORAGE_PREFIX + moduleId;
+        const isOpen = localStorage.getItem(storageKey) !== 'closed';
+
+        html += `<div class="sidebar-module" data-module="${moduleId}">`;
+        html += `<button class="sidebar-module-header" onclick="_toggleSidebarModule('${moduleId}')">
+                    <span class="material-symbols-outlined sidebar-module-icon">${mod.icon}</span>
+                    <span class="sidebar-module-name">${mod.name}</span>
+                    <span class="material-symbols-outlined sidebar-module-chevron">${isOpen ? 'expand_less' : 'expand_more'}</span>
+                 </button>`;
+        html += `<div class="sidebar-module-screens${isOpen ? '' : ' sidebar-module-screens--collapsed'}">`;
+
+        for (const [screenId, screen] of visibleScreens) {
+            html += `<button class="sidebar-screen-btn" data-route="${screenId}" onclick="showScreen('${screenId}')">${screen.title}</button>`;
+        }
+
+        html += `</div></div>`;
+    }
+
+    nav.innerHTML = html;
+}
+
+/**
+ * Alterna o estado de um módulo da sidebar (aberto/fechado).
+ * @param {string} moduleId
+ */
+function _toggleSidebarModule(moduleId) {
+    const storageKey = SIDEBAR_STORAGE_PREFIX + moduleId;
+    const moduleEl = document.querySelector(`.sidebar-module[data-module="${moduleId}"]`);
+    if (!moduleEl) return;
+
+    const screensEl = moduleEl.querySelector('.sidebar-module-screens');
+    const chevronEl = moduleEl.querySelector('.sidebar-module-chevron');
+    if (!screensEl) return;
+
+    const isCollapsed = screensEl.classList.toggle('sidebar-module-screens--collapsed');
+    localStorage.setItem(storageKey, isCollapsed ? 'closed' : 'open');
+    if (chevronEl) chevronEl.textContent = isCollapsed ? 'expand_more' : 'expand_less';
+}
+
+// ══════════════════════════════════════════════════════════════════
 // ══ Utilitários internos ══
 // ══════════════════════════════════════════════════════════════════
 
@@ -172,9 +300,41 @@ function _updateSidebarActive(routeName) {
     const route = ROUTES[routeName];
     if (!route) return;
     const activeRouteKey = route.parent || routeName;
-    document.querySelectorAll('.sidebar button[data-route]').forEach(btn => {
+
+    // Expandir o módulo que contém a rota ativa
+    if (route._moduleId) {
+        const moduleEl = document.querySelector(`.sidebar-module[data-module="${route._moduleId}"]`);
+        if (moduleEl) {
+            const screensEl = moduleEl.querySelector('.sidebar-module-screens');
+            const chevronEl = moduleEl.querySelector('.sidebar-module-chevron');
+            if (screensEl && screensEl.classList.contains('sidebar-module-screens--collapsed')) {
+                screensEl.classList.remove('sidebar-module-screens--collapsed');
+                if (chevronEl) chevronEl.textContent = 'expand_less';
+                localStorage.setItem(SIDEBAR_STORAGE_PREFIX + route._moduleId, 'open');
+            }
+        }
+    }
+
+    document.querySelectorAll('.sidebar-screen-btn[data-route]').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.route === activeRouteKey);
     });
+}
+
+/**
+ * Retorna a primeira rota acessível ao usuário (para fallback de navegação).
+ * @returns {string}
+ */
+function _getFirstAccessibleRoute() {
+    const sorted = Object.entries(MODULE_REGISTRY)
+        .sort(([, a], [, b]) => a.order - b.order);
+    for (const [moduleId, mod] of sorted) {
+        if (!hasModuleAccess(moduleId)) continue;
+        for (const [screenId, screen] of Object.entries(mod.screens)) {
+            if (screen.hidden) continue;
+            if (hasScreenAccess(moduleId, screenId)) return screenId;
+        }
+    }
+    return 'dashboard'; // fallback absoluto
 }
 
 /** Salva o conteúdo de #headerOptionsContent para a aba especificada. */
@@ -387,10 +547,20 @@ async function closeTab(tabId) {
 /**
  * Navega para uma tela dentro da aba ativa, re-renderizando seu conteúdo.
  * Dispara canLeave() no módulo atualmente exibido na aba ativa.
+ * Verifica permissão de acesso antes de renderizar.
  * Chamado pelos botões da sidebar e por links internos das telas.
  * @param {string} name - Nome da rota
  */
 async function showScreen(name) {
+    // Verificar permissão de acesso à rota
+    const targetRoute = ROUTES[name];
+    if (targetRoute && targetRoute._moduleId) {
+        if (!hasScreenAccess(targetRoute._moduleId, targetRoute.parent || name)) {
+            alert('Você não tem permissão para acessar esta tela.');
+            return;
+        }
+    }
+
     const activeRoute = _getActiveRoute();
     if (activeRoute && activeRoute.module && typeof activeRoute.module.canLeave === 'function') {
         const allowed = await activeRoute.module.canLeave();
@@ -422,13 +592,18 @@ async function showScreen(name) {
     }
 
     // Valida o token no backend (pode ter expirado)
+    let authData;
     try {
         const res = await fetch(`${API}/auth/verify`, {
             headers: { 'x-auth-token': token }
         });
         if (!res.ok) throw new Error();
-        const data = await res.json();
-        if (data.name) localStorage.setItem('wcm.auth.name', data.name);
+        authData = await res.json();
+        if (authData.name) localStorage.setItem('wcm.auth.name', authData.name);
+
+        // Armazenar dados de permissão no estado global
+        window.AppUser = authData.user || { id: null, name: authData.name, role: null, isAdmin: false };
+        window.AppPermissions = authData.permissions || [];
     } catch {
         localStorage.removeItem('wcm.auth.token');
         localStorage.removeItem('wcm.auth.email');
@@ -438,19 +613,25 @@ async function showScreen(name) {
     }
 
     // ── Popula sidebar ────────────────────────────────────────
+    _renderSidebar();
+
     const name    = localStorage.getItem('wcm.auth.name')  || '';
     const email   = localStorage.getItem('wcm.auth.email') || '';
-    const display = name || email;
+    const nameEl   = document.getElementById('sidebarUserName');
     const emailEl  = document.getElementById('sidebarUserEmail');
     const avatarEl = document.getElementById('sidebarUserAvatar');
-    if (emailEl)  emailEl.textContent  = display;
+    const display  = name || email;
+    if (nameEl)   nameEl.textContent   = name || email;
+    if (emailEl)  emailEl.textContent  = name ? email : '';
     if (avatarEl) avatarEl.textContent = display.charAt(0).toUpperCase();
 
     // ── Restauração de abas e roteamento ──────────────────────
     const restored = _restoreTabs();
 
     if (!restored) {
-        _tabs = [{ id: _nextTabId++, route: 'dashboard', title: 'Dashboard' }];
+        const defaultRoute = _getFirstAccessibleRoute();
+        const defaultTitle = ROUTES[defaultRoute] ? ROUTES[defaultRoute].title : 'Dashboard';
+        _tabs = [{ id: _nextTabId++, route: defaultRoute, title: defaultTitle }];
         _activeTabId = _tabs[0].id;
     }
 
