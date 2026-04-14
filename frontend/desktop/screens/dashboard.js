@@ -28,6 +28,7 @@ const Dashboard = {
     _groupedMaterialNames: null,
     _leadTimeCache: {},
     _materialColorMap: {},
+    _kpiSnapshot: null,
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Ciclo de Vida
@@ -76,6 +77,16 @@ const Dashboard = {
                     </div>
                 </div>
                 <div id="consumptionTooltip" class="consumption-tooltip"></div>
+            </div>
+
+            <div class="consumption-kpi-card">
+                <div class="consumption-kpi-head">
+                    <h2 class="consumption-kpi-title">Indicadores — últ. 30 dias</h2>
+                    <p class="consumption-kpi-subtitle" id="consumptionKpiSubtitle">vs. mês anterior</p>
+                </div>
+                <div id="consumptionKpiBody" class="consumption-kpi-grid">
+                    <p class="consumption-kpi-empty">Selecione uma política de estoque para visualizar os indicadores.</p>
+                </div>
             </div>
 
             <div class="consumption-balance-card">
@@ -137,6 +148,8 @@ const Dashboard = {
             alert("Erro ao carregar dados de consumo");
         }
     },
+
+    async onTabFocus() { return this.load(); },
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Eventos
@@ -627,6 +640,7 @@ const Dashboard = {
             this._groupedMaterialNames = null;
             this.selectedMaterials = [];
             this._renderBalanceTable();
+            this._loadKpiSnapshot();
             await this.refresh();
             return;
         }
@@ -652,11 +666,107 @@ const Dashboard = {
             this._assignMaterialColors();
             await Promise.all([
                 this.refresh(),
-                this._computeBalanceData()
+                this._computeBalanceData(),
+                this._loadKpiSnapshot()
             ]);
         } catch {
             alert("Erro ao carregar política de estoque");
         }
+    },
+
+    // ─── KPI Snapshot card ─────────────────────────────────────────────────────────
+
+    /**
+     * Busca snapshot de todos os KPIs para o mês atual e o anterior e renderiza o card.
+     */
+    async _loadKpiSnapshot() {
+        const body = document.getElementById('consumptionKpiBody');
+        if (!body) return;
+
+        if (!this._selectedPolicyId) {
+            this._kpiSnapshot = null;
+            body.innerHTML = '<p class="consumption-kpi-empty">Selecione uma política de estoque para visualizar os indicadores.</p>';
+            return;
+        }
+
+        body.innerHTML = `<div class="consumption-kpi-loading">
+            <span class="material-symbols-outlined consumption-balance-loading-icon">autorenew</span>
+            Calculando indicadores…
+        </div>`;
+
+        try {
+            const params   = new URLSearchParams({ policy_id: this._selectedPolicyId });
+            const snapshot = await apiCall(`${API}/kpis/snapshot?${params.toString()}`);
+            this._kpiSnapshot = snapshot;
+            this._renderKpiTiles(snapshot);
+        } catch {
+            if (body) body.innerHTML = '<p class="consumption-kpi-empty">Erro ao carregar indicadores.</p>';
+        }
+    },
+
+    /**
+     * Renderiza os tiles de KPI no card, com valor atual e variação vs mês anterior.
+     * @param {Object} snapshot - Retorno de /kpis/snapshot
+     */
+    _renderKpiTiles(snapshot) {
+        const body = document.getElementById('consumptionKpiBody');
+        if (!body || !snapshot) return;
+
+        const fmtDate = s => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
+
+        const sub = document.getElementById('consumptionKpiSubtitle');
+        if (sub) {
+            const cp = snapshot.current_period;
+            const pp = snapshot.prev_period;
+            sub.textContent = `${fmtDate(cp.start)} → ${fmtDate(cp.end)} · vs. ${fmtDate(pp.start)} → ${fmtDate(pp.end)}`;
+        }
+
+        const KPI_DEFS = [
+            { id: 'turnover',  label: 'Giro de Estoque',  unit: 'x',    decimals: 2, icon: 'autorenew',     higherIsBetter: true  },
+            { id: 'stockout',  label: 'Rupturas',          unit: '%',    decimals: 1, icon: 'warning',       higherIsBetter: false },
+            { id: 'coverage',  label: 'Cobertura',         unit: 'dias', decimals: 1, icon: 'calendar_month', higherIsBetter: true  },
+            { id: 'accuracy',  label: 'Acuracidade',       unit: '%',    decimals: 1, icon: 'fact_check',    higherIsBetter: true  },
+            { id: 'avg_stock', label: 'Estoque Médio',     unit: 'kg',   decimals: 0, icon: 'inventory',     higherIsBetter: null  },
+            { id: 'lead_time', label: 'Lead Time',         unit: 'dias', decimals: 1, icon: 'local_shipping', higherIsBetter: false },
+        ];
+
+        const { kpis } = snapshot;
+
+        body.innerHTML = KPI_DEFS.map(def => {
+            const kpi  = kpis[def.id] || {};
+            const curr = kpi.current  ?? null;
+            const prev = kpi.previous ?? null;
+
+            const fmt = v => {
+                if (v === null || v === undefined) return '—';
+                if (def.id === 'avg_stock') return Math.round(v).toLocaleString('pt-BR');
+                return Number(v).toFixed(def.decimals);
+            };
+
+            let deltaHtml = '';
+            if (curr !== null && prev !== null && prev !== 0) {
+                const delta    = curr - prev;
+                const deltaPct = (delta / Math.abs(prev)) * 100;
+                const improved = def.higherIsBetter !== null && (def.higherIsBetter ? delta > 0 : delta < 0);
+                const worsened = def.higherIsBetter !== null && (def.higherIsBetter ? delta < 0 : delta > 0);
+                const color    = improved ? '#16a34a' : worsened ? '#dc2626' : '#64748b';
+                const arrow    = delta > 0 ? '▲' : delta < 0 ? '▼' : '=';
+                deltaHtml = `<span class="consumption-kpi-delta" style="color:${color}">${arrow} ${Math.abs(deltaPct).toFixed(1)}%</span>`;
+            } else if (curr !== null) {
+                deltaHtml = '<span class="consumption-kpi-delta" style="color:#94a3b8">— sem histórico</span>';
+            }
+
+            const valueStr = curr !== null
+                ? `${fmt(curr)}<span class="consumption-kpi-unit"> ${def.unit}</span>`
+                : '<span style="color:#94a3b8">sem dados</span>';
+
+            return `<div class="consumption-kpi-tile">
+                <span class="material-symbols-outlined consumption-kpi-icon">${def.icon}</span>
+                <span class="consumption-kpi-value">${valueStr}</span>
+                <span class="consumption-kpi-label">${def.label}</span>
+                ${deltaHtml}
+            </div>`;
+        }).join('');
     },
 
     // ─── Balance card ────────────────────────────────────────────────────────────

@@ -78,6 +78,8 @@ const Receipts = {
         }
     },
 
+    async onTabFocus() { return this.load(); },
+
     // ── Ações Públicas ──
 
     /** Navega para a tela de criação de novo recebimento. */

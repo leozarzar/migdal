@@ -18,12 +18,28 @@ const OrdersDetails = {
     /** Indica se há alterações não salvas */
     _isDirty: false,
 
+    /** Índice do item sendo editado inline (null = nenhum em edição) */
+    _editingItemIndex: null,
+
+    /**
+     * Materiais recebidos vinculados ao pedido mas não presentes em `items`.
+     * Exibidos como linhas fantasma clicáveis.
+     * @type {Array<{material: string, receivedQuantity: number}>}
+     */
+    _ghostItems: [],
+
+    /** Materiais por grupo_id, carregados na render() e usados para calcular ghosts ao deletar */
+    _groupDetails: {},
+
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML e carrega itens/quantidades recebidas (se editando) */
     async render() {
         this.items = [];
         this.receivedQuantities = {};
+        this._editingItemIndex = null;
+        this._ghostItems = [];
+        this._groupDetails = {};
         this._itemSelect?.destroy(); this._itemSelect = null;
         this._supplierSelect?.destroy(); this._supplierSelect = null;
 
@@ -66,6 +82,7 @@ const OrdersDetails = {
                             groupDetails[item.group_id] = [];
                         }
                     }
+                    this._groupDetails = groupDetails;
                     // Soma as quantidades recebidas dos materiais pertencentes a cada grupo
                     this.items = this.items.map(item => {
                         if (item.type !== 'group') return item;
@@ -73,6 +90,16 @@ const OrdersDetails = {
                         const received = materialNames.reduce((sum, name) => sum + (materialQuantities[name] || 0), 0);
                         return { ...item, receivedQuantity: received };
                     });
+
+                    // Calcula ghost rows: recebidos mas não listados nos itens do pedido
+                    // Exclui materiais já presentes como item direto OU pertencentes a um grupo incluído
+                    const orderedMaterials = new Set(this.items.filter(i => i.type === 'material').map(i => i.material));
+                    const groupMaterials = new Set(
+                        Object.values(groupDetails).flat()
+                    );
+                    this._ghostItems = Object.entries(materialQuantities)
+                        .filter(([mat]) => !orderedMaterials.has(mat) && !groupMaterials.has(mat))
+                        .map(([mat, qty]) => ({ material: mat, receivedQuantity: qty }));
                 }
             } catch (error) {
                 console.error("Erro ao carregar itens do pedido:", error);
@@ -156,7 +183,10 @@ const OrdersDetails = {
                                     </div>
                                     <input id="itemQuantity" placeholder="Quantidade" class="form-control">
                                 </div>
-                                <button class="btn-add" onclick="OrdersDetails.addItem()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
+                                <div class="item-form-btns">
+                                    <button id="ordersDetailsAddBtn" class="btn-add" onclick="OrdersDetails.addItem()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
+                                    <button id="ordersDetailsCancelEditBtn" class="btn-cancel-edit" onclick="OrdersDetails.cancelEditItem()" style="display:none">Cancelar</button>
+                                </div>
                             </div>
                         </div>
 
@@ -200,7 +230,18 @@ const OrdersDetails = {
             sections: [
                 { key: 'material', label: 'Materiais', items: [] },
                 { key: 'group',    label: 'Grupos',    items: [] }
-            ]
+            ],
+            onChange: ({ key, value, label }) => {
+                // Se material já existe na lista, entrar automaticamente em modo de edição
+                if (key === 'material') {
+                    const idx = this.items.findIndex(i => i.type === 'material' && i.material === label);
+                    if (idx !== -1) { this.startEditItem(idx); return; }
+                } else if (key === 'group') {
+                    const idx = this.items.findIndex(i => i.type === 'group' && i.group_id === Number(value));
+                    if (idx !== -1) { this.startEditItem(idx); return; }
+                }
+                // Ghost selecionado via select: apenas carrega o select, sem edição
+            }
         });
         this._itemSelect.mount(document.getElementById('itemSelectContainer'));
 
@@ -214,20 +255,7 @@ const OrdersDetails = {
         });
         this._supplierSelect.mount(document.getElementById('orderSupplierContainer'));
 
-        try {
-            const [materials, suppliers, groups] = await Promise.all([
-                apiCall(API + "/materials"),
-                apiCall(API + "/suppliers"),
-                apiCall(API + "/groups").catch(() => [])
-            ]);
-
-            this._itemSelect.setItems('material', (materials || []).map(m => ({ value: m.name, label: m.name })));
-            this._itemSelect.setItems('group',    (groups   || []).map(g => ({ value: g.id,   label: g.name })));
-
-            this._supplierSelect.setItems('supplier', (suppliers || []).map(s => ({ value: s.name, label: s.name })));
-        } catch (error) {
-            console.error("Erro ao carregar dados:", error);
-        }
+        await this._refreshSelects();
 
         this._setHeaderOptions();
         this._updateRequiredIndicators();
@@ -278,6 +306,22 @@ const OrdersDetails = {
         document.querySelectorAll('#content input, #content select, #content textarea')
             .forEach(el => el.addEventListener('change', () => this._markDirty()));
     },
+
+    async _refreshSelects() {
+        if (!this._itemSelect || !this._supplierSelect) return;
+        try {
+            const [materials, suppliers, groups] = await Promise.all([
+                apiCall(API + "/materials"),
+                apiCall(API + "/suppliers"),
+                apiCall(API + "/groups").catch(() => [])
+            ]);
+            this._itemSelect.setItems('material', (materials || []).map(m => ({ value: m.name, label: m.name })));
+            this._itemSelect.setItems('group',    (groups   || []).map(g => ({ value: g.id,   label: g.name })));
+            this._supplierSelect.setItems('supplier', (suppliers || []).map(s => ({ value: s.name, label: s.name })));
+        } catch (e) { /* falha silenciosa em background */ }
+    },
+
+    async onTabFocus() { await this._refreshSelects(); },
 
     // ── Ações Públicas ──
 
@@ -347,7 +391,7 @@ const OrdersDetails = {
         }
     },
 
-    /** Adiciona um item (material ou grupo) ao pedido */
+    /** Adiciona ou atualiza um item (material ou grupo) no pedido */
     addItem() {
         const selected = this._itemSelect && this._itemSelect.getValue();
         const quantity = document.getElementById("itemQuantity").value;
@@ -357,30 +401,129 @@ const OrdersDetails = {
             return;
         }
 
-        if (selected.key === 'group') {
-            this.items.push({
-                type: 'group',
-                group_id: Number(selected.value),
-                group_name: selected.label,
-                group_quantity: Number(quantity)
-            });
+        if (this._editingItemIndex !== null) {
+            // Modo edição: atualiza item existente no índice
+            const orig = this.items[this._editingItemIndex];
+            if (orig.type === 'group') {
+                this.items[this._editingItemIndex] = { ...orig, group_quantity: Number(quantity) };
+            } else {
+                this.items[this._editingItemIndex] = { ...orig, quantity: Number(quantity) };
+            }
+            this._editingItemIndex = null;
+            this._restoreAddBtn();
         } else {
-            this.items.push({
-                type: 'material',
-                material: selected.label,
-                quantity: Number(quantity)
-            });
+            if (selected.key === 'group') {
+                this.items.push({
+                    type: 'group',
+                    group_id: Number(selected.value),
+                    group_name: selected.label,
+                    group_quantity: Number(quantity)
+                });
+            } else {
+                // Verificar se ghost: preservar receivedQuantity
+                const ghost = this._ghostItems.find(g => g.material === selected.label);
+                const newItem = {
+                    type: 'material',
+                    material: selected.label,
+                    quantity: Number(quantity),
+                    receivedQuantity: ghost ? ghost.receivedQuantity : 0
+                };
+                this.items.push(newItem);
+                // Remover da lista de ghosts
+                this._ghostItems = this._ghostItems.filter(g => g.material !== selected.label);
+            }
         }
 
         document.getElementById("itemQuantity").value = '';
         if (this._itemSelect) this._itemSelect.clear();
         this._refreshItemsView();
+        this._markDirty();
     },
 
     /** Remove um item pelo índice */
     deleteItem(index) {
+        if (this._editingItemIndex === index) {
+            this._editingItemIndex = null;
+            this._restoreAddBtn();
+        } else if (this._editingItemIndex !== null && this._editingItemIndex > index) {
+            this._editingItemIndex -= 1;
+        }
+
+        const removed = this.items[index];
         this.items.splice(index, 1);
+
+        // Recomputa ghosts após remoção
+        if (removed.type === 'material') {
+            // Material removido com recebimento: promove a ghost se não coberto por grupo restante
+            if ((removed.receivedQuantity || 0) > 0) {
+                const groupMaterialsNow = new Set(
+                    this.items.filter(i => i.type === 'group')
+                        .flatMap(i => this._groupDetails[i.group_id] || [])
+                );
+                if (!groupMaterialsNow.has(removed.material)) {
+                    this._ghostItems.push({ material: removed.material, receivedQuantity: removed.receivedQuantity });
+                }
+            }
+        } else if (removed.type === 'group') {
+            // Grupo removido: verifica quais materiais do grupo devem virar ghosts
+            const materialsOfGroup = this._groupDetails[removed.group_id] || [];
+            const orderedMaterialsNow = new Set(this.items.filter(i => i.type === 'material').map(i => i.material));
+            const groupMaterialsNow = new Set(
+                this.items.filter(i => i.type === 'group')
+                    .flatMap(i => this._groupDetails[i.group_id] || [])
+            );
+            for (const mat of materialsOfGroup) {
+                const received = this.receivedQuantities[mat] || 0;
+                if (received > 0 && !orderedMaterialsNow.has(mat) && !groupMaterialsNow.has(mat)) {
+                    this._ghostItems.push({ material: mat, receivedQuantity: received });
+                }
+            }
+        }
+
         this._refreshItemsView();
+        this._markDirty();
+    },
+
+    /** Ativa modo de edição inline para o item no índice indicado */
+    startEditItem(index) {
+        this._editingItemIndex = index;
+        const item = this.items[index];
+        if (item.type === 'group') {
+            this._itemSelect?.select('group', item.group_id);
+            document.getElementById('itemQuantity').value = item.group_quantity;
+        } else {
+            this._itemSelect?.select('material', item.material);
+            document.getElementById('itemQuantity').value = item.quantity;
+        }
+        const addBtn = document.getElementById('ordersDetailsAddBtn');
+        if (addBtn) addBtn.innerHTML = '<span class="material-symbols-outlined">stylus</span>Editar Item';
+        const cancelBtn = document.getElementById('ordersDetailsCancelEditBtn');
+        if (cancelBtn) cancelBtn.style.display = '';
+        this._renderItems();
+    },
+
+    /** Ativa modo de adição a partir de um ghost row */
+    startEditGhost(material) {
+        this._itemSelect?.select('material', material);
+        document.getElementById('itemQuantity').value = '';
+        document.getElementById('itemQuantity').focus();
+    },
+
+    /** Cancela o modo de edição e restaura o formulário */
+    cancelEditItem() {
+        this._editingItemIndex = null;
+        this._restoreAddBtn();
+        this._itemSelect?.clear();
+        document.getElementById('itemQuantity').value = '';
+        this._renderItems();
+    },
+
+    /** Restaura o botão de adicionar e oculta o botão cancelar */
+    _restoreAddBtn() {
+        const addBtn = document.getElementById('ordersDetailsAddBtn');
+        if (addBtn) addBtn.innerHTML = '<span class="material-symbols-outlined">playlist_add</span>Adicionar';
+        const cancelBtn = document.getElementById('ordersDetailsCancelEditBtn');
+        if (cancelBtn) cancelBtn.style.display = 'none';
     },
 
     /** Volta para a tela de pedidos */
@@ -395,7 +538,7 @@ const OrdersDetails = {
         const tbody = document.getElementById("ordersItemsBody");
         tbody.innerHTML = "";
 
-        if (this.items.length === 0) {
+        if (this.items.length === 0 && this._ghostItems.length === 0) {
             const tr = document.createElement("tr");
             tr.innerHTML = `<td colspan="4" class="empty-state">Nenhum item adicionado. Preencha o formulário acima e clique em Adicionar.</td>`;
             tbody.appendChild(tr);
@@ -403,6 +546,7 @@ const OrdersDetails = {
         }
 
         this.items.forEach((item, index) => {
+            const isEditing = this._editingItemIndex === index;
             let tr;
             if (item.type === 'group') {
                 tr = createTableRow(`
@@ -410,7 +554,7 @@ const OrdersDetails = {
                     <td class="col-qty">${item.group_quantity}</td>
                     <td class="col-received">${item.receivedQuantity || ''}</td>
                     <td class="orders-details-col-actions">
-                        <button onclick="OrdersDetails.deleteItem(${index})">
+                        <button class="btn-action btn-delete" onclick="event.stopPropagation(); OrdersDetails.deleteItem(${index})" title="Remover item">
                             <span class="material-symbols-outlined">delete</span>
                         </button>
                     </td>
@@ -421,14 +565,31 @@ const OrdersDetails = {
                     <td class="col-qty">${item.quantity}</td>
                     <td class="col-received">${item.receivedQuantity || ''}</td>
                     <td class="orders-details-col-actions">
-                        <button onclick="OrdersDetails.deleteItem(${index})">
+                        <button class="btn-action btn-delete" onclick="event.stopPropagation(); OrdersDetails.deleteItem(${index})" title="Remover item">
                             <span class="material-symbols-outlined">delete</span>
                         </button>
                     </td>
                 `);
             }
+            tr.style.cursor = 'pointer';
+            tr.onclick = () => OrdersDetails.startEditItem(index);
+            if (isEditing) tr.classList.add('orders-details-item-editing');
             tbody.appendChild(tr);
         });
+
+        // Ghost rows: recebidos mas não pedidos
+        for (const ghost of this._ghostItems) {
+            const tr = createTableRow(`
+                <td class="orders-details-ghost-name">${ghost.material}</td>
+                <td class="col-qty">—</td>
+                <td class="col-received">${ghost.receivedQuantity}</td>
+                <td class="orders-details-col-actions"></td>
+            `);
+            tr.classList.add('orders-details-ghost-row');
+            tr.title = 'Material recebido mas não adicionado ao pedido. Clique para adicionar.';
+            tr.onclick = () => OrdersDetails.startEditGhost(ghost.material);
+            tbody.appendChild(tr);
+        }
     },
 
     /** Atualiza resumo do header e tabela de itens sem recarregar o formulário */

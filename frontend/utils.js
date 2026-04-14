@@ -134,6 +134,13 @@ const getStatusFromDate = (dateOut) =>
  * @returns {Promise<Object|null>} Dados da resposta ou null se vazia
  */
 const apiCall = async (url, options = {}) => {
+    // Injeta o token de sessão em toda requisição à API (exceto rotas /auth que não precisam).
+    // Mesmo que o overlay seja removido manualmente, o backend rejeita chamadas sem token válido.
+    const token = localStorage.getItem('wcm.auth.token');
+    if (token) {
+        options.headers = Object.assign({ 'x-auth-token': token }, options.headers || {});
+    }
+
     try {
         const response = await fetch(url, options);
         

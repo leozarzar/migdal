@@ -138,6 +138,16 @@ const GroupsDetails = {
             .forEach(el => el.addEventListener('change', () => this._markDirty()));
     },
 
+    async _refreshSelects() {
+        if (!this._materialSelect) return;
+        try {
+            this.allMaterials = await apiCall(API + "/materials") || [];
+            this._renderMaterialsSelect();
+        } catch (e) { /* falha silenciosa em background */ }
+    },
+
+    async onTabFocus() { await this._refreshSelects(); },
+
     // ── Ações Públicas ──
 
     /** Salva o grupo (criação ou edição) e seus materiais associados. */

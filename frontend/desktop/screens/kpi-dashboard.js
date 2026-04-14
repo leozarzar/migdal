@@ -178,6 +178,8 @@ const KpiDashboard = {
         }
     },
 
+    async onTabFocus() { return this.load(); },
+
     // ── Ações Públicas ───────────────────────────────────────────────────────
 
     _onKpiChange(value) {

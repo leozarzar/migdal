@@ -14,6 +14,26 @@
 const API = window.location.origin;
 
 /**
+ * Encerra a sessão do usuário: invalida o token no backend,
+ * limpa o localStorage e redireciona para /login.
+ */
+async function appLogout() {
+    const token = localStorage.getItem('wcm.auth.token');
+    if (token) {
+        try {
+            await fetch(`${API}/auth/logout`, {
+                method: 'POST',
+                headers: { 'x-auth-token': token }
+            });
+        } catch { /* ignora erros de rede */ }
+    }
+    localStorage.removeItem('wcm.auth.token');
+    localStorage.removeItem('wcm.auth.email');
+    localStorage.removeItem('wcm.auth.name');
+    window.location.replace('/login');
+}
+
+/**
  * Mapa de rotas da aplicação.
  * Define título e módulo renderizador para cada tela.
  */
@@ -91,7 +111,13 @@ function _restoreTabs() {
         if (!data.tabs || !data.tabs.length) return false;
         const valid = data.tabs.filter(t => ROUTES[t.route]);
         if (!valid.length) return false;
-        _tabs        = valid;
+        // Nunca restaurar telas de detalhe — redirecionar para a tela pai
+        _tabs = valid.map(t => {
+            const route = ROUTES[t.route];
+            if (!route.parent) return t;
+            const parentRoute = ROUTES[route.parent];
+            return { ...t, route: route.parent, title: parentRoute ? parentRoute.title : t.title };
+        });
         _nextTabId   = data.nextId || (_tabs.length + 1);
         _activeTabId = _tabs.some(t => t.id === data.activeId) ? data.activeId : _tabs[0].id;
         return true;
@@ -172,7 +198,11 @@ function _activateTabDisplay(tabId) {
     }
 
     const routeName = _tabRoutes.get(tabId);
-    if (routeName) _updateSidebarActive(routeName);
+    if (routeName) {
+        _updateSidebarActive(routeName);
+        const route = ROUTES[routeName];
+        if (route?.module?.onTabFocus) route.module.onTabFocus();
+    }
 }
 
 /** Retorna o objeto de rota atualmente ativo na aba ativa, ou null. */
@@ -230,10 +260,24 @@ async function _loadRoute(name, tabId) {
     const headerOptionsEl = document.getElementById('headerOptionsContent');
     if (headerOptionsEl) headerOptionsEl.innerHTML = '';
 
-    // Renderizar tela no elemento da aba
+    // Renderizar tela no elemento da aba.
+    // Desconecta temporariamente outras abas do DOM para evitar colisão de
+    // getElementById quando a mesma rota está aberta em mais de uma aba.
     if (route.module) {
-        tabEl.innerHTML = await route.module.render();
-        route.module.load();
+        const contentEl = document.getElementById('content');
+        const detachedEls = [];
+        _tabEls.forEach((el, id) => {
+            if (id !== tabId && el.parentNode) {
+                detachedEls.push(el);
+                contentEl.removeChild(el);
+            }
+        });
+        try {
+            tabEl.innerHTML = await route.module.render();
+            await route.module.load();
+        } finally {
+            detachedEls.forEach(el => contentEl.appendChild(el));
+        }
     }
 }
 
@@ -360,6 +404,43 @@ async function showScreen(name) {
 // ══════════════════════════════════════════════════════════════════
 
 (async function init() {
+    // ── Guarda de autenticação ────────────────────────────────
+    // Se não há token, redireciona para /login imediatamente.
+    // O backend já bloqueia todas as chamadas de API sem token,
+    // mas este redirect garante que o usuário não fique numa
+    // tela sem dados — e evita aguardar falhas de fetch.
+    const token = localStorage.getItem('wcm.auth.token');
+    if (!token) {
+        window.location.replace('/login');
+        return;
+    }
+
+    // Valida o token no backend (pode ter expirado)
+    try {
+        const res = await fetch(`${API}/auth/verify`, {
+            headers: { 'x-auth-token': token }
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (data.name) localStorage.setItem('wcm.auth.name', data.name);
+    } catch {
+        localStorage.removeItem('wcm.auth.token');
+        localStorage.removeItem('wcm.auth.email');
+        localStorage.removeItem('wcm.auth.name');
+        window.location.replace('/login');
+        return;
+    }
+
+    // ── Popula sidebar ────────────────────────────────────────
+    const name    = localStorage.getItem('wcm.auth.name')  || '';
+    const email   = localStorage.getItem('wcm.auth.email') || '';
+    const display = name || email;
+    const emailEl  = document.getElementById('sidebarUserEmail');
+    const avatarEl = document.getElementById('sidebarUserAvatar');
+    if (emailEl)  emailEl.textContent  = display;
+    if (avatarEl) avatarEl.textContent = display.charAt(0).toUpperCase();
+
+    // ── Restauração de abas e roteamento ──────────────────────
     const restored = _restoreTabs();
 
     if (!restored) {

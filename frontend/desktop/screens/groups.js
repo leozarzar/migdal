@@ -45,6 +45,8 @@ const Groups = {
         }
     },
 
+    async onTabFocus() { return this.load(); },
+
     // ── Ações Públicas ──
 
     /** Injeta o botão de navegação no header da página. */

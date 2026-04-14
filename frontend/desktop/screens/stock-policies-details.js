@@ -238,12 +238,7 @@ const StockPoliciesDetails = {
         });
         this._itemSelect.mount(document.getElementById('spdItemSelectContainer'));
 
-        const [materials, groups] = await Promise.all([
-            apiCall(API + '/materials').catch(() => []),
-            apiCall(API + '/groups').catch(() => [])
-        ]);
-        this._itemSelect.setItems('material', (materials || []).map(m => ({ value: m.id, label: m.name })));
-        this._itemSelect.setItems('group', (groups || []).map(g => ({ value: g.id, label: g.name })));
+        await this._refreshSelects();
 
         const policy = StockPolicies.selectedPolicy;
         if (policy) {
@@ -407,6 +402,20 @@ const StockPoliciesDetails = {
         document.getElementById("spdParamExpSmoothing").style.display = model === "exp-smoothing"     ? "" : "none";
         document.getElementById("spdParamLinearReg").style.display    = model === "linear-regression" ? "" : "none";
     },
+
+    async _refreshSelects() {
+        if (!this._itemSelect) return;
+        try {
+            const [materials, groups] = await Promise.all([
+                apiCall(API + '/materials').catch(() => []),
+                apiCall(API + '/groups').catch(() => [])
+            ]);
+            this._itemSelect.setItems('material', (materials || []).map(m => ({ value: m.id, label: m.name })));
+            this._itemSelect.setItems('group', (groups || []).map(g => ({ value: g.id, label: g.name })));
+        } catch (e) { /* falha silenciosa em background */ }
+    },
+
+    async onTabFocus() { await this._refreshSelects(); },
 
     // ══════════════════════════════════════════════════════════════════════
     // ── Ações Públicas ──

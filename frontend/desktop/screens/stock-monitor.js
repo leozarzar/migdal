@@ -135,7 +135,7 @@ const StockMonitor = {
             alert("Erro ao carregar materiais para o Monitor de Estoque");
         }
     },
-
+    async onTabFocus() { return this.load(); },
     // ══════════════════════════════════════════════
     // ══ Eventos ══
     // ══════════════════════════════════════════════

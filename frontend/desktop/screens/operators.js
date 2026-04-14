@@ -51,6 +51,8 @@ const Operators = {
         }
     },
 
+    async onTabFocus() { return this.load(); },
+
     // ── Ações Públicas ──
 
     /** Salva um novo operador ou atualiza o selecionado. */

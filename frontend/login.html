@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WCM App — Login</title>
+    <link rel="stylesheet" href="desktop/screens/login-style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-card">
+
+    <!-- Painel esquerdo -->
+    <div class="login-panel--left">
+        <div>
+            <div class="login-brand-logo">WCM</div>
+            <h2 class="login-brand-name">Warehouse Control Management</h2>
+            <p class="login-brand-tagline">Gestão de estoque, pedidos e suprimentos para ambiente industrial.</p>
+            <div class="login-brand-divider"></div>
+        </div>
+        <div>
+            <p class="login-brand-quote">"Controle total do seu almoxarifado, em tempo real."</p>
+            <p class="login-brand-version">WCM App — Versão Desktop</p>
+        </div>
+    </div>
+
+    <!-- Painel direito (formulário) -->
+    <div class="login-panel--right">
+        <div class="login-form-container">
+            <h1 id="loginFormTitle" class="login-form-title">Bem-vindo de volta</h1>
+            <p id="loginFormSubtitle" class="login-form-subtitle">Faça login para acessar o sistema WCM.</p>
+
+            <div class="login-tabs">
+                <button id="loginTabLogin"    class="login-tab login-tab--active" onclick="LoginPage.setMode('login')">Entrar</button>
+                <button id="loginTabRegister" class="login-tab"                   onclick="LoginPage.setMode('register')">Cadastrar</button>
+            </div>
+
+            <form onsubmit="event.preventDefault(); LoginPage.submit();">
+
+                <!-- ── Campos de LOGIN ── -->
+                <div id="loginLoginFields">
+                    <div class="login-field">
+                        <label class="login-label" for="loginEmail">E-mail</label>
+                        <input id="loginEmail" type="email" class="login-input"
+                               placeholder="seu@email.com" autocomplete="email">
+                    </div>
+                    <div class="login-field">
+                        <label class="login-label" for="loginPassword">Senha</label>
+                        <input id="loginPassword" type="password" class="login-input"
+                               placeholder="••••••••" autocomplete="current-password">
+                    </div>
+                    <div class="login-remember-row">
+                        <label class="login-remember-label">
+                            <input id="loginRememberEmail" type="checkbox" class="login-remember-checkbox">
+                            Lembrar e-mail
+                        </label>
+                    </div>
+                </div>
+
+                <!-- ── Campos de CADASTRO ── -->
+                <div id="loginRegisterFields" class="login-register-fields">
+                    <div class="login-field">
+                        <label class="login-label" for="loginRegisterName">Nome</label>
+                        <input id="loginRegisterName" type="text" class="login-input"
+                               placeholder="Seu nome completo" autocomplete="name">
+                    </div>
+                    <div class="login-field">
+                        <label class="login-label" for="loginRegisterEmail">E-mail</label>
+                        <input id="loginRegisterEmail" type="email" class="login-input"
+                               placeholder="seu@email.com" autocomplete="email">
+                    </div>
+                    <div class="login-field">
+                        <label class="login-label" for="loginRegisterPassword">Senha</label>
+                        <input id="loginRegisterPassword" type="password" class="login-input"
+                               placeholder="••••••••" autocomplete="new-password">
+                    </div>
+                    <div class="login-field">
+                        <label class="login-label" for="loginRegisterConfirmPassword">Confirmar senha</label>
+                        <input id="loginRegisterConfirmPassword" type="password" class="login-input"
+                               placeholder="••••••••" autocomplete="new-password">
+                    </div>
+                    <div class="login-field">
+                        <label class="login-label" for="loginRegisterReleaseCode">Código de liberação</label>
+                        <input id="loginRegisterReleaseCode" type="text" class="login-input"
+                               placeholder="Código fornecido pelo administrador">
+                    </div>
+                </div>
+
+                <p id="loginError"   class="login-error"></p>
+                <p id="loginSuccess" class="login-success" hidden></p>
+                <button id="loginSubmitBtn" type="submit" class="login-btn-submit">Entrar</button>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script src="desktop/screens/login-page.js"></script>
+
+</body>
+</html>

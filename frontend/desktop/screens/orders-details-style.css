@@ -138,6 +138,30 @@
     margin-bottom: 10px;
 }
 
+.item-form-btns {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.btn-cancel-edit {
+    height: 32px;
+    padding: 0 12px;
+    background: none;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    color: crimson;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.15s;
+}
+
+.btn-cancel-edit:hover {
+    background-color: #fff0f0;
+}
+
 .orders-details-item-form {
     display: flex;
     gap: 10px;
@@ -198,6 +222,7 @@
 .orders-details-table tbody td {
     padding: 6px 16px;
     border-bottom: 1px solid #eceef2;
+    height: 40px;
 }
 
 .orders-details-table tbody tr:last-child td {
@@ -206,6 +231,7 @@
 
 .orders-details-table tbody tr:hover {
     background-color: #f4f6f8;
+    cursor: pointer;
 }
 
 .orders-details-table .col-actions {
@@ -246,7 +272,7 @@
     font-size: 16px;
 }
 
-.orders-details-table tbody tr:hover .orders-details-col-actions button {
+.orders-details-table tbody tr:not(.orders-details-ghost-row):hover .orders-details-col-actions button {
     opacity: 1;
     pointer-events: auto;
 }
@@ -270,4 +296,20 @@
     text-align: center;
     color: #9e9e9e;
     font-size: 13px;
+}
+
+/* Linha em edição inline */
+.orders-details-item-editing {
+    background-color: #e3f2fd !important;
+    outline: 1px solid #90caf9;
+}
+
+/* Ghost rows: material recebido mas não pedido */
+.orders-details-ghost-row {
+    cursor: pointer;
+}
+
+.orders-details-ghost-name {
+    font-style: italic;
+    color: #6b7280;
 }

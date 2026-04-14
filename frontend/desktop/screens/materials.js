@@ -84,6 +84,8 @@ const Materials = {
         }
     },
 
+    async onTabFocus() { return this.load(); },
+
     // ── Ações Públicas ──
 
     /** Salva um novo material ou atualiza o selecionado. */

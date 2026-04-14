@@ -51,6 +51,8 @@ const Suppliers = {
         }
     },
 
+    async onTabFocus() { return this.load(); },
+
     // ── Ações Públicas ──
 
     /** Salva um novo fornecedor ou atualiza o selecionado. */

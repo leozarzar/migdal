@@ -282,6 +282,201 @@ function computeLeadTime(leadTimeData, months) {
     });
 }
 
+// ── Helpers de período deslizante (usados exclusivamente pelo snapshot) ───────
+
+/** Giro: consumo real do período / estoque médio (sem projeção). */
+function computeTurnoverPeriod(units, first, last, days, today) {
+    const consumption = units
+        .filter(u => {
+            if (!u.date_out || u.date_out < first || u.date_out > last) return false;
+            return (u.deduction_type || '').toLowerCase() === 'uso';
+        })
+        .reduce((s, u) => s + (u.weight || 0), 0);
+    const avg = avgStockForMonth(units, first, last, days, today);
+    return avg > 0 ? consumption / avg : null;
+}
+
+/** Rupturas: média das taxas diárias de ruptura entre materiais (%). */
+function computeStockoutPeriod(units, first, last, days, today, materialFilter) {
+    const byMaterial = {};
+    for (const u of units) {
+        if (!u.material) continue;
+        if (!byMaterial[u.material]) byMaterial[u.material] = [];
+        byMaterial[u.material].push(u);
+    }
+    const effDays   = effectiveMonthDays(first, last, days, today);
+    const firstDate = new Date(first + 'T00:00:00');
+
+    const calcRate = matUnits => {
+        if (effDays === 0) return 0;
+        let zeroDays = 0;
+        for (let d = 0; d < effDays; d++) {
+            const dayDate = new Date(firstDate);
+            dayDate.setDate(dayDate.getDate() + d);
+            const dayStr  = dayDate.toISOString().slice(0, 10);
+            const balance = matUnits
+                .filter(u => u.date_in <= dayStr && (!u.date_out || u.date_out > dayStr))
+                .reduce((s, u) => s + (u.weight || 0), 0);
+            if (balance <= 0) zeroDays++;
+        }
+        return zeroDays / effDays;
+    };
+
+    const matList = materialFilter && materialFilter.length
+        ? materialFilter
+        : Object.keys(byMaterial).filter(mat =>
+            byMaterial[mat].some(u => u.date_in <= last && (!u.date_out || u.date_out >= first))
+          );
+
+    if (!matList.length) return null;
+    const rates = matList.map(mat => calcRate(byMaterial[mat] || []));
+    return (rates.reduce((s, r) => s + r, 0) / rates.length) * 100;
+}
+
+/** Cobertura: estoque médio / consumo médio diário (dias). */
+function computeCoveragePeriod(units, first, last, days, today) {
+    const effDays = effectiveMonthDays(first, last, days, today);
+    const consumption = units
+        .filter(u => {
+            if (!u.date_out || u.date_out < first || u.date_out > last) return false;
+            return (u.deduction_type || '').toLowerCase() === 'uso';
+        })
+        .reduce((s, u) => s + (u.weight || 0), 0);
+    if (consumption === 0) return null;
+    const avg           = avgStockForMonth(units, first, last, days, today);
+    const dailyConsumpt = effDays > 0 ? consumption / effDays : 0;
+    return dailyConsumpt > 0 ? avg / dailyConsumpt : null;
+}
+
+/** Acuracidade: (1 − peso_ajuste / peso_total_saídas) × 100. */
+function computeAccuracyPeriod(units, first, last) {
+    const exits = units.filter(u => u.date_out && u.date_out >= first && u.date_out <= last);
+    const totalWeight = exits.reduce((s, u) => s + (u.weight || 0), 0);
+    if (totalWeight === 0) return null;
+    const adjustWeight = exits
+        .filter(u => (u.deduction_type || '').toLowerCase() === 'ajuste')
+        .reduce((s, u) => s + (u.weight || 0), 0);
+    return (1 - adjustWeight / totalWeight) * 100;
+}
+
+/** Estoque Médio: média ponderada no tempo (kg). */
+function computeAvgStockPeriod(units, first, last, days, today) {
+    const value = avgStockForMonth(units, first, last, days, today);
+    return value > 0 ? value : null;
+}
+
+/** Lead Time: média de dias entre pedido e recebimento no período. */
+function computeLeadTimePeriod(leadTimeData, first, last) {
+    const valid = leadTimeData.filter(r =>
+        r.receipt_date && r.receipt_date >= first && r.receipt_date <= last &&
+        r.order_date   && r.receipt_date >= r.order_date
+    );
+    if (!valid.length) return null;
+    const totalDays = valid.reduce(
+        (s, r) => s + (new Date(r.receipt_date) - new Date(r.order_date)) / 86400000, 0
+    );
+    return totalDays / valid.length;
+}
+
+// ── Rota snapshot (rolling 30 dias) ──────────────────────────────────────────
+
+/**
+ * GET /kpis/snapshot?[policy_id=N]
+ * Retorna todos os KPIs para duas janelas de 30 dias em uma única chamada:
+ *   - Período atual:   D-30 → D-1 (últimos 30 dias completos)
+ *   - Período anterior: D-60 → D-31
+ *
+ * Resposta:
+ * {
+ *   current_period: { start: 'YYYY-MM-DD', end: 'YYYY-MM-DD' },
+ *   prev_period:    { start: 'YYYY-MM-DD', end: 'YYYY-MM-DD' },
+ *   kpis: {
+ *     turnover:  { current: number|null, previous: number|null },
+ *     ...
+ *   }
+ * }
+ */
+router.get('/snapshot', async (req, res) => {
+    const { policy_id } = req.query;
+    const now   = new Date();
+    const today = now.toISOString().slice(0, 10);
+
+    // Ambos os períodos ficam inteiramente no passado para evitar projeções.
+    // Período atual:   ontem (D-1) como fim, D-30 como início.
+    // Período anterior: D-31 como fim, D-60 como início.
+    const d = n => new Date(now - n * 86400000).toISOString().slice(0, 10);
+    const currEnd   = d(1);   // ontem
+    const currStart = d(30);
+    const prevEnd   = d(31);
+    const prevStart = d(60);
+    const PERIOD_DAYS = 30;
+
+    const nullPair = () => ({ current: null, previous: null });
+
+    try {
+        let materialFilter = null;
+        if (policy_id) {
+            const policyMaterials = await fetchPolicyMaterials(policy_id);
+            if (!policyMaterials.length) {
+                return res.json({
+                    current_period: { start: currStart, end: currEnd },
+                    prev_period:    { start: prevStart, end: prevEnd },
+                    kpis: {
+                        turnover:  nullPair(),
+                        stockout:  nullPair(),
+                        coverage:  nullPair(),
+                        accuracy:  nullPair(),
+                        avg_stock: nullPair(),
+                        lead_time: nullPair(),
+                    }
+                });
+            }
+            materialFilter = policyMaterials;
+        }
+
+        // Uma única busca cobre os 60 dias completos
+        const [units, leadTimeData] = await Promise.all([
+            fetchUnits(prevStart, currEnd, materialFilter),
+            fetchLeadTimeData(prevStart, currEnd),
+        ]);
+
+        const pair = (cur, prv) => ({ current: cur, previous: prv });
+
+        res.json({
+            current_period: { start: currStart, end: currEnd },
+            prev_period:    { start: prevStart, end: prevEnd },
+            kpis: {
+                turnover:  pair(
+                    computeTurnoverPeriod(units, currStart, currEnd, PERIOD_DAYS, today),
+                    computeTurnoverPeriod(units, prevStart, prevEnd, PERIOD_DAYS, today)
+                ),
+                stockout:  pair(
+                    computeStockoutPeriod(units, currStart, currEnd, PERIOD_DAYS, today, materialFilter),
+                    computeStockoutPeriod(units, prevStart, prevEnd, PERIOD_DAYS, today, materialFilter)
+                ),
+                coverage:  pair(
+                    computeCoveragePeriod(units, currStart, currEnd, PERIOD_DAYS, today),
+                    computeCoveragePeriod(units, prevStart, prevEnd, PERIOD_DAYS, today)
+                ),
+                accuracy:  pair(
+                    computeAccuracyPeriod(units, currStart, currEnd),
+                    computeAccuracyPeriod(units, prevStart, prevEnd)
+                ),
+                avg_stock: pair(
+                    computeAvgStockPeriod(units, currStart, currEnd, PERIOD_DAYS, today),
+                    computeAvgStockPeriod(units, prevStart, prevEnd, PERIOD_DAYS, today)
+                ),
+                lead_time: pair(
+                    computeLeadTimePeriod(leadTimeData, currStart, currEnd),
+                    computeLeadTimePeriod(leadTimeData, prevStart, prevEnd)
+                ),
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Erro ao calcular snapshot de KPIs', error: err.message });
+    }
+});
+
 // ── Rota principal ───────────────────────────────────────────────────────────
 
 const VALID_KPIS = new Set(['turnover', 'stockout', 'coverage', 'accuracy', 'avg_stock', 'lead_time']);

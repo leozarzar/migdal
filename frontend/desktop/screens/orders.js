@@ -83,6 +83,8 @@ const Orders = {
         }
     },
 
+    async onTabFocus() { return this.load(); },
+
     // ── Ações Públicas ──
 
     /** Navega para a tela de criação de novo pedido. */

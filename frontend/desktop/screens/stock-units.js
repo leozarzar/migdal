@@ -119,6 +119,8 @@ const StockUnits = {
         }
     },
 
+    async onTabFocus() { return this.load(); },
+
     // ── Ações Públicas ──
 
     /** Seleciona um bag e abre o dialog de detalhes */

@@ -241,18 +241,7 @@ const ReceiptsDetails = {
         });
         this._operatorSelect.mount(document.getElementById('itemOperatorContainer'));
 
-        try {
-            const [materials, suppliers, operators] = await Promise.all([
-                apiCall(API + "/materials"),
-                apiCall(API + "/suppliers"),
-                apiCall(API + "/operators")
-            ]);
-            this._materialSelect.setItems('material', (materials || []).map(m => ({ value: m.name, label: m.name })));
-            this._supplierSelect.setItems('supplier', (suppliers || []).map(s => ({ value: s.name, label: s.name })));
-            this._operatorSelect.setItems('operator', (operators || []).map(o => ({ value: o.name, label: o.name })));
-        } catch (error) {
-            console.error("Erro ao carregar dados:", error);
-        }
+        await this._refreshSelects();
 
         if (Receipts.selectedReceipt) {
             const saveBtn = document.getElementById("saveBtn");
@@ -283,6 +272,22 @@ const ReceiptsDetails = {
         document.querySelectorAll('#content input, #content select, #content textarea')
             .forEach(el => el.addEventListener('change', () => this._markDirty()));
     },
+
+    async _refreshSelects() {
+        if (!this._materialSelect || !this._supplierSelect || !this._operatorSelect) return;
+        try {
+            const [materials, suppliers, operators] = await Promise.all([
+                apiCall(API + "/materials"),
+                apiCall(API + "/suppliers"),
+                apiCall(API + "/operators")
+            ]);
+            this._materialSelect.setItems('material', (materials || []).map(m => ({ value: m.name, label: m.name })));
+            this._supplierSelect.setItems('supplier', (suppliers || []).map(s => ({ value: s.name, label: s.name })));
+            this._operatorSelect.setItems('operator', (operators || []).map(o => ({ value: o.name, label: o.name })));
+        } catch (e) { /* falha silenciosa em background */ }
+    },
+
+    async onTabFocus() { await this._refreshSelects(); },
 
     // ── Ações Públicas ──
 

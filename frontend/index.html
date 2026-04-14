@@ -41,6 +41,7 @@
     <a class="mobile-redirect-banner__btn" href="/mobile/">Ir para o app mobile</a>
 </div>
 
+
 <div class="app">
 
     <!-- SIDEBAR -->
@@ -116,6 +117,15 @@
             <span class="material-symbols-outlined">folder</span>
             Grupos
         </button>
+
+        <!-- Usuário logado -->
+        <div class="sidebar-user">
+            <div class="sidebar-user-avatar" id="sidebarUserAvatar"></div>
+            <span class="sidebar-user-email" id="sidebarUserEmail"></span>
+            <button class="sidebar-user-logout" onclick="appLogout()" title="Sair">
+                <span class="material-symbols-outlined">logout</span>
+            </button>
+        </div>
 
     </div>
 
