@@ -225,3 +225,52 @@ const apiCall = async (url, options = {}) => {
         throw error;
     }
 };
+
+// ── Configurações Globais ──
+
+/**
+ * Cache local das configurações da aplicação.
+ * Populado por loadAppSettings() no boot.
+ * @type {Object<string, string>}
+ */
+window.AppSettings = {};
+
+/**
+ * Carrega as configurações do backend e armazena em window.AppSettings.
+ * Deve ser chamado após autenticação e antes de renderizar a aplicação.
+ * @returns {Promise<Object>} Objeto com as configurações
+ */
+async function loadAppSettings() {
+    try {
+        window.AppSettings = await apiCall(API + '/settings');
+    } catch {
+        window.AppSettings = {};
+    }
+    return window.AppSettings;
+}
+
+/**
+ * Retorna o valor de uma configuração.
+ * @param {string} key - Chave da configuração (ex: 'inventory.locations_enabled')
+ * @param {string} [fallback] - Valor padrão se não encontrada
+ * @returns {string}
+ */
+function getSetting(key, fallback) {
+    return (window.AppSettings && window.AppSettings[key]) || fallback;
+}
+
+/**
+ * Filtra lista de localizações pelas permissões do usuário.
+ * Admin ou usuário sem centros atribuídos vê tudo.
+ * @param {Array<{id: number}>} locations - Lista completa de localizações
+ * @returns {Array} Localizações filtradas
+ */
+function filterUserLocations(locations) {
+    const user = window.AppUser;
+    if (!user || user.isAdmin || !user.locationIds || user.locationIds.length === 0) {
+        return locations;
+    }
+    return locations.filter(l => user.locationIds.includes(l.id));
+}
+
+

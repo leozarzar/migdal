@@ -11,6 +11,8 @@ Object.assign(MobApp, {
     // ── Estado ───────────────────────────────────────────────────────────────
 
     _stockUnits: [],
+    _stockBalances: [],
+    _stockDetailMaterial: null,
     _stockStatusFilter: '',
     _stockSelectedIds: new Set(),
     _stockSelectionMode: false,
@@ -22,15 +24,49 @@ Object.assign(MobApp, {
         const list = document.getElementById('mobStockList');
         list.innerHTML = '<li class="mob-items-empty">Carregando...</li>';
 
+        // Modo detalhado: se veio de um material lot-tracked, mostra unidades individuais
+        if (this._stockDetailMaterial) {
+            return this._loadStockListLotDetail();
+        }
+
+        // Modo agregado (padrão): posição por material
         this._stockSelectedIds = new Set();
         this._stockSelectionMode = false;
         this._stockShowOnlySelected = false;
 
+        // Ocultar batch bar e status filter (só se aplicam no modo detalhado)
+        const batchBar = document.getElementById('mobStockBatchBar');
+        if (batchBar) batchBar.style.display = 'none';
+        document.querySelectorAll('#screenStockList .mob-stock-status-btn').forEach(btn => {
+            btn.style.display = 'none';
+        });
+
+        try {
+            this._stockBalances = await apiCall(API + '/stock-units/position') || [];
+            const searchEl = document.getElementById('mobStockSearch');
+            if (searchEl) searchEl.value = '';
+            this._applyStockFiltersPosition();
+        } catch {
+            list.innerHTML = '<li class="mob-items-empty">Erro ao carregar estoque.</li>';
+        }
+    },
+
+    /** Carrega unidades individuais para um material lot-tracked */
+    async _loadStockListLotDetail() {
+        const list = document.getElementById('mobStockList');
+        this._stockSelectedIds = new Set();
+        this._stockSelectionMode = false;
+        this._stockShowOnlySelected = false;
+
+        // Mostrar status filters e batch bar
+        document.querySelectorAll('#screenStockList .mob-stock-status-btn').forEach(btn => {
+            btn.style.display = '';
+        });
+
         try {
             const units = await apiCall(API + '/stock-units');
-            this._stockUnits = units || [];
+            this._stockUnits = (units || []).filter(u => u.material === this._stockDetailMaterial);
 
-            // Resetar filtros visuais
             this._stockStatusFilter = '';
             document.querySelectorAll('#screenStockList .mob-stock-status-btn').forEach(btn => {
                 btn.classList.toggle('mob-stock-status-btn--active', btn.dataset.status === '');
@@ -38,22 +74,11 @@ Object.assign(MobApp, {
             const searchEl = document.getElementById('mobStockSearch');
             if (searchEl) searchEl.value = '';
 
-            // Popular selects de fornecedor e material com os dados presentes no estoque
-            _fillSelect(
-                'mobStockSupplierFilter',
-                this._stockUnits.map(u => ({ name: u.supplier })),
-                'name',
-                'Todos'
-            );
-            _fillSelect(
-                'mobStockMaterialFilter',
-                this._stockUnits.map(u => ({ name: u.material })),
-                'name',
-                'Todos'
-            );
+            _fillSelect('mobStockSupplierFilter', this._stockUnits.map(u => ({ name: u.supplier })), 'name', 'Todos');
+            _fillSelect('mobStockMaterialFilter', this._stockUnits.map(u => ({ name: u.material })), 'name', 'Todos');
 
             this._updateStockFilterBadge();
-            this.applyStockFilters();
+            this._applyStockFiltersLotDetail();
         } catch {
             list.innerHTML = '<li class="mob-items-empty">Erro ao carregar estoque.</li>';
         }
@@ -69,6 +94,37 @@ Object.assign(MobApp, {
     },
 
     applyStockFilters() {
+        if (this._stockDetailMaterial) {
+            this._applyStockFiltersLotDetail();
+            return;
+        }
+        this._applyStockFiltersPosition();
+    },
+
+    /** Filtra e renderiza a visão agregada (posição por material) */
+    _applyStockFiltersPosition() {
+        const search = (document.getElementById('mobStockSearch')?.value || '').toLowerCase().trim();
+        const filtered = this._stockBalances.filter(b => {
+            if (search) {
+                const hay = [b.material, b.group_name].filter(Boolean).join(' ').toLowerCase();
+                if (!hay.includes(search)) return false;
+            }
+            return true;
+        });
+
+        this._renderStockListPosition(filtered);
+
+        const countEl = document.getElementById('mobStockCount');
+        if (countEl) {
+            const total = this._stockBalances.length;
+            countEl.textContent = filtered.length === total
+                ? `${total} material${total !== 1 ? 'is' : ''}`
+                : `${filtered.length} material${filtered.length !== 1 ? 'is' : ''}`;
+        }
+    },
+
+    /** Filtra e renderiza units individuais no modo detalhado de lotes */
+    _applyStockFiltersLotDetail() {
         const filtered = this._getFilteredStockUnits();
         this._renderStockList(filtered);
         const countEl = document.getElementById('mobStockCount');
@@ -129,18 +185,28 @@ Object.assign(MobApp, {
 
         list.innerHTML = units.map(u => {
             const isIn        = u.status === 'IN_STOCK';
+            const isPartial   = u.status === 'PARTIAL';
+            const isActive    = isIn || isPartial;
             const code        = this._stockCodeFor(u);
             const nature      = (u.nature || 'X').charAt(0);
             const isProducao  = nature === 'P';
-            const dateVal     = isIn ? u.date_in : u.date_out;
+            const dateVal     = isActive ? u.date_in : u.date_out;
             const dateLabel   = this._stockShortDate(dateVal);
             const leadtime    = (u.date_in)
-                ? calculateDaysDifference(u.date_in, isIn ? null : u.date_out)
+                ? calculateDaysDifference(u.date_in, isActive ? null : u.date_out)
                 : null;
             const secondLine  = isProducao
                 ? (u.operator || '')
                 : (u.supplier || '');
             const isSelected  = this._stockSelectedIds.has(String(u.id));
+
+            const statusIcon = isIn ? ''
+                : isPartial ? '<span class="mob-stock-partial material-symbols-outlined">timelapse</span>'
+                : '<span class="mob-stock-check material-symbols-outlined">check_circle</span>';
+
+            const weightDisplay = isPartial
+                ? `${u.remaining_weight != null ? u.remaining_weight : u.weight} <span class="mob-stock-remaining-hint">/ ${u.weight}</span> kg`
+                : `${u.weight != null ? _esc(String(u.weight)) + ' kg' : '-'}`;
 
             return `
             <li class="mob-stock-row${isSelected ? ' mob-stock-row--selected' : ''}"
@@ -157,9 +223,7 @@ Object.assign(MobApp, {
                         }
                         <div class="mob-stock-row-code">${_esc(code)}</div>
                     </div>
-                    <div class="mob-stock-row-top-right">
-                        ${!isIn ? `<span class="mob-stock-check material-symbols-outlined">check_circle</span>` : ''}
-                    </div>
+                    <div class="mob-stock-row-top-right">${statusIcon}</div>
                 </div>
                 <div class="mob-stock-row-main">
                     <div class="mob-stock-row-details">
@@ -172,8 +236,8 @@ Object.assign(MobApp, {
                         </div>` : ''}
                     </div>
                     <div class="mob-stock-row-weight">
-                        <div class="mob-stock-weight-label">Peso</div>
-                        <div class="mob-stock-weight-value">${u.weight != null ? _esc(String(u.weight)) + ' kg' : '-'}</div>
+                        <div class="mob-stock-weight-label">${isPartial ? 'Restante' : 'Peso'}</div>
+                        <div class="mob-stock-weight-value">${weightDisplay}</div>
                     </div>
                 </div>
             </li>`;
@@ -371,6 +435,212 @@ Object.assign(MobApp, {
         } else {
             badge.style.display = 'none';
             btn?.classList.remove('mob-stock-filter-btn--active');
+        }
+    },
+
+    // ── Visão Agregada (Posição por Material) ────────────────────────────────
+
+    _renderStockListPosition(items) {
+        const list = document.getElementById('mobStockList');
+        if (!items.length) {
+            list.innerHTML = '<li class="mob-items-empty">Nenhum material encontrado.</li>';
+            return;
+        }
+
+        list.innerHTML = items.map(b => {
+            const hasBalance = b.balance > 0;
+            const isLot = b.tracking_mode === 'lots';
+            const onClick = isLot
+                ? `MobApp._openStockLotDetail('${_esc(b.material)}')`
+                : `MobApp._openMobileExitDialog(${b.material_id})`;
+
+            return `
+            <li class="mob-stock-row" onclick="${onClick}">
+                <div class="mob-stock-row-main">
+                    <div class="mob-stock-row-details">
+                        <div class="mob-stock-material">${_esc(b.material || '-')}</div>
+                        ${b.group_name ? `<div class="mob-stock-row-supplier">${_esc(b.group_name)}</div>` : ''}
+                        ${isLot && b.lots_in_stock > 0 ? `<div class="mob-stock-row-date"><span>${b.lots_in_stock} lote${b.lots_in_stock !== 1 ? 's' : ''} em estoque</span></div>` : ''}
+                    </div>
+                    <div class="mob-stock-row-weight">
+                        <div class="mob-stock-weight-label">Saldo</div>
+                        <div class="mob-stock-weight-value${!hasBalance ? ' mob-stock-weight--zero' : ''}">${b.balance.toLocaleString('pt-BR')} kg</div>
+                    </div>
+                </div>
+            </li>`;
+        }).join('');
+    },
+
+    /** Navega para a visão detalhada de lotes de um material */
+    _openStockLotDetail(materialName) {
+        this._stockDetailMaterial = materialName;
+        this.loadStockList();
+    },
+
+    /** Volta da visão detalhada para a visão agregada */
+    _backToStockPosition() {
+        this._stockDetailMaterial = null;
+        this.loadStockList();
+    },
+
+    async _openMobileExitDialog(materialId) {
+        const item = this._stockBalances.find(b => b.material_id === materialId);
+        if (!item) return;
+
+        const existing = document.getElementById('mobSimpleExitDialog');
+        if (existing) existing.remove();
+
+        // Fetch packagings from material detail endpoint
+        let packagings = [];
+        try {
+            const mat = await apiCall(API + `/materials/${materialId}`);
+            packagings = (mat.packagings || []).filter(p => p.quantity);
+        } catch { /* silencioso */ }
+        const hasPkg = packagings.length > 0;
+
+        let pkgSelectHTML = '';
+        let pkgFieldHTML = '';
+        if (hasPkg) {
+            const opts = packagings.map(p =>
+                `<option value="${p.id}" data-qty="${p.quantity}">${_esc(p.name)} (${p.quantity} kg)</option>`
+            ).join('');
+            pkgSelectHTML = `
+                <div class="mob-form-field">
+                    <label class="mob-label">Modo de saída</label>
+                    <select id="mobSimpleExitMode" class="mob-select" onchange="MobApp._onMobExitModeChange()">
+                        <option value="kg">Por peso (kg)</option>
+                        <option value="pkg">Por embalagem</option>
+                    </select>
+                </div>`;
+            pkgFieldHTML = `
+                <div class="mob-form-field" id="mobSimpleExitPkgField" style="display:none">
+                    <label class="mob-label">Embalagem</label>
+                    <select id="mobSimpleExitPkgSelect" class="mob-select" onchange="MobApp._onMobPkgSelectChange()">
+                        ${opts}
+                    </select>
+                </div>
+                <div class="mob-form-field" id="mobSimpleExitPkgCountField" style="display:none">
+                    <label class="mob-label">Quantidade de embalagens</label>
+                    <input type="number" id="mobSimpleExitPkgCount" class="mob-input" step="1" min="1" placeholder="0"
+                           oninput="MobApp._onMobPkgCountChange()">
+                    <span id="mobSimpleExitPkgHint" class="mob-pkg-hint"></span>
+                </div>`;
+        }
+
+        const backdrop = document.createElement('div');
+        backdrop.id = 'mobSimpleExitDialog';
+        backdrop.className = 'mob-stock-batch-dialog-backdrop';
+        backdrop.innerHTML = `
+            <div class="mob-stock-batch-dialog">
+                <h3 class="mob-stock-batch-dialog-title">Registrar Saída</h3>
+                <p class="mob-stock-batch-dialog-sub">${_esc(item.material)} — Saldo: ${item.balance.toLocaleString('pt-BR')} kg</p>
+                ${pkgSelectHTML}
+                <div class="mob-form-field" id="mobSimpleExitQtyField">
+                    <label class="mob-label">Quantidade (kg)</label>
+                    <input type="number" id="mobSimpleExitQty" class="mob-input" step="any" min="0.01" placeholder="0,00">
+                </div>
+                ${pkgFieldHTML}
+                <div class="mob-form-field">
+                    <label class="mob-label">Motivo</label>
+                    <select id="mobSimpleExitReason" class="mob-select">
+                        <option value="consumption">Consumo</option>
+                        <option value="adjustment">Ajuste</option>
+                    </select>
+                </div>
+                <div class="mob-form-field">
+                    <label class="mob-label">Observações</label>
+                    <input type="text" id="mobSimpleExitNotes" class="mob-input" placeholder="Opcional">
+                </div>
+                <div class="mob-stock-batch-dialog-actions">
+                    <button class="mob-btn mob-btn--primary" onclick="MobApp._submitMobileExit(${materialId})">Confirmar</button>
+                    <button class="mob-btn mob-btn--secondary" onclick="MobApp._closeMobileExitDialog()">Cancelar</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(backdrop);
+        backdrop.style.display = '';
+        this._onMobPkgSelectChange();
+    },
+
+    /** Alterna entre modo kg/embalagem no mobile */
+    _onMobExitModeChange() {
+        const mode = document.getElementById('mobSimpleExitMode')?.value;
+        const qtyField = document.getElementById('mobSimpleExitQtyField');
+        const pkgField = document.getElementById('mobSimpleExitPkgField');
+        const pkgCountField = document.getElementById('mobSimpleExitPkgCountField');
+        if (mode === 'pkg') {
+            if (qtyField) qtyField.style.display = 'none';
+            if (pkgField) pkgField.style.display = '';
+            if (pkgCountField) pkgCountField.style.display = '';
+        } else {
+            if (qtyField) qtyField.style.display = '';
+            if (pkgField) pkgField.style.display = 'none';
+            if (pkgCountField) pkgCountField.style.display = 'none';
+        }
+    },
+
+    /** Atualiza hint quando a embalagem selecionada muda no mobile */
+    _onMobPkgSelectChange() {
+        const sel = document.getElementById('mobSimpleExitPkgSelect');
+        if (!sel) return;
+        const qty = parseFloat(sel.selectedOptions[0]?.dataset.qty) || 0;
+        const hint = document.getElementById('mobSimpleExitPkgHint');
+        if (hint) hint.textContent = qty ? `${qty} kg por embalagem` : '';
+    },
+
+    /** Calcula peso a partir da qtd de embalagens no mobile */
+    _onMobPkgCountChange() {
+        const sel = document.getElementById('mobSimpleExitPkgSelect');
+        const pkgWeight = parseFloat(sel?.selectedOptions[0]?.dataset.qty) || 0;
+        const count = parseInt(document.getElementById('mobSimpleExitPkgCount')?.value) || 0;
+        const qtyEl = document.getElementById('mobSimpleExitQty');
+        if (qtyEl) qtyEl.value = Math.round(count * pkgWeight * 1000) / 1000;
+    },
+
+    _closeMobileExitDialog() {
+        const dialog = document.getElementById('mobSimpleExitDialog');
+        if (dialog) dialog.remove();
+    },
+
+    async _submitMobileExit(materialId) {
+        const item = this._stockBalances.find(b => b.material_id === materialId);
+        if (!item) return;
+
+        const mode = document.getElementById('mobSimpleExitMode')?.value || 'kg';
+        let qty;
+        if (mode === 'pkg') {
+            const sel = document.getElementById('mobSimpleExitPkgSelect');
+            const pkgWeight = parseFloat(sel?.selectedOptions[0]?.dataset.qty) || 0;
+            const count = parseInt(document.getElementById('mobSimpleExitPkgCount')?.value);
+            if (!count || count <= 0) { this._toast('Informe a quantidade de embalagens', 'error'); return; }
+            qty = Math.round(count * pkgWeight * 1000) / 1000;
+        } else {
+            qty = parseFloat(document.getElementById('mobSimpleExitQty')?.value);
+        }
+        const reason = document.getElementById('mobSimpleExitReason')?.value || 'consumption';
+        const notes = document.getElementById('mobSimpleExitNotes')?.value || '';
+
+        if (!qty || qty <= 0) { this._toast('Informe uma quantidade válida', 'error'); return; }
+        if (qty > item.balance) { this._toast('Quantidade excede o saldo', 'error'); return; }
+
+        try {
+            await apiCall(API + '/stock-movements/exit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    material_id: materialId,
+                    quantity: qty,
+                    date: new Date().toISOString().slice(0, 10),
+                    reason,
+                    notes: notes || null
+                })
+            });
+            this._closeMobileExitDialog();
+            this._toast('Saída registrada!', 'success');
+            this._stockDetailMaterial = null;
+            await this.loadStockList();
+        } catch {
+            this._toast('Erro ao registrar saída', 'error');
         }
     },
 });

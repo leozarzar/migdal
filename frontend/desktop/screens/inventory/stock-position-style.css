@@ -1,0 +1,229 @@
+/* ══════════════════════════════════════════════════════════════
+   Inventory — Posição de Estoque
+   ══════════════════════════════════════════════════════════════ */
+
+.stock-position-container {
+    width: 100%;
+    padding: 10px;
+}
+
+.stock-position-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    padding: 16px;
+    overflow: hidden;
+}
+
+/* ── Filtros ── */
+
+.stock-position-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.stock-position-filters-icon-wrap {
+    display: flex;
+    align-items: center;
+    color: #94a3b8;
+    padding-right: 8px;
+    border-right: 1px solid #e2e8f0;
+    margin-right: 2px;
+    flex-shrink: 0;
+}
+
+.stock-position-filters-icon {
+    font-size: 20px;
+}
+
+.stock-position-filter-select-wrap {
+    width: 180px;
+}
+
+.stock-position-search {
+    height: 32px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #0f172a;
+    min-width: 180px;
+    max-width: 260px;
+    transition: border-color 0.2s;
+}
+
+.stock-position-search:focus {
+    outline: none;
+    border-color: #94a3b8;
+}
+
+/* ── Resumo ── */
+
+.stock-position-summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: #64748b;
+    margin-bottom: 10px;
+    padding: 0 2px;
+}
+
+.stock-position-summary-item strong {
+    color: #334155;
+}
+
+.stock-position-summary-sep {
+    color: #cbd5e1;
+}
+
+/* ── Tabela ── */
+
+.stock-position-table tr {
+    height: 42px;
+}
+
+.stock-position-table-container {
+    max-height: 520px;
+    overflow: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.stock-position-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.stock-position-table thead th {
+    text-align: left;
+    font-weight: 600;
+    padding: 8px 14px;
+    background: linear-gradient(#f3f4f6, #e9ebef);
+    border-bottom: 1px solid #dcdfe4;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    white-space: nowrap;
+}
+
+.stock-position-table tbody td {
+    padding: 7px 14px;
+    border-bottom: 1px solid #eceef2;
+}
+
+.stock-position-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.stock-position-table tbody tr:hover {
+    background-color: #f4f6f8;
+}
+
+.stock-position-row--clickable {
+    cursor: pointer;
+}
+
+.stock-position-row--clickable:hover {
+    background-color: #eef4ff !important;
+}
+
+.stock-position-col-num {
+    text-align: right;
+}
+
+.stock-position-empty {
+    text-align: center;
+    color: #94a3b8;
+    padding: 32px 14px !important;
+}
+
+/* ── Status dot ── */
+
+.stock-position-status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.stock-position-status--ok     { background: #22c55e; }
+.stock-position-status--warning { background: #f59e0b; }
+.stock-position-status--danger  { background: #ef4444; }
+.stock-position-status--empty   { background: #cbd5e1; }
+
+/* ── Material name + color chip ── */
+
+.stock-position-material-name {
+    font-weight: 500;
+    color: #1e293b;
+}
+
+.stock-position-material-color {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.stock-position-group {
+    color: #64748b;
+    font-size: 12.5px;
+}
+
+/* ── Botão de saída (modo simples) ── */
+
+.stock-position-col-action {
+    width: 40px;
+    text-align: center;
+}
+
+.stock-position-exit-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 4px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.15s, background 0.15s;
+}
+
+.stock-position-exit-btn:hover {
+    color: #ef4444;
+    background: #fef2f2;
+}
+
+.stock-position-exit-btn .material-symbols-outlined {
+    font-size: 20px;
+}
+
+/* ── Formulário de saída (dialog) ── */
+
+.stock-position-exit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.stock-position-exit-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: #475569;
+    font-weight: 500;
+}

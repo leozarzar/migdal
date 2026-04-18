@@ -14,109 +14,43 @@
     overflow: hidden;
 }
 
-/* Form */
+/* Tracking mode badges in table */
 
-.materials-form-wrapper {
-    display: flex;
-    gap: 10px;
-    align-items: flex-end;
-    margin-bottom: 12px;
+.materials-col-tracking {
+    width: 90px;
 }
 
-.materials-field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+.materials-tracking-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
 }
 
-.materials-field-label {
+.materials-tracking-badge--lots {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.materials-tracking-badge--simple {
+    background: #f0fdf4;
+    color: #15803d;
+}
+
+.materials-tracking-badge--partial {
+    background: #fef9c3;
+    color: #a16207;
+    margin-left: 4px;
+}
+
+/* Unit column */
+
+.materials-col-unit {
+    width: 80px;
+    color: #666;
     font-size: 12px;
-    font-weight: 500;
-    color: #555;
-    line-height: 1;
-}
-
-.materials-input {
-    width: 320px;
-    height: 32px;
-    padding: 0 10px;
-    font-family: inherit;
-    font-size: 13px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    background: white;
-    color: #0f172a;
-    transition: border-color 0.2s;
-}
-
-.materials-input:focus {
-    outline: none;
-    border-color: #94a3b8;
-}
-
-.materials-btn-save {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    height: 32px;
-    padding: 0 16px 0 10px;
-    background-color: white;
-    color: #1a1a1a;
-    border: 1px solid #cccccc;
-    border-radius: 6px;
-    font-size: 13px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background-color 0.15s;
-}
-
-.materials-btn-save:hover {
-    background-color: #f0f0f0;
-}
-
-.materials-btn-save .material-symbols-outlined {
-    font-size: 18px;
-}
-
-.materials-btn-cancel {
-    height: 32px;
-    padding: 0 16px;
-    background: white;
-    color: #c62828;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    font-size: 13px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background-color 0.15s, border-color 0.15s;
-}
-
-.materials-btn-cancel:hover {
-    background-color: #fff0f0;
-    border-color: #f44336;
-}
-
-/* Color picker in form */
-
-.materials-color-input {
-    width: 60px;
-    height: 32px;
-    padding: 2px;
-    border: 1px solid #cccccc;
-    border-radius: 6px;
-    background: white;
-    cursor: pointer;
-}
-
-.materials-color-input:focus {
-    outline: none;
-    border-color: #1976d2;
-}
-
-/* Group select in form */
-
-.materials-group-field {
-    width: 200px;
 }
 
 /* Color swatch in table */
@@ -182,10 +116,6 @@
     cursor: pointer;
 }
 
-.materials-table tbody tr.selected {
-    background-color: #e8f0fe;
-}
-
 /* Column widths */
 
 .materials-col-actions {
@@ -212,8 +142,7 @@
     pointer-events: none;
 }
 
-.materials-table tbody tr:hover .materials-col-actions button,
-.materials-table tbody tr.selected .materials-col-actions button {
+.materials-table tbody tr:hover .materials-col-actions button {
     opacity: 1;
     pointer-events: auto;
 }
@@ -226,6 +155,7 @@
 
 .materials-col-actions button .material-symbols-outlined {
     font-size: 17px;
+}
 }
 
 .empty-state {

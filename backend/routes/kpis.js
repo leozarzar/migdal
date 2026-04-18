@@ -106,23 +106,45 @@ function fetchPolicyMaterials(policyId) {
 
 /**
  * Busca unidades de estoque ativas durante o período.
- * Inclui unidades cuja date_in ≤ periodEnd E (date_out IS NULL OR date_out ≥ periodStart).
+ * Reconstrói visão por lote a partir de stock_movements (entry + exit).
+ * Inclui lotes cuja date_in ≤ periodEnd E (date_out IS NULL OR date_out ≥ periodStart).
  */
-function fetchUnits(periodStart, periodEnd, materialFilter) {
+function fetchUnits(periodStart, periodEnd, materialFilter, userLocs) {
     return new Promise((resolve, reject) => {
         let sql = `
-            SELECT su.id, su.material, su.weight,
-                   su.date_in, su.date_out, su.deduction_type
-              FROM stock_units su
-             WHERE su.date_in <= ?
-               AND (su.date_out IS NULL OR su.date_out >= ?)
+            SELECT e.lot_id AS id,
+                   m.name   AS material,
+                   e.quantity AS weight,
+                   e.date   AS date_in,
+                   MAX(x.date) AS date_out,
+                   COALESCE(SUM(x.quantity), 0) AS exit_qty,
+                   CASE
+                       WHEN COUNT(x.id) = 1 THEN
+                           CASE x.reason WHEN 'consumption' THEN 'uso' WHEN 'adjustment' THEN 'ajuste' ELSE x.reason END
+                       WHEN COUNT(x.id) > 1 THEN 'uso'
+                       ELSE NULL
+                   END AS deduction_type
+              FROM stock_movements e
+              LEFT JOIN stock_movements x ON x.lot_id = e.lot_id AND x.type = 'exit'
+              JOIN materials m ON m.id = e.material_id
+             WHERE e.type = 'entry'
+               AND e.lot_id IS NOT NULL
+               AND e.date <= ?
+               AND (x.date IS NULL OR x.date >= ?)
         `;
         const params = [periodEnd, periodStart];
 
+        if (userLocs && userLocs.length > 0) {
+            sql += ` AND e.location_id IN (${userLocs.map(() => '?').join(',')})`;
+            params.push(...userLocs);
+        }
+
         if (materialFilter && materialFilter.length) {
-            sql += ` AND su.material IN (${materialFilter.map(() => '?').join(',')})`;
+            sql += ` AND m.name IN (${materialFilter.map(() => '?').join(',')})`;
             params.push(...materialFilter);
         }
+
+        sql += ` GROUP BY e.lot_id`;
 
         db.all(sql, params, (err, rows) => {
             if (err) reject(err);
@@ -401,6 +423,9 @@ router.get('/snapshot', async (req, res) => {
     const now   = new Date();
     const today = now.toISOString().slice(0, 10);
 
+    const user = req.user || {};
+    const userLocs = (!user.isAdmin && user.locationIds && user.locationIds.length > 0) ? user.locationIds : null;
+
     // Ambos os períodos ficam inteiramente no passado para evitar projeções.
     // Período atual:   ontem (D-1) como fim, D-30 como início.
     // Período anterior: D-31 como fim, D-60 como início.
@@ -436,7 +461,7 @@ router.get('/snapshot', async (req, res) => {
 
         // Uma única busca cobre os 60 dias completos
         const [units, leadTimeData] = await Promise.all([
-            fetchUnits(prevStart, currEnd, materialFilter),
+            fetchUnits(prevStart, currEnd, materialFilter, userLocs),
             fetchLeadTimeData(prevStart, currEnd),
         ]);
 
@@ -485,6 +510,9 @@ router.get('/', async (req, res) => {
     const { kpi, start, end, policy_id, include_adjust } = req.query;
     const includeAdjust = include_adjust === '1';
 
+    const user = req.user || {};
+    const userLocs = (!user.isAdmin && user.locationIds && user.locationIds.length > 0) ? user.locationIds : null;
+
     if (!kpi || !start || !end) {
         return res.status(400).json({ success: false, message: 'kpi, start e end são obrigatórios' });
     }
@@ -520,7 +548,7 @@ router.get('/', async (req, res) => {
             const data = await fetchLeadTimeData(periodStart, periodEnd);
             result = computeLeadTime(data, months);
         } else {
-            const units = await fetchUnits(periodStart, periodEnd, materialFilter);
+            const units = await fetchUnits(periodStart, periodEnd, materialFilter, userLocs);
 
             if      (kpi === 'turnover')  result = computeTurnover(units, months, today, includeAdjust);
             else if (kpi === 'stockout')  result = computeStockout(units, months, today, materialFilter);

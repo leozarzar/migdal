@@ -168,7 +168,58 @@ db.serialize(() => {
 	db.run(`ALTER TABLE stock_units ADD COLUMN old_id TEXT`, () => {});
 	db.run(`ALTER TABLE stock_units ADD COLUMN deduction_type TEXT`, () => {});
 	db.run(`ALTER TABLE stock_units ADD COLUMN group_id INTEGER`, () => {});
+	db.run(`ALTER TABLE stock_units ADD COLUMN material_id INTEGER`, () => {});
+	db.run(`ALTER TABLE stock_units ADD COLUMN remaining_weight REAL`, (err) => {
+		if (!err) {
+			// First-time migration: initialize remaining_weight
+			db.run(`UPDATE stock_units SET remaining_weight = weight WHERE status = 'IN_STOCK' AND remaining_weight IS NULL`);
+			db.run(`UPDATE stock_units SET remaining_weight = 0 WHERE status = 'OUT_STOCK' AND remaining_weight IS NULL`);
+			db.run(`UPDATE stock_units SET remaining_weight = weight WHERE status = 'PARTIAL' AND remaining_weight IS NULL`);
+		}
+	});
+	db.run(`ALTER TABLE stock_units ADD COLUMN packaging_id INTEGER`, () => {});
+	db.run(`ALTER TABLE stock_units ADD COLUMN packaging_count INTEGER`, () => {});
+	db.run(`ALTER TABLE stock_units ADD COLUMN location_id INTEGER`, () => {});
 	migrateStockUnitsVolumeIdToInteger();
+
+	// ── Stock Movements Table ─────────────────────────────────────────────────
+
+	db.run(`
+		CREATE TABLE IF NOT EXISTS stock_movements (
+			id          INTEGER PRIMARY KEY AUTOINCREMENT,
+			type        TEXT    NOT NULL,
+			material_id INTEGER NOT NULL,
+			quantity    REAL    NOT NULL,
+			date        TEXT    NOT NULL,
+			receipt_id  INTEGER,
+			lot_id      INTEGER,
+			location_id INTEGER,
+			operator    TEXT,
+			reason      TEXT,
+			notes       TEXT,
+			created_at  TEXT    DEFAULT (datetime('now'))
+		)
+	`, (err) => {
+		if (err) console.error("Erro ao garantir tabela stock_movements:", err.message);
+	});
+
+	db.run(`CREATE INDEX IF NOT EXISTS idx_movements_material_type_date ON stock_movements (material_id, type, date)`, () => {});
+	db.run(`CREATE INDEX IF NOT EXISTS idx_movements_lot ON stock_movements (lot_id)`, () => {});
+	db.run(`ALTER TABLE stock_movements ADD COLUMN packaging_id INTEGER`, () => {});
+	db.run(`ALTER TABLE stock_movements ADD COLUMN packaging_count INTEGER`, () => {});
+
+	// ── App Settings ──────────────────────────────────────────────────────────
+
+	db.run(`CREATE TABLE IF NOT EXISTS app_settings (
+		key   TEXT PRIMARY KEY,
+		value TEXT NOT NULL
+	)`, (err) => {
+		if (err) {
+			console.error("Erro ao garantir tabela app_settings:", err.message);
+			return;
+		}
+
+	});
 
 	// ── Legacy Data Migration ─────────────────────────────────────────────────
 	// Migrates rows from the deprecated "bags" table into "stock_units".
@@ -216,5 +267,95 @@ db.serialize(() => {
 		}
 	);
 });
+
+// ── Stock Movements Migration ─────────────────────────────────────────────
+// Populates stock_movements and stock_units.material_id from existing data.
+// Runs once: only when stock_movements is empty and stock_units has data.
+
+function migrateStockUnitsToMovements() {
+	db.get(`SELECT COUNT(*) as cnt FROM stock_movements`, [], (err, row) => {
+		if (err || (row && row.cnt > 0)) return; // already migrated or error
+
+		db.get(`SELECT COUNT(*) as cnt FROM stock_units`, [], (err2, row2) => {
+			if (err2 || !row2 || row2.cnt === 0) return; // nothing to migrate
+
+			console.log("[migration] Migrando stock_units → stock_movements...");
+
+			// Step 1: Populate material_id on stock_units
+			db.run(`
+				UPDATE stock_units SET material_id = (
+					SELECT m.id FROM materials m WHERE m.name = stock_units.material
+				) WHERE material_id IS NULL
+			`, [], (updErr) => {
+				if (updErr) {
+					console.error("[migration] Erro ao popular material_id:", updErr.message);
+				}
+
+				// Step 2: Insert entry movements for ALL stock_units
+				db.run(`
+					INSERT INTO stock_movements (type, material_id, quantity, date, receipt_id, lot_id, operator, reason, notes)
+					SELECT
+						'entry',
+						COALESCE(su.material_id, 0),
+						su.weight,
+						su.date_in,
+						su.receipt_id,
+						su.id,
+						su.operator,
+						CASE COALESCE(r.nature, '')
+							WHEN 'C' THEN 'purchase'
+							WHEN 'P' THEN 'production'
+							WHEN 'S' THEN 'service_return'
+							ELSE 'purchase'
+						END,
+						NULL
+					FROM stock_units su
+					LEFT JOIN receipts r ON r.id = su.receipt_id
+					WHERE su.date_in IS NOT NULL AND su.date_in != ''
+				`, [], (entryErr) => {
+					if (entryErr) {
+						console.error("[migration] Erro ao criar movimentações de entrada:", entryErr.message);
+						return;
+					}
+
+					// Step 3: Insert exit movements for OUT_STOCK units
+					db.run(`
+						INSERT INTO stock_movements (type, material_id, quantity, date, receipt_id, lot_id, operator, reason, notes)
+						SELECT
+							'exit',
+							COALESCE(su.material_id, 0),
+							su.weight,
+							su.date_out,
+							su.receipt_id,
+							su.id,
+							su.operator,
+							CASE COALESCE(su.deduction_type, 'uso')
+								WHEN 'uso' THEN 'consumption'
+								WHEN 'ajuste' THEN 'adjustment'
+								ELSE 'consumption'
+							END,
+							su.notes
+						FROM stock_units su
+						WHERE su.status = 'OUT_STOCK'
+						  AND su.date_out IS NOT NULL AND su.date_out != ''
+					`, [], (exitErr) => {
+						if (exitErr) {
+							console.error("[migration] Erro ao criar movimentações de saída:", exitErr.message);
+							return;
+						}
+
+						db.get(`SELECT COUNT(*) as cnt FROM stock_movements`, [], (cntErr, cntRow) => {
+							const total = cntRow ? cntRow.cnt : '?';
+							console.log(`[migration] Concluída: ${total} movimentações criadas.`);
+						});
+					});
+				});
+			});
+		});
+	});
+}
+
+// Run outside serialize to allow async completion after tables are ready
+setTimeout(() => migrateStockUnitsToMovements(), 500);
 
 module.exports = db;

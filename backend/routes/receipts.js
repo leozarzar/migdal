@@ -31,6 +31,7 @@ db.run(`
 // Adiciona colunas se não existirem (migração)
 db.run(`ALTER TABLE receipts ADD COLUMN nature TEXT`, () => {});
 db.run(`ALTER TABLE receipts ADD COLUMN operator TEXT`, () => {});
+db.run(`ALTER TABLE receipts ADD COLUMN location_id INTEGER`, () => {});
 
 // ── GET Endpoints ─────────────────────────────────────────────────────────
 
@@ -79,7 +80,7 @@ router.get("/items/:id", (req, res) => {
  * POST /receipts - Cria um novo recebimento
  */
 router.post("/", requirePermission('procurement', 'receipts', 'create'), (req, res) => {
-    const { code, nature, date, supplier, order_id, operator } = req.body;
+    const { code, nature, date, supplier, order_id, operator, location_id } = req.body;
 
     // Validação
     if (!nature || !date) {
@@ -90,9 +91,9 @@ router.post("/", requirePermission('procurement', 'receipts', 'create'), (req, r
     }
 
     db.run(
-        `INSERT INTO receipts (code, nature, date, supplier, order_id, operator)
-        VALUES (?, ?, ?, ?, ?, ?)`,
-        [code, nature, date, supplier || null, order_id || null, operator || null],
+        `INSERT INTO receipts (code, nature, date, supplier, order_id, operator, location_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [code, nature, date, supplier || null, order_id || null, operator || null, location_id || null],
         function (err) {
             if (err) {
                 return res.status(500).json({
@@ -117,7 +118,7 @@ router.post("/", requirePermission('procurement', 'receipts', 'create'), (req, r
  * PUT /receipts/update - Atualiza um recebimento
  */
 router.put("/update", requirePermission('procurement', 'receipts', 'edit'), (req, res) => {
-    const { id, nature, date, supplier, order_id, operator } = req.body;
+    const { id, nature, date, supplier, order_id, operator, location_id } = req.body;
 
     // Validação
     if (!nature || !date) {
@@ -129,9 +130,9 @@ router.put("/update", requirePermission('procurement', 'receipts', 'edit'), (req
 
     db.run(
         `UPDATE receipts
-         SET nature = ?, date = ?, supplier = ?, order_id = ?, operator = ?
+         SET nature = ?, date = ?, supplier = ?, order_id = ?, operator = ?, location_id = ?
          WHERE id = ?`,
-        [nature, date, supplier || null, order_id || null, operator || null, id],
+        [nature, date, supplier || null, order_id || null, operator || null, location_id || null, id],
         function (err) {
             if (err) {
                 return res.status(500).json({
@@ -140,6 +141,12 @@ router.put("/update", requirePermission('procurement', 'receipts', 'edit'), (req
                     error: err.message
                 });
             }
+
+            // Cascata: propaga location_id para stock_units e stock_movements deste recebimento
+            const locVal = location_id || null;
+            db.run(`UPDATE stock_units SET location_id = ? WHERE receipt_id = ?`, [locVal, id]);
+            db.run(`UPDATE stock_movements SET location_id = ? WHERE receipt_id = ?`, [locVal, id]);
+
             res.json({
                 success: true,
                 message: "Recebimento atualizado com sucesso",
@@ -208,6 +215,10 @@ router.delete("/items/:id", requirePermission('procurement', 'receipts', 'edit')
                     error: err.message
                 });
             }
+
+            // Sync: remove all movements for this receipt
+            db.run(`DELETE FROM stock_movements WHERE receipt_id = ?`, [id]);
+
             res.json({
                 success: true,
                 message: "Recebimento deletado com sucesso",

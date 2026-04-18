@@ -1,0 +1,108 @@
+/* ══════════════════════════════════════════════════════════════
+   Admin — Configurações
+   ══════════════════════════════════════════════════════════════ */
+
+.admin-settings-container {
+    width: 100%;
+    padding: 10px;
+}
+
+.admin-settings-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    padding: 24px;
+    max-width: 700px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+/* ── Seção ── */
+
+.admin-settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.admin-settings-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.admin-settings-section-header .material-symbols-outlined {
+    font-size: 20px;
+    color: #64748b;
+}
+
+.admin-settings-section-desc {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* ── Toggle switch (localizações) ── */
+
+.admin-settings-toggle-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.admin-settings-switch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.admin-settings-switch-track {
+    width: 40px;
+    height: 22px;
+    border-radius: 12px;
+    background: #cbd5e1;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.admin-settings-switch-track--on {
+    background: #3b82f6;
+}
+
+.admin-settings-switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s;
+}
+
+.admin-settings-switch-track--on .admin-settings-switch-thumb {
+    transform: translateX(18px);
+}
+
+.admin-settings-switch-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #334155;
+}
+
+.admin-settings-toggle-note {
+    font-size: 12.5px;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1.4;
+}

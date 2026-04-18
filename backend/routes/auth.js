@@ -30,6 +30,7 @@ db.run(`CREATE TABLE IF NOT EXISTS users (
     email         TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     password_salt TEXT NOT NULL,
+    role_id       INTEGER REFERENCES roles(id),
     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
 
@@ -105,18 +106,26 @@ router.post('/register', (req, res) => {
             }
 
             const userId = this.lastID;
-            const token  = generateToken();
 
-            db.run(
-                'INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)',
-                [userId, token, expiresAt()],
-                (err2) => {
-                    if (err2) {
-                        return res.status(500).json({ success: false, message: 'Erro ao criar sessão.', error: err2.message });
-                    }
-                    res.json({ success: true, token, email: emailNorm, name: nameTrim });
+            // Se este é o primeiro usuário do sistema, atribuir automaticamente
+            // o papel Administrador (is_admin = 1) para garantir acesso total.
+            db.get(`SELECT id FROM roles WHERE is_admin = 1 LIMIT 1`, [], (_, adminRole) => {
+                if (adminRole) {
+                    db.run(`UPDATE users SET role_id = ? WHERE id = ? AND role_id IS NULL`,
+                        [adminRole.id, userId]);
                 }
-            );
+                const token = generateToken();
+                db.run(
+                    'INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)',
+                    [userId, token, expiresAt()],
+                    (err2) => {
+                        if (err2) {
+                            return res.status(500).json({ success: false, message: 'Erro ao criar sess\u00e3o.', error: err2.message });
+                        }
+                        res.json({ success: true, token, email: emailNorm, name: nameTrim });
+                    }
+                );
+            });
         }
     );
 });
@@ -186,26 +195,38 @@ router.get('/verify', (req, res) => {
                 return res.status(401).json({ success: false, message: 'Sessão inválida ou expirada.' });
             }
 
+            // Helper: busca locationIds do usuário e envia resposta
+            function sendWithLocations(userObj, permissions) {
+                db.all(
+                    `SELECT location_id FROM user_locations WHERE user_id = ?`,
+                    [session.user_id],
+                    (locErr, locRows) => {
+                        userObj.locationIds = (locRows || []).map(r => r.location_id);
+                        res.json({
+                            success: true,
+                            email: session.email,
+                            name: session.name,
+                            user: userObj,
+                            permissions
+                        });
+                    }
+                );
+            }
+
             // Se admin, retorna direto sem buscar permissões granulares
             if (session.is_admin) {
-                return res.json({
-                    success: true,
-                    email: session.email,
-                    name: session.name,
-                    user: { id: session.user_id, name: session.name, role: session.role_name, isAdmin: true },
-                    permissions: []
-                });
+                return sendWithLocations(
+                    { id: session.user_id, name: session.name, role: session.role_name, isAdmin: true },
+                    []
+                );
             }
 
             // Buscar permissões granulares do papel
             if (!session.role_id) {
-                return res.json({
-                    success: true,
-                    email: session.email,
-                    name: session.name,
-                    user: { id: session.user_id, name: session.name, role: null, isAdmin: false },
-                    permissions: []
-                });
+                return sendWithLocations(
+                    { id: session.user_id, name: session.name, role: null, isAdmin: false },
+                    []
+                );
             }
 
             db.all(
@@ -220,13 +241,10 @@ router.get('/verify', (req, res) => {
                         screen: p.screen,
                         actions: JSON.parse(p.actions || '[]')
                     }));
-                    res.json({
-                        success: true,
-                        email: session.email,
-                        name: session.name,
-                        user: { id: session.user_id, name: session.name, role: session.role_name, isAdmin: false },
-                        permissions: parsed
-                    });
+                    sendWithLocations(
+                        { id: session.user_id, name: session.name, role: session.role_name, isAdmin: false },
+                        parsed
+                    );
                 }
             );
         }

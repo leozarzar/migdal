@@ -108,7 +108,10 @@ const StockMonitor = {
         this._bindEvents();
 
         try {
-            const materials = await apiCall(API + "/materials");
+            const _loc = AppState.getLocationFilter();
+            const _matQ = new URLSearchParams({ hasMovements: '1' });
+            if (_loc) _matQ.set('location_id', _loc);
+            const materials = await apiCall(`${API}/materials?${_matQ}`);
             this.materials = (materials || []).map(item => item.name).filter(Boolean).sort((a, b) => a.localeCompare(b));
             this._assignMaterialColors();
             this._materialSelect.setItems("material", this.materials.map(material => ({
@@ -251,6 +254,8 @@ const StockMonitor = {
         try {
             const requests = selectedMaterials.map(material => {
                 const query = new URLSearchParams({ material, startDate, endDate });
+                const loc = AppState.getLocationFilter();
+                if (loc) query.set('location_id', loc);
                 return apiCall(`${API}/stock-monitor?${query.toString()}`);
             });
 

@@ -25,6 +25,7 @@
  *   Cada item: { label, className?, icon?, onClick? }
  *   - `icon` é o nome de um Material Symbol (texto dentro de <span>).
  * @param {boolean}  [config.wide=false]           — Painel mais largo (600 px).
+ * @param {boolean}  [config.overflowVisible=false] — Permite overflow visível (para dropdowns).
  * @param {boolean}  [config.closeOnBackdrop=true] — Fecha ao clicar fora.
  * @param {function} [config.onOpen]               — Callback ao abrir.
  * @param {function} [config.onClose]              — Callback ao fechar.
@@ -58,7 +59,9 @@ function createDialog(config) {
     backdrop.style.display = 'none';
 
     const panel = document.createElement('div');
-    panel.className = 'dialog-panel' + (config.wide ? ' dialog-panel--wide' : '');
+    panel.className = 'dialog-panel'
+        + (config.wide ? ' dialog-panel--wide' : '')
+        + (config.overflowVisible ? ' dialog-panel--overflow-visible' : '');
 
     panel.innerHTML = `
         <div class="dialog-header">
@@ -67,7 +70,7 @@ function createDialog(config) {
                 <span class="material-symbols-outlined">close</span>
             </button>
         </div>
-        ${config.subtitle ? `<p class="dialog-subtitle">${_esc(config.subtitle)}</p>` : ''}
+        ${config.subtitleHTML ? `<p class="dialog-subtitle">${config.subtitleHTML}</p>` : config.subtitle ? `<p class="dialog-subtitle">${_esc(config.subtitle)}</p>` : ''}
         <div class="dialog-body">
             ${config.bodyHTML || ''}
         </div>

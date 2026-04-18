@@ -354,8 +354,11 @@ const ConsumptionStats = {
         this._drawChart([]);
 
         try {
+            const _loc = AppState.getLocationFilter();
+            const _matQ = new URLSearchParams({ hasMovements: '1' });
+            if (_loc) _matQ.set('location_id', _loc);
             const [materials, groupsData] = await Promise.all([
-                apiCall(API + "/materials"),
+                apiCall(`${API}/materials?${_matQ}`),
                 apiCall(API + "/groups").catch(() => [])
             ]);
             this.materials = (materials || []).map(item => item.name).filter(Boolean).sort((a, b) => a.localeCompare(b));
@@ -720,16 +723,21 @@ const ConsumptionStats = {
 
     /** Busca dados de consumo e estoque (material individual ou grupo agregado) */
     async _fetchCurrentData() {
+        const loc = AppState.getLocationFilter();
         if (this.selectedType === 'group') {
             if (!this.selectedGroupData || !this.selectedGroupData.materials.length) return null;
             const members = this.selectedGroupData.materials;
             const [allConsumption, allStocks] = await Promise.all([
-                Promise.all(members.map(m =>
-                    apiCall(`${API}/consumption?${new URLSearchParams({ material: m.name, startDate: this.startDate, endDate: this.endDate })}`).catch(() => [])
-                )),
-                Promise.all(members.map(m =>
-                    apiCall(`${API}/stock-monitor?${new URLSearchParams({ material: m.name, startDate: this.startDate, endDate: this.endDate })}`).catch(() => [])
-                ))
+                Promise.all(members.map(m => {
+                    const p = new URLSearchParams({ material: m.name, startDate: this.startDate, endDate: this.endDate });
+                    if (loc) p.set('location_id', loc);
+                    return apiCall(`${API}/consumption?${p}`).catch(() => []);
+                })),
+                Promise.all(members.map(m => {
+                    const p = new URLSearchParams({ material: m.name, startDate: this.startDate, endDate: this.endDate });
+                    if (loc) p.set('location_id', loc);
+                    return apiCall(`${API}/stock-monitor?${p}`).catch(() => []);
+                }))
             ]);
             const mergedMap = new Map();
             members.forEach((_, idx) => {
@@ -745,6 +753,7 @@ const ConsumptionStats = {
         } else {
             if (!this.selectedMaterial) return null;
             const query = new URLSearchParams({ material: this.selectedMaterial, startDate: this.startDate, endDate: this.endDate });
+            if (loc) query.set('location_id', loc);
             const [rows, stockRows] = await Promise.all([
                 apiCall(`${API}/consumption?${query.toString()}`),
                 apiCall(`${API}/stock-monitor?${query.toString()}`)
@@ -919,11 +928,14 @@ const ConsumptionStats = {
             });
         }
 
-        // Drop the current (incomplete) period and anything before startDate
+        // Drop the current (incomplete) period and anything before startDate.
+        // Daily: include up to the selected endDate (capped at today) — each day is a complete point.
+        // Weekly/Monthly: exclude the current in-progress period.
         const startKey = this._formatDate(rangeStart);
+        const effectiveDailyEnd = (this.endDate && this.endDate < todayKey) ? this.endDate : todayKey;
         return all.filter(bucket => {
             if (bucket.key < startKey) return false;
-            if (aggregation === "daily")   return bucket.key <  todayKey;
+            if (aggregation === "daily")   return bucket.key <= effectiveDailyEnd;
             if (aggregation === "weekly")  return bucket.key <  currentWeekKey;
             return bucket.key < currentMonthKey;
         });

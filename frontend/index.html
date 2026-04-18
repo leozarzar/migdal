@@ -15,7 +15,9 @@
     <link rel="stylesheet" href="desktop/screens/panel/kpi-dashboard-style.css">
 
     <!-- Inventory -->
+    <link rel="stylesheet" href="desktop/screens/inventory/stock-position-style.css">
     <link rel="stylesheet" href="desktop/screens/inventory/stock-units-style.css">
+    <link rel="stylesheet" href="desktop/screens/inventory/stock-movements-style.css">
     <link rel="stylesheet" href="desktop/screens/inventory/stock-monitor-style.css">
     <link rel="stylesheet" href="desktop/screens/inventory/consumption-stats-style.css">
     <link rel="stylesheet" href="desktop/screens/inventory/stock-policies-style.css">
@@ -29,15 +31,18 @@
 
     <!-- Registry -->
     <link rel="stylesheet" href="desktop/screens/registry/materials-style.css">
+    <link rel="stylesheet" href="desktop/screens/registry/materials-details-style.css">
     <link rel="stylesheet" href="desktop/screens/registry/suppliers-style.css">
     <link rel="stylesheet" href="desktop/screens/registry/operators-style.css">
     <link rel="stylesheet" href="desktop/screens/registry/groups-style.css">
     <link rel="stylesheet" href="desktop/screens/registry/groups-details-style.css">
+    <link rel="stylesheet" href="desktop/screens/registry/locations-style.css">
 
     <!-- Admin -->
     <link rel="stylesheet" href="desktop/screens/admin/admin-roles-style.css">
     <link rel="stylesheet" href="desktop/screens/admin/admin-roles-details-style.css">
     <link rel="stylesheet" href="desktop/screens/admin/admin-users-style.css">
+
 
     <link rel="stylesheet" href="desktop/components/toast-style.css">
     <link rel="stylesheet" href="desktop/components/notifications-style.css">
@@ -64,6 +69,14 @@
 
         <div class="logo">
             WCM
+        </div>
+
+        <!-- Filtro global de centro de estoque -->
+        <div class="sidebar-location-filter">
+            <span class="material-symbols-outlined sidebar-location-filter-icon">warehouse</span>
+            <select id="sidebarLocationSelect" class="sidebar-location-select" onchange="AppState.setLocationFilter(this.value)">
+                <option value="">Todos</option>
+            </select>
         </div>
 
         <!-- Navegação gerada dinamicamente por _renderSidebar() em app.js -->
@@ -135,7 +148,9 @@
 <script src="desktop/screens/panel/kpi-dashboard.js"></script>
 
 <!-- Inventory -->
+<script src="desktop/screens/inventory/stock-position.js"></script>
 <script src="desktop/screens/inventory/stock-units.js"></script>
+<script src="desktop/screens/inventory/stock-movements.js"></script>
 <script src="desktop/screens/inventory/stock-monitor.js"></script>
 <script src="desktop/screens/inventory/consumption-stats.js"></script>
 <script src="desktop/screens/inventory/stock-policies.js"></script>
@@ -149,15 +164,18 @@
 
 <!-- Registry -->
 <script src="desktop/screens/registry/materials.js"></script>
+<script src="desktop/screens/registry/materials-details.js"></script>
 <script src="desktop/screens/registry/suppliers.js"></script>
 <script src="desktop/screens/registry/operators.js"></script>
 <script src="desktop/screens/registry/groups.js"></script>
 <script src="desktop/screens/registry/groups-details.js"></script>
+<script src="desktop/screens/registry/locations.js"></script>
 
 <!-- Admin -->
 <script src="desktop/screens/admin/admin-roles.js"></script>
 <script src="desktop/screens/admin/admin-roles-details.js"></script>
 <script src="desktop/screens/admin/admin-users.js"></script>
+
 <script src="desktop/components/toast.js"></script>
 <script src="desktop/components/notifications.js"></script>
 <script src="desktop/app.js"></script>

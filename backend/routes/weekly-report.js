@@ -107,10 +107,10 @@ async function collectWeekData() {
     // ── Recebimentos ──────────────────────────────────────────────────────
     const [receiptsThisWeek, receiptsPrevWeek] = await Promise.all([
         dbAll(`SELECT r.id, r.supplier, r.nature,
-                      COALESCE(SUM(su.weight), 0) as total_weight,
-                      COUNT(su.id) as unit_count
+                      COALESCE(SUM(sm.quantity), 0) as total_weight,
+                      COUNT(sm.id) as unit_count
                FROM receipts r
-               LEFT JOIN stock_units su ON su.receipt_id = r.id
+               LEFT JOIN stock_movements sm ON sm.receipt_id = r.id AND sm.type = 'entry'
                WHERE r.date BETWEEN ? AND ?
                GROUP BY r.id`, [weekStart, weekEnd]),
         dbAll(`SELECT COUNT(*) as total FROM receipts
@@ -130,11 +130,13 @@ async function collectWeekData() {
 
     // ── Consumo ───────────────────────────────────────────────────────────
     const [consumptionThisWeek, consumptionPrevWeek] = await Promise.all([
-        dbAll(`SELECT material, SUM(weight) as total
-               FROM stock_units WHERE date_out BETWEEN ? AND ? AND deduction_type = 'uso'
-               GROUP BY material ORDER BY total DESC`, [weekStart, weekEnd]),
-        dbAll(`SELECT SUM(weight) as total FROM stock_units
-               WHERE date_out BETWEEN ? AND ? AND deduction_type = 'uso'`,
+        dbAll(`SELECT m.name as material, SUM(sm.quantity) as total
+               FROM stock_movements sm
+               JOIN materials m ON m.id = sm.material_id
+               WHERE sm.type = 'exit' AND sm.reason = 'consumption' AND sm.date BETWEEN ? AND ?
+               GROUP BY sm.material_id ORDER BY total DESC`, [weekStart, weekEnd]),
+        dbAll(`SELECT SUM(sm.quantity) as total FROM stock_movements sm
+               WHERE sm.type = 'exit' AND sm.reason = 'consumption' AND sm.date BETWEEN ? AND ?`,
                [prevStart, weekStart]),
     ]);
 
@@ -153,10 +155,13 @@ async function collectWeekData() {
 
     // ── Estoque atual ─────────────────────────────────────────────────────
     const stockBalances = await dbAll(
-        `SELECT material, COALESCE(SUM(weight), 0) as balance
-         FROM stock_units WHERE status = 'IN_STOCK' GROUP BY material`, []
+        `SELECT m.name as material,
+                COALESCE(SUM(CASE WHEN sm.type = 'entry' THEN sm.quantity ELSE -sm.quantity END), 0) as balance
+         FROM stock_movements sm
+         JOIN materials m ON m.id = sm.material_id
+         GROUP BY sm.material_id`, []
     );
-    const balanceMap = new Map(stockBalances.map(b => [b.material, b.balance]));
+    const balanceMap = new Map(stockBalances.filter(b => b.balance > 0).map(b => [b.material, b.balance]));
 
     // ── Safety stock e materiais em alerta ────────────────────────────────
     const policyItems = await dbAll(
@@ -172,8 +177,9 @@ async function collectWeekData() {
     for (const item of policyItems) {
         const mat   = item.material_name;
         const rows  = await dbAll(
-            `SELECT DATE(date_out) as day, SUM(weight) as total FROM stock_units
-             WHERE material = ? AND date_out BETWEEN ? AND ? GROUP BY DATE(date_out)`,
+            `SELECT DATE(sm.date) as day, SUM(sm.quantity) as total FROM stock_movements sm
+             JOIN materials m ON m.id = sm.material_id
+             WHERE m.name = ? AND sm.type = 'exit' AND sm.date BETWEEN ? AND ? GROUP BY DATE(sm.date)`,
             [mat, start90, weekEnd]
         );
         if (rows.length < 7) continue;
@@ -195,9 +201,16 @@ async function collectWeekData() {
     // ── Itens envelhecidos ────────────────────────────────────────────────
     const agingCutoff = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10);
     const agedItems = await dbAll(
-        `SELECT material, MIN(date_in) as oldest_in FROM stock_units
-         WHERE status = 'IN_STOCK' AND date_in IS NOT NULL AND date_in != '' AND date_in < ?
-         GROUP BY material`, [agingCutoff]
+        `SELECT m.name as material, MIN(sm.date) as oldest_in
+         FROM stock_movements sm
+         JOIN materials m ON m.id = sm.material_id
+         WHERE sm.type = 'entry' AND sm.date IS NOT NULL AND sm.date != '' AND sm.date < ?
+           AND sm.lot_id IS NOT NULL
+           AND NOT EXISTS (
+               SELECT 1 FROM stock_movements sm2
+               WHERE sm2.lot_id = sm.lot_id AND sm2.type = 'exit'
+           )
+         GROUP BY sm.material_id`, [agingCutoff]
     );
     const stockAging = agedItems.map(item => ({
         material: item.material,
@@ -209,17 +222,21 @@ async function collectWeekData() {
 
     // ── KPIs da semana ────────────────────────────────────────────────────
     const [kpiUnits, kpiLeadTime, kpiOutflows] = await Promise.all([
-        dbAll(`SELECT weight, date_in, date_out FROM stock_units
-               WHERE date_in <= ? AND (date_out IS NULL OR date_out >= ?)`,
+        dbAll(`SELECT e.quantity AS weight, e.date AS date_in, MAX(x.date) AS date_out
+               FROM stock_movements e
+               LEFT JOIN stock_movements x ON x.lot_id = e.lot_id AND x.type = 'exit' AND e.lot_id IS NOT NULL
+               WHERE e.type = 'entry'
+                 AND e.date <= ? AND (x.date IS NULL OR x.date >= ?)
+               GROUP BY e.id`,
               [weekEnd, weekStart]),
         dbAll(`SELECT r.date AS receipt_date, o.date AS order_date
                FROM receipts r
                JOIN orders o ON o.id = CAST(r.order_id AS INTEGER)
                WHERE r.nature = 'C' AND r.order_id IS NOT NULL AND r.order_id != ''
                  AND r.date BETWEEN ? AND ?`, [weekStart, weekEnd]),
-        dbAll(`SELECT deduction_type, SUM(weight) as total FROM stock_units
-               WHERE date_out BETWEEN ? AND ? AND deduction_type IN ('uso', 'ajuste')
-               GROUP BY deduction_type`, [weekStart, weekEnd]),
+        dbAll(`SELECT sm.reason, SUM(sm.quantity) as total FROM stock_movements sm
+               WHERE sm.type = 'exit' AND sm.date BETWEEN ? AND ? AND sm.reason IN ('consumption', 'adjustment')
+               GROUP BY sm.reason`, [weekStart, weekEnd]),
     ]);
 
     // Estoque médio ponderado no tempo (7 dias)
@@ -245,10 +262,10 @@ async function collectWeekData() {
         : null;
 
     // Acuracidade (1 − saídas por ajuste / total saídas)
-    const outflowMap  = Object.fromEntries(kpiOutflows.map(r => [r.deduction_type, r.total || 0]));
-    const totalOut    = (outflowMap['uso'] || 0) + (outflowMap['ajuste'] || 0);
+    const outflowMap  = Object.fromEntries(kpiOutflows.map(r => [r.reason, r.total || 0]));
+    const totalOut    = (outflowMap['consumption'] || 0) + (outflowMap['adjustment'] || 0);
     const accuracyPct = totalOut > 0
-        ? Math.round((1 - (outflowMap['ajuste'] || 0) / totalOut) * 1000) / 10
+        ? Math.round((1 - (outflowMap['adjustment'] || 0) / totalOut) * 1000) / 10
         : null;
 
     const kpis = { avgStockKg, turnover, coverageDays, avgLeadTimeDays, accuracyPct };

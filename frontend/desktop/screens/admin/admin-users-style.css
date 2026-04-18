@@ -57,28 +57,6 @@
 /* Select de papel */
 
 .admin-users-role-select {
-    padding: 4px 8px;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    font-size: 13px;
-    color: #334155;
-    background: white;
-    cursor: pointer;
-    min-width: 140px;
-    outline: none;
-    transition: border-color 0.15s;
-}
-
-.admin-users-role-select:focus {
-    border-color: #3b82f6;
-}
-
-.admin-users-date {
-    color: #94a3b8;
-    font-size: 12px;
-}
-
-.admin-users-role-select {
     padding: 6px 10px;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
@@ -98,4 +76,33 @@
 .admin-users-date {
     color: #94a3b8;
     font-size: 12px;
+}
+
+/* Localizações */
+
+.admin-users-loc-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+}
+
+.admin-users-loc-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #334155;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.admin-users-loc-label input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.admin-users-no-locs {
+    color: #94a3b8;
+    font-size: 12px;
+    font-style: italic;
 }

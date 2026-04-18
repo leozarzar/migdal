@@ -1,0 +1,165 @@
+/* ══════════════════════════════════════════════════════════════
+   Registry — Localizações
+   ══════════════════════════════════════════════════════════════ */
+
+.locations-container {
+    width: 100%;
+    padding: 10px;
+}
+
+.locations-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    padding: 16px;
+    overflow: hidden;
+}
+
+.locations-form-wrapper {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.locations-input {
+    flex: 1;
+    max-width: 240px;
+    height: 32px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #0f172a;
+    transition: border-color 0.2s;
+}
+
+.locations-input--wide {
+    max-width: 320px;
+}
+
+.locations-input:focus {
+    outline: none;
+    border-color: #94a3b8;
+}
+
+.locations-btn-save {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 16px 0 10px;
+    background-color: white;
+    color: #1a1a1a;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.locations-btn-save:hover {
+    background-color: #f0f0f0;
+}
+
+.locations-btn-save .material-symbols-outlined {
+    font-size: 18px;
+}
+
+.locations-btn-cancel {
+    height: 32px;
+    padding: 0 16px;
+    background: white;
+    color: #c62828;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.locations-btn-cancel:hover {
+    background-color: #fff0f0;
+    border-color: #f44336;
+}
+
+.locations-table-container {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    overflow: auto;
+    max-height: 490px;
+}
+
+.locations-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.locations-table thead th {
+    text-align: left;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-bottom: 1px solid #e0e0e0;
+    background: #fafafa;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.locations-table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.locations-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.locations-table tbody tr.selected {
+    background-color: #e3f2fd;
+}
+
+.locations-table tbody td {
+    padding: 6px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+
+.locations-col-name {
+    font-weight: 500;
+}
+
+.locations-col-desc {
+    color: #64748b;
+}
+
+.locations-col-actions {
+    width: 50px;
+    text-align: center;
+}
+
+.locations-col-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #999;
+    padding: 2px;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+}
+
+.locations-col-actions button:hover {
+    color: #c62828;
+    background: #fff0f0;
+}
+
+.locations-col-actions .material-symbols-outlined {
+    font-size: 18px;
+}

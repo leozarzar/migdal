@@ -16,6 +16,10 @@ Object.assign(MobApp, {
         document.getElementById('mobHeaderSubtitle').textContent = 'Editar Recebimento';
         document.getElementById('mobSaveBtn').textContent = 'Atualizar Recebimento';
 
+        // Ocultar campo de código — será atualizado quando itens forem carregados
+        const codeField = document.getElementById('mobItemCode')?.closest('.mob-field');
+        if (codeField) codeField.style.display = 'none';
+
         // Usa o cache local — evita re-fetch e problema de comparação de tipos
         const receipt = this._receipts.find(r => String(r.id) === String(id));
         if (!receipt) {
@@ -44,6 +48,7 @@ Object.assign(MobApp, {
                 quantity:        i.weight,
                 operator:        i.operator || '',
                 operatorLabel:   i.operator || '',
+                tracking_mode:   this._getMobMaterialTrackingMode(i.material),
             }));
             // Snapshot imutável para calcular o diff ao salvar
             this._originalItems = [...this._items];
@@ -97,6 +102,7 @@ Object.assign(MobApp, {
         const code       = document.getElementById('mobItemCode').value.trim();
         const operatorEl = document.getElementById('mobItemOperator');
         const operator   = operatorEl.value;
+        const isLot      = this._getMobMaterialTrackingMode(material) === 'lots';
 
         if (!material) {
             this._toast('Selecione o material', 'error');
@@ -111,7 +117,7 @@ Object.assign(MobApp, {
             return;
         }
 
-        const nextCode = code
+        const nextCode = isLot && code
             ? Number.parseInt(code, 10)
             : this._getNextItemCode();
 
@@ -126,6 +132,7 @@ Object.assign(MobApp, {
                 quantity:        qty,
                 operator:        nature === 'P' ? operator : '',
                 operatorLabel:   nature === 'P' ? operatorEl.options[operatorEl.selectedIndex].text : '',
+                tracking_mode:   this._getMobMaterialTrackingMode(material),
             };
             this._editingItemIndex = null;
             this._restoreMobAddBtn();
@@ -137,6 +144,7 @@ Object.assign(MobApp, {
                 quantity:      qty,
                 operator:      nature === 'P' ? operator : '',
                 operatorLabel: nature === 'P' ? operatorEl.options[operatorEl.selectedIndex].text : '',
+                tracking_mode: this._getMobMaterialTrackingMode(material),
             });
         }
 
@@ -151,8 +159,9 @@ Object.assign(MobApp, {
     startEditItem(index) {
         this._editingItemIndex = index;
         const item = this._items[index];
-        document.getElementById('mobItemCode').value     = item.code;
         document.getElementById('mobItemMaterial').value = item.material;
+        this._onMobMaterialChange();
+        if (item.tracking_mode === 'lots') document.getElementById('mobItemCode').value = item.code;
         document.getElementById('mobItemQty').value      = item.quantity;
         if (item.operator) document.getElementById('mobItemOperator').value = item.operator;
         const addBtn = document.getElementById('mobAddItemBtn');
@@ -197,6 +206,8 @@ Object.assign(MobApp, {
         const supplier  = document.getElementById('mobSupplier').value;
         const orderVal  = document.getElementById('mobOrder').value;
         const order_id  = orderVal ? parseInt(orderVal, 10) : null;
+        const locationVal = document.getElementById('mobLocation')?.value;
+        const location_id = locationVal ? Number(locationVal) : undefined;
 
         if (!nature) { this._toast('Selecione a natureza', 'error'); return; }
         if (!date)   { this._toast('Informe a data', 'error'); return; }
@@ -275,21 +286,7 @@ Object.assign(MobApp, {
 
                 receiptId = this._editingReceipt.id;
                 for (const item of newItems) {
-                    await apiCall(API + '/stock-units', {
-                        method:  'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body:    JSON.stringify({
-                            receipt_id: receiptId,
-                            volume_id:  Number.parseInt(item.code, 10),
-                            material:   item.material,
-                            weight:     item.quantity,
-                            supplier:   supplier || null,
-                            operator:   item.operator || null,
-                            status:     'IN_STOCK',
-                            date_in:    date,
-                            notes:      '',
-                        }),
-                    });
+                    await this._saveReceiptItem(item, receiptId, supplier, date, location_id);
                 }
 
                 this._toast('Recebimento atualizado!', 'success');
@@ -307,21 +304,7 @@ Object.assign(MobApp, {
             }
 
             for (const item of this._items) {
-                await apiCall(API + '/stock-units', {
-                    method:  'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body:    JSON.stringify({
-                        receipt_id: receiptId,
-                        volume_id:  Number.parseInt(item.code, 10),
-                        material:   item.material,
-                        weight:     item.quantity,
-                        supplier:   supplier || null,
-                        operator:   item.operator || null,
-                        status:     'IN_STOCK',
-                        date_in:    date,
-                        notes:      '',
-                    }),
-                });
+                await this._saveReceiptItem(item, receiptId, supplier, date, location_id);
             }
 
             this._toast(this._editingReceipt ? 'Recebimento atualizado!' : 'Recebimento salvo!', 'success');
@@ -338,12 +321,16 @@ Object.assign(MobApp, {
         document.getElementById('mobDate').value              = new Date().toISOString().slice(0, 10);
         document.getElementById('mobSupplier').value          = '';
         document.getElementById('mobOrder').value             = '';
+        document.getElementById('mobLocation').value           = '';
         document.getElementById('mobItemMaterial').value      = '';
         document.getElementById('mobItemQty').value           = '';
         document.getElementById('mobItemOperator').value      = '';
         document.getElementById('fieldSupplier').style.display     = 'none';
         document.getElementById('fieldOrder').style.display        = 'none';
         document.getElementById('fieldItemOperator').style.display = 'none';
+        // Ocultar campo de código — será revelado ao selecionar material lotes
+        const codeField2 = document.getElementById('mobItemCode')?.closest('.mob-field');
+        if (codeField2) codeField2.style.display = 'none';
         this._renderItemsList();
         this._setNextItemCode();
     },
@@ -366,11 +353,10 @@ Object.assign(MobApp, {
     },
 
     _setNextItemCode() {
+        const material = document.getElementById('mobItemMaterial')?.value;
+        if (!material || this._getMobMaterialTrackingMode(material) !== 'lots') return;
         const codeInput = document.getElementById('mobItemCode');
-        if (!codeInput) {
-            return;
-        }
-
+        if (!codeInput) return;
         codeInput.value = this._getNextItemCode();
     },
 
@@ -390,7 +376,7 @@ Object.assign(MobApp, {
                 <div class="mob-item-info">
                     <div class="mob-item-material">${_esc(item.materialLabel)}</div>
                     <div class="mob-item-meta">
-                        Código: ${_esc(item.code)} &nbsp;·&nbsp; Qtd: ${item.quantity}
+                        ${item.tracking_mode === 'lots' ? `Código: ${_esc(item.code)} &nbsp;·&nbsp; ` : ''}Qtd: ${item.quantity}
                         ${item.operatorLabel ? ` &nbsp;·&nbsp; Op: ${_esc(item.operatorLabel)}` : ''}
                     </div>
                 </div>
@@ -401,5 +387,64 @@ Object.assign(MobApp, {
         const total = this._items.reduce((s, it) => s + it.quantity, 0);
         totalQtyEl.textContent = total;
         totalEl.style.display  = '';
+    },
+
+    /**
+     * Retorna o tracking_mode de um material pelo nome.
+     * @param {string} name - Nome do material
+     * @returns {string} 'lots' ou 'simple'
+     */
+    _getMobMaterialTrackingMode(name) {
+        const mat = (this._materialsCache || []).find(m => m.name === name);
+        return mat?.tracking_mode || 'simple';
+    },
+
+    /** Reage à mudança de material selecionado — mostra/esconde campo de código */
+    _onMobMaterialChange() {
+        const material = document.getElementById('mobItemMaterial')?.value;
+        const mode = material ? this._getMobMaterialTrackingMode(material) : 'simple';
+        const codeField = document.getElementById('mobItemCode')?.closest('.mob-field');
+        if (codeField) codeField.style.display = mode === 'lots' ? '' : 'none';
+        if (mode === 'lots') this._setNextItemCode();
+    },
+
+    /**
+     * Salva um item de recebimento: lotes → POST /stock-units, simples → POST /stock-movements/entry.
+     */
+    async _saveReceiptItem(item, receiptId, supplier, date, location_id) {
+        if (item.tracking_mode === 'simple') {
+            const mat = (this._materialsCache || []).find(m => m.name === item.material);
+            if (!mat) { console.error('Material não encontrado no cache:', item.material); return; }
+            await apiCall(API + '/stock-movements/entry', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                    material_id:  mat.id,
+                    quantity:     Number(item.quantity),
+                    date:         date,
+                    receipt_id:   receiptId,
+                    operator:     item.operator || null,
+                    reason:       'purchase',
+                    location_id:  location_id || null,
+                }),
+            });
+        } else {
+            await apiCall(API + '/stock-units', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                    receipt_id: receiptId,
+                    volume_id:  Number.parseInt(item.code, 10),
+                    material:   item.material,
+                    weight:     item.quantity,
+                    supplier:   supplier || null,
+                    operator:   item.operator || null,
+                    status:     'IN_STOCK',
+                    date_in:    date,
+                    notes:      '',
+                    location_id,
+                }),
+            });
+        }
     },
 });

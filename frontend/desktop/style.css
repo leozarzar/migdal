@@ -89,6 +89,45 @@ body {
     background: #16202b;
 }
 
+/* ── Filtro global de localização (sidebar) ── */
+
+.sidebar-location-filter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: #182330;
+    border-bottom: 1px solid #253445;
+}
+
+.sidebar-location-filter-icon {
+    font-size: 14px !important;
+    color: #7f8c9a;
+    flex-shrink: 0;
+}
+
+.sidebar-location-select {
+    flex: 1;
+    background: #1e2a38;
+    border: 1px solid #2c4060;
+    border-radius: 4px;
+    color: #cbd5e1;
+    font-size: 11px;
+    padding: 4px 4px;
+    cursor: pointer;
+    min-width: 0;
+}
+
+.sidebar-location-select:focus {
+    outline: none;
+    border-color: #4a90d9;
+}
+
+.sidebar-location-select option {
+    background: #1e2a38;
+    color: #cbd5e1;
+}
+
 /* ── Sidebar navigation (accordion) ── */
 
 .sidebar-nav {

@@ -66,6 +66,9 @@ const MobApp = {
             return;
         }
 
+        // Carrega configurações globais
+        await loadAppSettings();
+
         try {
             const [suppliers, materials, operators] = await Promise.all([
                 apiCall(API + '/suppliers'),
@@ -76,7 +79,22 @@ const MobApp = {
             _fillSelect('mobSupplier', suppliers, 'name', 'Selecione...');
             _fillSelect('mobListSupplierFilter', suppliers, 'name', 'Fornecedor');
             _fillSelect('mobItemMaterial', materials, 'name', 'Selecione...');
+            this._materialsCache = materials || [];
+            // Atualiza visibilidade do campo código ao trocar material
+            const matEl = document.getElementById('mobItemMaterial');
+            if (matEl) matEl.addEventListener('change', () => MobApp._onMobMaterialChange());
             _fillSelect('mobItemOperator', operators, 'name', 'Selecione...');
+
+            {
+                const locations = await apiCall(API + '/locations');
+                const filtered = filterUserLocations(locations || []);
+                const locEl = document.getElementById('mobLocation');
+                if (locEl) {
+                    locEl.innerHTML = '<option value="">Selecione...</option>'
+                        + filtered.map(l => `<option value="${l.id}">${_esc(l.name)}</option>`).join('');
+                }
+                document.getElementById('fieldLocation').style.display = '';
+            }
         } catch {
             this._toast('Erro ao carregar dados do servidor', 'error');
         }
@@ -139,7 +157,9 @@ const MobApp = {
             this._resetReceiptForm();
         } else if (screen === 'stock-list') {
             this._previousScreen = 'home';
-            document.getElementById('mobHeaderSubtitle').textContent = 'Estoque';
+            document.getElementById('mobHeaderSubtitle').textContent = this._stockDetailMaterial
+                ? _esc(this._stockDetailMaterial)
+                : 'Estoque';
             this.loadStockList();
         } else if (screen === 'stock-details') {
             document.getElementById('mobHeaderSubtitle').textContent = 'Detalhe';
@@ -148,6 +168,12 @@ const MobApp = {
     },
 
     goBack() {
+        // Se estiver no detalhe de lotes, voltar para a visão agregada
+        if (this._stockDetailMaterial) {
+            this._stockDetailMaterial = null;
+            this.showScreen('stock-list');
+            return;
+        }
         this.showScreen(this._previousScreen || 'home');
     },
 

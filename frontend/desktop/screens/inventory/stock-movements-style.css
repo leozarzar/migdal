@@ -1,0 +1,302 @@
+/* ══════════════════════════════════════════════════════════════
+   Inventory — Movimentações de Estoque
+   ══════════════════════════════════════════════════════════════ */
+
+.stock-movements-container {
+    width: 100%;
+    padding: 10px;
+}
+
+.stock-movements-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    padding: 16px;
+    overflow: hidden;
+}
+
+/* ── Toolbar ── */
+
+.stock-movements-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.stock-movements-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.stock-movements-filters-icon-wrap {
+    display: flex;
+    align-items: center;
+    color: #94a3b8;
+    padding-right: 8px;
+    border-right: 1px solid #e2e8f0;
+    margin-right: 2px;
+    flex-shrink: 0;
+}
+
+.stock-movements-filters-icon {
+    font-size: 20px;
+}
+
+.stock-movements-filter-select-wrap {
+    width: 180px;
+}
+
+.stock-movements-type-pills {
+    display: flex;
+    gap: 2px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    padding: 2px;
+}
+
+.stock-movements-type-pill {
+    padding: 4px 12px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #64748b;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+
+.stock-movements-type-pill.active {
+    background: white;
+    color: #0f172a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    font-weight: 600;
+}
+
+.stock-movements-type-pill:hover:not(.active) {
+    color: #334155;
+}
+
+.stock-movements-date-input {
+    height: 32px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #0f172a;
+    width: 140px;
+    transition: border-color 0.2s;
+}
+
+.stock-movements-date-input:focus {
+    outline: none;
+    border-color: #94a3b8;
+}
+
+.stock-movements-date-sep {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+/* ── Botões de ação ── */
+
+.stock-movements-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.stock-movements-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+}
+
+.stock-movements-action-btn .material-symbols-outlined {
+    font-size: 18px;
+}
+
+.stock-movements-btn-entry {
+    background: #059669;
+    color: white;
+}
+
+.stock-movements-btn-entry:hover {
+    background: #047857;
+}
+
+.stock-movements-btn-exit {
+    background: #dc2626;
+    color: white;
+}
+
+.stock-movements-btn-exit:hover {
+    background: #b91c1c;
+}
+
+.stock-movements-btn-transfer {
+    background: #2563eb;
+    color: white;
+}
+
+.stock-movements-btn-transfer:hover {
+    background: #1d4ed8;
+}
+
+/* ── Tabela ── */
+
+.stock-movements-table-container {
+    max-height: 520px;
+    overflow: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.stock-movements-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.stock-movements-table tr {
+    height: 42px;
+}
+
+.stock-movements-table thead th {
+    text-align: left;
+    font-weight: 600;
+    padding: 8px 12px;
+    background: linear-gradient(#f3f4f6, #e9ebef);
+    border-bottom: 1px solid #dcdfe4;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    white-space: nowrap;
+}
+
+.stock-movements-table tbody td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #eceef2;
+}
+
+.stock-movements-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.stock-movements-table tbody tr:hover {
+    background-color: #f4f6f8;
+}
+
+.stock-movements-empty {
+    text-align: center;
+    color: #94a3b8;
+    padding: 32px 12px !important;
+}
+
+/* ── Type badges ── */
+
+.stock-movements-type-entry {
+    color: #059669;
+    font-weight: 600;
+}
+
+.stock-movements-type-exit {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.stock-movements-qty {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.stock-movements-notes {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #64748b;
+    font-size: 12px;
+}
+
+/* ── Delete button ── */
+
+.stock-movements-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.stock-movements-delete-btn:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.stock-movements-delete-btn .material-symbols-outlined {
+    font-size: 18px;
+}
+
+/* ── Dialog form ── */
+
+.stock-movements-dialog-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+}
+
+.stock-movements-dialog-form label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #334155;
+}
+
+.stock-movements-dialog-form label input,
+.stock-movements-dialog-form label select {
+    margin-top: 4px;
+}
+
+.stock-movements-dialog-form .required {
+    color: #dc2626;
+}
+
+/* Oculta asterisco quando input já tem valor */
+.stock-movements-dialog-form label:has(input:not(:placeholder-shown)) .required,
+.stock-movements-dialog-form label:has(select) .required {
+    display: none;
+}
+
+.stock-movements-pkg-hint {
+    display: block;
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 2px;
+}

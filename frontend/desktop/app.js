@@ -63,7 +63,9 @@ const MODULE_REGISTRY = {
         icon: 'inventory_2',
         order: 2,
         screens: {
-            'stock-units':            { title: 'Estoque',             module: StockUnits,           icon: 'inventory_2', actions: ['view', 'edit', 'delete'] },
+            'stock-position':         { title: 'Posição de Estoque',  module: StockPosition,        icon: 'analytics',   actions: ['view'] },
+            'stock-units':            { title: 'Lotes',               module: StockUnits,           icon: 'inventory_2', actions: ['view', 'edit', 'delete'] },
+            'stock-movements':        { title: 'Movimentações',       module: StockMovements,       icon: 'swap_vert',   actions: ['view', 'create', 'delete'] },
             'stock-monitor':          { title: 'Monitor de Estoque',  module: StockMonitor,         icon: 'monitoring',  actions: ['view'] },
             'consumption-stats':      { title: 'Estat. de Consumo',   module: ConsumptionStats,     icon: 'bar_chart',   actions: ['view', 'edit'] },
             'stock-policies':         { title: 'Política de Estoque', module: StockPolicies,        icon: 'policy',      actions: ['view', 'create', 'edit', 'delete'] },
@@ -86,11 +88,13 @@ const MODULE_REGISTRY = {
         icon: 'app_registration',
         order: 4,
         screens: {
-            materials:        { title: 'Materiais',    module: Materials,     icon: 'category',  actions: ['view', 'create', 'edit', 'delete'] },
-            suppliers:        { title: 'Fornecedores', module: Suppliers,     icon: 'store',     actions: ['view', 'create', 'edit', 'delete'] },
-            operators:        { title: 'Operadores',   module: Operators,     icon: 'badge',     actions: ['view', 'create', 'edit', 'delete'] },
-            groups:           { title: 'Grupos',       module: Groups,        icon: 'folder',    actions: ['view', 'create', 'edit', 'delete'] },
-            'groups-details': { title: 'Grupo',        module: GroupsDetails, parent: 'groups', hidden: true },
+            materials:           { title: 'Materiais',       module: Materials,        icon: 'category',  actions: ['view', 'create', 'edit', 'delete'] },
+            'material-details':  { title: 'Material',        module: MaterialsDetails, parent: 'materials', hidden: true },
+            suppliers:        { title: 'Fornecedores',    module: Suppliers,     icon: 'store',     actions: ['view', 'create', 'edit', 'delete'] },
+            operators:        { title: 'Operadores',      module: Operators,     icon: 'badge',     actions: ['view', 'create', 'edit', 'delete'] },
+            groups:           { title: 'Grupos',          module: Groups,        icon: 'folder',    actions: ['view', 'create', 'edit', 'delete'] },
+            'groups-details': { title: 'Grupo',           module: GroupsDetails, parent: 'groups', hidden: true },
+            locations:        { title: 'Localizações',    module: Locations,     icon: 'warehouse', actions: ['view', 'create', 'edit', 'delete'] },
         }
     },
     admin: {
@@ -98,9 +102,10 @@ const MODULE_REGISTRY = {
         icon: 'admin_panel_settings',
         order: 99,
         screens: {
-            'admin-roles':         { title: 'Papéis',    module: AdminRoles,        icon: 'shield_person',  actions: ['view', 'create', 'edit', 'delete'] },
-            'admin-roles-details': { title: 'Detalhes',  module: AdminRolesDetails, parent: 'admin-roles', hidden: true },
-            'admin-users':         { title: 'Usuários',  module: AdminUsers,        icon: 'group',          actions: ['view', 'create', 'edit', 'delete'] },
+            'admin-roles':         { title: 'Papéis',         module: AdminRoles,        icon: 'shield_person',  actions: ['view', 'create', 'edit', 'delete'] },
+            'admin-roles-details': { title: 'Detalhes',        module: AdminRolesDetails, parent: 'admin-roles', hidden: true },
+            'admin-users':         { title: 'Usuários',        module: AdminUsers,        icon: 'group',          actions: ['view', 'create', 'edit', 'delete'] },
+
         }
     },
 };
@@ -247,7 +252,7 @@ function _renderSidebar() {
 
         // Coletar telas visíveis (não hidden e com permissão)
         const visibleScreens = Object.entries(mod.screens)
-            .filter(([, s]) => !s.hidden)
+            .filter(([, s]) => !(typeof s.hidden === 'function' ? s.hidden() : s.hidden))
             .filter(([screenId]) => hasScreenAccess(moduleId, screenId));
 
         if (visibleScreens.length === 0) continue;
@@ -570,6 +575,66 @@ async function showScreen(name) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// ══ Filtro global de localização ══
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * Estado global para o filtro de centro de estoque.
+ * O filtro selecionado persiste em localStorage e é aplicado
+ * transparentemente em todas as telas que consultam dados por localização.
+ */
+const AppState = {
+    _locationFilter: null,
+
+    /** @returns {string|null} ID da localização selecionada, ou null para "todas". */
+    getLocationFilter() {
+        return this._locationFilter || null;
+    },
+
+    /**
+     * Atualiza o filtro global e recarrega a tela ativa.
+     * @param {string} id - ID da localização, ou '' para "todas".
+     */
+    setLocationFilter(id) {
+        this._locationFilter = id || null;
+        localStorage.setItem('wcm.filter.location', id || '');
+        const routeName = _tabRoutes.get(_activeTabId);
+        if (!routeName) return;
+        const route = ROUTES[routeName];
+        if (route && route.module && typeof route.module.load === 'function') {
+            route.module.load().catch(e => console.error(e));
+        }
+    },
+
+    /**
+     * Inicializa o AppState: restaura valor salvo em localStorage
+     * e popula o <select> de localização na sidebar.
+     */
+    async init() {
+        const saved = localStorage.getItem('wcm.filter.location');
+        this._locationFilter = saved || null;
+        await this._populateSidebarSelect();
+    },
+
+    async _populateSidebarSelect() {
+        const select = document.getElementById('sidebarLocationSelect');
+        if (!select) return;
+        try {
+            const locations = await apiCall(API + '/locations');
+            const filtered = filterUserLocations(locations || []);
+            filtered.sort((a, b) => a.name.localeCompare(b.name));
+            for (const loc of filtered) {
+                const opt = document.createElement('option');
+                opt.value = String(loc.id);
+                opt.textContent = loc.name;
+                if (String(loc.id) === this._locationFilter) opt.selected = true;
+                select.appendChild(opt);
+            }
+        } catch { /* ignora — select permanece com a opção padrão "Todos" */ }
+    },
+};
+
+// ══════════════════════════════════════════════════════════════════
 // ══ Inicialização ══
 // ══════════════════════════════════════════════════════════════════
 
@@ -612,8 +677,12 @@ async function showScreen(name) {
         return;
     }
 
+    // ── Carrega configurações globais ─────────────────────────
+    await loadAppSettings();
+
     // ── Popula sidebar ────────────────────────────────────────
     _renderSidebar();
+    await AppState.init();
 
     const name    = localStorage.getItem('wcm.auth.name')  || '';
     const email   = localStorage.getItem('wcm.auth.email') || '';

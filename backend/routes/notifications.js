@@ -138,12 +138,17 @@ router.post("/generate", async (req, res) => {
         // ── Itens envelhecidos no estoque (> 60 dias) ─────────────────────
         const agingCutoff = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10);
         const agingItems = await dbAll(
-            `SELECT su.material, m.id as material_id, MIN(su.date_in) as oldest_in
-             FROM stock_units su
-             LEFT JOIN materials m ON m.name = su.material
-             WHERE su.status = 'IN_STOCK' AND su.date_in IS NOT NULL AND su.date_in != ''
-               AND su.date_in < ?
-             GROUP BY su.material`,
+            `SELECT m.name as material, m.id as material_id, MIN(sm.date) as oldest_in
+             FROM stock_movements sm
+             JOIN materials m ON m.id = sm.material_id
+             WHERE sm.type = 'entry'
+               AND sm.lot_id IS NOT NULL
+               AND sm.date IS NOT NULL AND sm.date != '' AND sm.date < ?
+               AND NOT EXISTS (
+                   SELECT 1 FROM stock_movements sm2
+                   WHERE sm2.lot_id = sm.lot_id AND sm2.type = 'exit'
+               )
+             GROUP BY sm.material_id`,
             [agingCutoff]
         );
         for (const item of agingItems) {
@@ -169,8 +174,11 @@ router.post("/generate", async (req, res) => {
             []
         );
         const balances = await dbAll(
-            `SELECT material, COALESCE(SUM(weight), 0) as balance
-             FROM stock_units WHERE status = 'IN_STOCK' GROUP BY material`,
+            `SELECT m.name as material,
+                    COALESCE(SUM(CASE WHEN sm.type = 'entry' THEN sm.quantity ELSE -sm.quantity END), 0) as balance
+             FROM stock_movements sm
+             JOIN materials m ON m.id = sm.material_id
+             GROUP BY sm.material_id`,
             []
         );
         const balanceMap = new Map(balances.map(b => [b.material, b.balance]));
@@ -193,10 +201,11 @@ router.post("/generate", async (req, res) => {
             }
 
             const consumptionRows = await dbAll(
-                `SELECT DATE(date_out) as day, SUM(weight) as total
-                 FROM stock_units
-                 WHERE material = ? AND date_out BETWEEN ? AND ?
-                 GROUP BY DATE(date_out)`,
+                `SELECT DATE(sm.date) as day, SUM(sm.quantity) as total
+                 FROM stock_movements sm
+                 JOIN materials m ON m.id = sm.material_id
+                 WHERE m.name = ? AND sm.type = 'exit' AND sm.date BETWEEN ? AND ?
+                 GROUP BY DATE(sm.date)`,
                 [mat, start90, today]
             );
             if (consumptionRows.length < 7) continue;

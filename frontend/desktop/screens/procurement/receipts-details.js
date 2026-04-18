@@ -29,6 +29,18 @@ const ReceiptsDetails = {
     _materialSelect: null,
     _operatorSelect: null,
     _orderSelect: null,
+    _locationSelect: null,
+
+    /** Instâncias dos componentes do dialog de item */
+    _itemDialog: null,
+    _dlgMaterialSelect: null,
+    _dlgOperatorSelect: null,
+
+    /** Cache de materiais com tracking_mode para lookup */
+    _materialsCache: [],
+
+    /** Packagings do material selecionado no dialog */
+    _dlgPackagings: [],
 
     // ── Ciclo de Vida ──
 
@@ -40,6 +52,10 @@ const ReceiptsDetails = {
         this._materialSelect?.destroy();  this._materialSelect = null;
         this._operatorSelect?.destroy();  this._operatorSelect = null;
         this._orderSelect?.destroy();     this._orderSelect = null;
+        this._locationSelect?.destroy();  this._locationSelect = null;
+        this._itemDialog?.destroy();      this._itemDialog = null;
+        this._dlgMaterialSelect?.destroy(); this._dlgMaterialSelect = null;
+        this._dlgOperatorSelect?.destroy(); this._dlgOperatorSelect = null;
 
         if (Receipts.selectedReceipt) {
             try {
@@ -92,6 +108,10 @@ const ReceiptsDetails = {
                             </select>
                         </div>
                         <input type="hidden" id="receiptCode">
+                        <div class="form-group">
+                            <label for="receiptLocation">Localização</label>
+                            <div id="receiptLocationContainer"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -147,28 +167,9 @@ const ReceiptsDetails = {
                         <h2>Itens do Recebimento</h2>
                     </div>
                     <div class="card-content">
-                        <!-- Formulário de Adicionar Item -->
-                        <div class="item-form-wrapper">
-                            <div class="receipts-details-item-form">
-                                <input id="itemCode" placeholder="Código" type="number" min="0" class="form-control" oninput="ReceiptsDetails.validateItemCode(this)">
-                                <div class="select-with-btn">
-                                    <div id="itemMaterialContainer"></div>
-                                    <button class="btn-open-tab" onclick="openNewTab('materials')" title="Abrir cadastro de materiais em nova aba">
-                                        <span class="material-symbols-outlined">open_in_new</span>
-                                    </button>
-                                </div>
-                                <div class="select-with-btn" id="itemOperatorWrapper" style="display:none">
-                                    <div id="itemOperatorContainer"></div>
-                                    <button class="btn-open-tab" onclick="openNewTab('operators')" title="Abrir cadastro de operadores em nova aba">
-                                        <span class="material-symbols-outlined">open_in_new</span>
-                                    </button>
-                                </div>
-                                <input id="itemQuantity" placeholder="Quantidade" class="form-control">
-                            </div>
-                            <div class="item-form-btns">
-                                <button id="receiptsDetailsAddBtn" class="btn-add" onclick="ReceiptsDetails.addItem()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
-                                <button id="receiptsDetailsCancelEditBtn" class="btn-cancel-edit" onclick="ReceiptsDetails.cancelEditItem()" style="display:none">Cancelar</button>
-                            </div>
+                        <!-- Botão para abrir dialog de adicionar item -->
+                        <div class="item-form-wrapper" id="receiptsDetailsAddWrapper">
+                            <button class="btn-add" onclick="ReceiptsDetails.openAddItemDialog()"><span class="material-symbols-outlined">playlist_add</span>Adicionar Item</button>
                         </div>
 
                         <!-- Tabela de Itens -->
@@ -227,27 +228,25 @@ const ReceiptsDetails = {
         });
         this._orderSelect.mount(document.getElementById('receiptOrderContainer'));
 
-        this._materialSelect = createSearchSelect({
-            id: 'itemMaterial',
-            placeholder: 'Selecione um material',
-            searchable: true,
-            searchPlaceholder: 'Buscar...',
-            sections: [{ key: 'material', items: [] }],
-            onChange: () => ReceiptsDetails._markDirty()
-        });
-        this._materialSelect.mount(document.getElementById('itemMaterialContainer'));
+        this._materialSelect = null;
+        this._operatorSelect = null;
 
-        this._operatorSelect = createSearchSelect({
-            id: 'itemOperator',
-            placeholder: 'Selecione um operador',
+        this._locationSelect = createSearchSelect({
+            id: 'receiptLocation',
+            placeholder: 'Selecione uma localização',
             searchable: true,
             searchPlaceholder: 'Buscar...',
-            sections: [{ key: 'operator', items: [] }],
+            sections: [{ key: 'location', items: [] }],
             onChange: () => ReceiptsDetails._markDirty()
         });
-        this._operatorSelect.mount(document.getElementById('itemOperatorContainer'));
+        this._locationSelect.mount(document.getElementById('receiptLocationContainer'));
 
         await this._refreshSelects();
+
+        // Enriquecer itens carregados com tracking_mode do material
+        for (const item of this.items) {
+            item.tracking_mode = this._getMaterialTrackingMode(item.material);
+        }
 
         if (Receipts.selectedReceipt) {
             const saveBtn = document.getElementById("saveBtn");
@@ -267,6 +266,7 @@ const ReceiptsDetails = {
             if (Receipts.selectedReceipt.supplier) this._supplierSelect.select('supplier', Receipts.selectedReceipt.supplier);
             await this.onSupplierChange();
             if (Receipts.selectedReceipt.order_id) this._orderSelect.select('order', Receipts.selectedReceipt.order_id);
+            if (Receipts.selectedReceipt.location_id) this._locationSelect?.select('location', Receipts.selectedReceipt.location_id);
         } else {
             const saveBtn = document.getElementById("saveBtn");
             if (saveBtn) {
@@ -278,14 +278,14 @@ const ReceiptsDetails = {
         this._refreshItemsView();
         this._setNextItemCode();
 
-        // Modo somente leitura: desabilita campos e oculta formulário de itens
+        // Modo somente leitura: desabilita campos e oculta botão de adicionar item
         if (this._isReadOnly()) {
             document.querySelectorAll('#content input, #content select, #content textarea')
                 .forEach(el => el.disabled = true);
             document.querySelectorAll('#content .sselect-wrap')
                 .forEach(el => el.classList.add('sselect-disabled'));
-            const formWrapper = document.querySelector('.item-form-wrapper');
-            if (formWrapper) formWrapper.style.display = 'none';
+            const addWrapper = document.getElementById('receiptsDetailsAddWrapper');
+            if (addWrapper) addWrapper.style.display = 'none';
         } else {
             // Marca o form como sujo em qualquer alteração de campo (campos nativos restantes)
             document.querySelectorAll('#content input, #content select, #content textarea')
@@ -294,16 +294,25 @@ const ReceiptsDetails = {
     },
 
     async _refreshSelects() {
-        if (!this._materialSelect || !this._supplierSelect || !this._operatorSelect) return;
+        if (!this._supplierSelect) return;
         try {
             const [materials, suppliers, operators] = await Promise.all([
                 apiCall(API + "/materials"),
                 apiCall(API + "/suppliers"),
                 apiCall(API + "/operators")
             ]);
-            this._materialSelect.setItems('material', (materials || []).map(m => ({ value: m.name, label: m.name })));
+            this._materialsCache = materials || [];
             this._supplierSelect.setItems('supplier', (suppliers || []).map(s => ({ value: s.name, label: s.name })));
-            this._operatorSelect.setItems('operator', (operators || []).map(o => ({ value: o.name, label: o.name })));
+
+            if (this._locationSelect) {
+                const locations = await apiCall(API + '/locations');
+                const filtered = filterUserLocations(locations || []);
+                this._locationSelect.setItems('location', filtered.map(l => ({ value: l.id, label: l.name })));
+                // Auto-selecionar quando há apenas uma localização disponível
+                if (filtered.length === 1 && !this._locationSelect.getValue()) {
+                    this._locationSelect.select('location', filtered[0].id);
+                }
+            }
         } catch (e) { /* falha silenciosa em background */ }
     },
 
@@ -438,16 +447,156 @@ const ReceiptsDetails = {
         }
     },
 
-    /** Adiciona um item ao recebimento */
-    addItem() {
-        const code = document.getElementById("itemCode").value.trim();
-        const material = this._materialSelect?.getValue()?.value || '';
-        const quantity = document.getElementById("itemQuantity").value;
-        const nature = document.getElementById("receiptNature").value;
-        const itemOperator = this._operatorSelect?.getValue()?.value || '';
+    /** Abre o dialog de adicionar item ao recebimento */
+    openAddItemDialog(editIndex) {
+        this._editingItemIndex = editIndex ?? null;
+        this._dlgPackagings = [];
+        this._itemDialog?.destroy();
+        this._dlgMaterialSelect?.destroy(); this._dlgMaterialSelect = null;
+        this._dlgOperatorSelect?.destroy(); this._dlgOperatorSelect = null;
 
-        if (!code || !material || !quantity) {
-            alert("Preencha todos os campos do item");
+        const nature = document.getElementById("receiptNature").value;
+        const showOperator = nature === "P";
+        const isEdit = this._editingItemIndex !== null;
+        const editItem = isEdit ? this.items[this._editingItemIndex] : null;
+        const isLotEdit = editItem?.tracking_mode === 'lots';
+
+        this._itemDialog = createDialog({
+            title: isEdit ? 'Editar Item' : 'Adicionar Item',
+            wide: true,
+            overflowVisible: true,
+            bodyHTML: `
+                <div class="receipts-details-dialog-form">
+                    <label id="rdItemCodeLabel" style="display:none">Código
+                        <input id="rdItemCode" type="number" min="0" class="dialog-input" placeholder="Código"
+                               oninput="ReceiptsDetails.validateItemCode(this)">
+                    </label>
+                    <div class="receipts-details-dialog-field">Material <span class="required">*</span>
+                        <div class="select-with-btn">
+                            <div id="rdItemMaterialContainer"></div>
+                            <button class="btn-open-tab" onclick="openNewTab('materials')" title="Abrir cadastro de materiais em nova aba">
+                                <span class="material-symbols-outlined">open_in_new</span>
+                            </button>
+                        </div>
+                    </div>
+                    ${showOperator ? `
+                    <div class="receipts-details-dialog-field">Operador <span class="required">*</span>
+                        <div class="select-with-btn">
+                            <div id="rdItemOperatorContainer"></div>
+                            <button class="btn-open-tab" onclick="openNewTab('operators')" title="Abrir cadastro de operadores em nova aba">
+                                <span class="material-symbols-outlined">open_in_new</span>
+                            </button>
+                        </div>
+                    </div>` : ''}
+                    <div id="rdItemPkgGroup" style="display:none">
+                        <label>Modo de entrada
+                            <select id="rdItemMode" class="dialog-input" onchange="ReceiptsDetails._onDlgModeChange()">
+                                <option value="qty">Por quantidade</option>
+                                <option value="pkg">Por embalagem</option>
+                            </select>
+                        </label>
+                    </div>
+                    <label id="rdItemQtyLabel">Quantidade <span class="required">*</span>
+                        <input id="rdItemQty" type="number" step="any" min="0.01" class="dialog-input" placeholder="0,00">
+                    </label>
+                    <div id="rdItemPkgFields" style="display:none">
+                        <label>Embalagem
+                            <select id="rdItemPkgSelect" class="dialog-input" onchange="ReceiptsDetails._onDlgPkgSelectChange()"></select>
+                        </label>
+                        <label>Qtd. Embalagens <span class="required">*</span>
+                            <input id="rdItemPkgCount" type="number" step="1" min="1" class="dialog-input" placeholder="0"
+                                   oninput="ReceiptsDetails._onDlgPkgCountChange()">
+                            <span id="rdItemPkgHint" class="receipts-details-pkg-hint"></span>
+                        </label>
+                    </div>
+                </div>
+            `,
+            actions: [
+                { label: isEdit ? 'Salvar' : 'Adicionar', className: 'btn-primary', icon: isEdit ? 'check' : 'playlist_add', onClick: () => this._confirmItemDialog() },
+                { label: 'Cancelar', className: 'btn-secondary', onClick: () => this._itemDialog.close() },
+            ],
+        });
+        this._itemDialog.open();
+
+        // Mount material SearchSelect inside dialog
+        this._dlgMaterialSelect = createSearchSelect({
+            id: 'rdItemMaterial',
+            placeholder: 'Selecione um material',
+            searchable: true,
+            searchPlaceholder: 'Buscar...',
+            sections: [{ key: 'material', items: [] }],
+            onChange: () => this._onDlgMaterialChange(),
+        });
+        this._dlgMaterialSelect.mount(document.getElementById('rdItemMaterialContainer'));
+        this._dlgMaterialSelect.setItems('material', this._materialsCache.map(m => ({ value: m.name, label: m.name })));
+
+        // Mount operator SearchSelect if production
+        if (showOperator) {
+            this._dlgOperatorSelect = createSearchSelect({
+                id: 'rdItemOperator',
+                placeholder: 'Selecione um operador',
+                searchable: true,
+                searchPlaceholder: 'Buscar...',
+                sections: [{ key: 'operator', items: [] }],
+            });
+            this._dlgOperatorSelect.mount(document.getElementById('rdItemOperatorContainer'));
+            apiCall(API + "/operators").then(ops => {
+                this._dlgOperatorSelect?.setItems('operator', (ops || []).map(o => ({ value: o.name, label: o.name })));
+                if (editItem?.operator) this._dlgOperatorSelect.select('operator', editItem.operator);
+            }).catch(() => {});
+        }
+
+        // Pre-fill for edit mode
+        if (editItem) {
+            this._dlgMaterialSelect.select('material', editItem.material);
+            document.getElementById('rdItemQty').value = editItem.quantity;
+            if (isLotEdit) {
+                const codeLabel = document.getElementById('rdItemCodeLabel');
+                if (codeLabel) codeLabel.style.display = '';
+                document.getElementById('rdItemCode').value = editItem.code;
+            }
+            // Trigger material change to load packagings
+            this._onDlgMaterialChange();
+        }
+    },
+
+    /** Confirma o dialog de item — adiciona ou edita o item */
+    _confirmItemDialog() {
+        const material = this._dlgMaterialSelect?.getValue()?.value || '';
+        const nature = document.getElementById("receiptNature").value;
+        const itemOperator = this._dlgOperatorSelect?.getValue()?.value || '';
+        const isLot = this._getMaterialTrackingMode(material) === 'lots';
+        const code = document.getElementById("rdItemCode")?.value?.trim() || '';
+
+        if (isLot && !code) {
+            alert("Preencha o código do item");
+            return;
+        }
+        if (!material) {
+            alert("Selecione um material");
+            return;
+        }
+
+        // Determine quantity based on mode
+        const mode = document.getElementById('rdItemMode')?.value || 'qty';
+        let quantity;
+        if (mode === 'pkg') {
+            const sel = document.getElementById('rdItemPkgSelect');
+            const pkgQty = parseFloat(sel?.selectedOptions[0]?.dataset.qty) || 0;
+            const count = parseInt(document.getElementById('rdItemPkgCount')?.value);
+            if (!count || count <= 0) { alert('Informe a quantidade de embalagens'); return; }
+            if (pkgQty > 0) {
+                quantity = Math.round(count * pkgQty * 1000) / 1000;
+            } else {
+                // Embalagem sem peso unitário — qty informado manualmente
+                quantity = parseFloat(document.getElementById('rdItemQty')?.value);
+            }
+        } else {
+            quantity = parseFloat(document.getElementById('rdItemQty')?.value);
+        }
+
+        if (!quantity || quantity <= 0) {
+            alert("Informe uma quantidade válida");
             return;
         }
 
@@ -456,46 +605,154 @@ const ReceiptsDetails = {
             return;
         }
 
-        // Valida se o código contém apenas números
-        if (!/^\d+$/.test(code)) {
-            alert("O código do item deve conter apenas números");
-            return;
-        }
+        const normalizedCode = isLot
+            ? (() => {
+                if (!/^\d+$/.test(code)) { alert("O código do item deve conter apenas números"); return null; }
+                return Number.parseInt(code, 10);
+            })()
+            : this._getNextItemCode();
 
-        const normalizedCode = Number.parseInt(code, 10);
+        if (normalizedCode === null) return;
+
+        // Capture packaging info if in pkg mode
+        let packagingId = null;
+        let packagingCount = null;
+        if (mode === 'pkg') {
+            const sel = document.getElementById('rdItemPkgSelect');
+            packagingId = sel?.value ? parseInt(sel.value) : null;
+            packagingCount = parseInt(document.getElementById('rdItemPkgCount')?.value) || null;
+        }
 
         if (this._editingItemIndex !== null) {
             const origItem = this.items[this._editingItemIndex];
             this.items[this._editingItemIndex] = {
                 _stockUnitId:    origItem._stockUnitId,
                 _originalStatus: origItem._originalStatus,
-                code:            normalizedCode,
+                code:            isLot ? normalizedCode : origItem.code,
                 material,
                 quantity:        Number(quantity),
-                operator:        nature === "P" ? itemOperator : ""
+                operator:        nature === "P" ? itemOperator : "",
+                tracking_mode:   isLot ? 'lots' : 'simple',
+                packaging_id:    packagingId,
+                packaging_count: packagingCount
             };
             this._editingItemIndex = null;
-            this._restoreAddItemBtn();
         } else {
             this.items.push({
                 code:     normalizedCode,
                 material,
                 quantity: Number(quantity),
-                operator: nature === "P" ? itemOperator : ""
+                operator: nature === "P" ? itemOperator : "",
+                tracking_mode: isLot ? 'lots' : 'simple',
+                packaging_id:    packagingId,
+                packaging_count: packagingCount
             });
         }
 
-        this._operatorSelect?.clear();
-        clearFormInputs(["itemQuantity"]);
-        this._setNextItemCode();
+        this._markDirty();
+        this._itemDialog.close();
         this._refreshItemsView();
+    },
+
+    /** Reage à mudança de material no dialog — carrega packagings e mostra/esconde código */
+    async _onDlgMaterialChange() {
+        const selected = this._dlgMaterialSelect?.getValue();
+        if (!selected) return;
+
+        const mode = this._getMaterialTrackingMode(selected.value);
+        const codeLabel = document.getElementById('rdItemCodeLabel');
+        if (codeLabel) {
+            codeLabel.style.display = mode === 'lots' ? '' : 'none';
+            if (mode === 'lots') {
+                const nextCode = this._getNextItemCode();
+                document.getElementById('rdItemCode').value = nextCode;
+            }
+        }
+
+        // Fetch packagings for the selected material
+        const mat = this._materialsCache.find(m => m.name === selected.value);
+        this._dlgPackagings = [];
+        if (mat) {
+            try {
+                const full = await apiCall(API + `/materials/${mat.id}`);
+                this._dlgPackagings = full.packagings || [];
+            } catch { /* silencioso */ }
+        }
+
+        const pkgGroup = document.getElementById('rdItemPkgGroup');
+        const pkgFields = document.getElementById('rdItemPkgFields');
+        const unit = mat?.unit_of_measure || 'kg';
+        if (this._dlgPackagings.length > 0) {
+            if (pkgGroup) pkgGroup.style.display = '';
+            // Populate packaging select
+            const pkgSel = document.getElementById('rdItemPkgSelect');
+            if (pkgSel) {
+                pkgSel.innerHTML = this._dlgPackagings.map(p =>
+                    p.quantity
+                        ? `<option value="${p.id}" data-qty="${p.quantity}">${_esc(p.name)} (${p.quantity} ${unit})</option>`
+                        : `<option value="${p.id}" data-qty="0">${_esc(p.name)}</option>`
+                ).join('');
+            }
+            this._onDlgPkgSelectChange();
+        } else {
+            if (pkgGroup) pkgGroup.style.display = 'none';
+            if (pkgFields) pkgFields.style.display = 'none';
+            // Reset to qty mode
+            const modeEl = document.getElementById('rdItemMode');
+            if (modeEl) modeEl.value = 'qty';
+            const qtyLabel = document.getElementById('rdItemQtyLabel');
+            if (qtyLabel) qtyLabel.style.display = '';
+        }
+    },
+
+    /** Alterna modo quantidade / embalagem no dialog */
+    _onDlgModeChange() {
+        const mode = document.getElementById('rdItemMode')?.value;
+        const qtyLabel = document.getElementById('rdItemQtyLabel');
+        const pkgFields = document.getElementById('rdItemPkgFields');
+        if (mode === 'pkg') {
+            if (pkgFields) pkgFields.style.display = '';
+            // Se embalagem sem peso unitário, mostra qty também
+            const sel = document.getElementById('rdItemPkgSelect');
+            const hasPkgQty = parseFloat(sel?.selectedOptions[0]?.dataset.qty) > 0;
+            if (qtyLabel) qtyLabel.style.display = hasPkgQty ? 'none' : '';
+        } else {
+            if (qtyLabel) qtyLabel.style.display = '';
+            if (pkgFields) pkgFields.style.display = 'none';
+        }
+    },
+
+    /** Atualiza hint e visibilidade do campo qty quando embalagem selecionada muda no dialog */
+    _onDlgPkgSelectChange() {
+        const sel = document.getElementById('rdItemPkgSelect');
+        if (!sel) return;
+        const opt = sel.selectedOptions[0];
+        const qty = parseFloat(opt?.dataset.qty) || 0;
+        const hint = document.getElementById('rdItemPkgHint');
+        if (hint) hint.textContent = qty ? `${qty} por embalagem` : '';
+
+        // Se estiver em modo embalagem, ajusta visibilidade do campo quantidade
+        const mode = document.getElementById('rdItemMode')?.value;
+        if (mode === 'pkg') {
+            const qtyLabel = document.getElementById('rdItemQtyLabel');
+            if (qtyLabel) qtyLabel.style.display = qty > 0 ? 'none' : '';
+        }
+    },
+
+    /** Calcula quantidade total a partir da contagem de embalagens no dialog (só se houver peso por embalagem) */
+    _onDlgPkgCountChange() {
+        const sel = document.getElementById('rdItemPkgSelect');
+        const pkgQty = parseFloat(sel?.selectedOptions[0]?.dataset.qty) || 0;
+        if (!pkgQty) return; // sem peso por embalagem — usuário informa qty manualmente
+        const count = parseInt(document.getElementById('rdItemPkgCount')?.value) || 0;
+        const qtyEl = document.getElementById('rdItemQty');
+        if (qtyEl) qtyEl.value = Math.round(count * pkgQty * 1000) / 1000;
     },
 
     /** Remove um item pelo índice */
     deleteItem(index) {
         if (this._editingItemIndex === index) {
             this._editingItemIndex = null;
-            this._restoreAddItemBtn();
         } else if (this._editingItemIndex !== null && this._editingItemIndex > index) {
             this._editingItemIndex -= 1;
         }
@@ -504,28 +761,14 @@ const ReceiptsDetails = {
         this._refreshItemsView();
     },
 
-    /** Ativa o modo de edição inline para o item no índice indicado */
+    /** Ativa o modo de edição: abre o dialog com os dados do item preenchidos */
     startEditItem(index) {
-        this._editingItemIndex = index;
-        const item = this.items[index];
-        document.getElementById("itemCode").value = item.code;
-        this._materialSelect?.select('material', item.material);
-        document.getElementById("itemQuantity").value = item.quantity;
-        if (item.operator) this._operatorSelect?.select('operator', item.operator);
-        const addBtn = document.getElementById("receiptsDetailsAddBtn");
-        if (addBtn) addBtn.innerHTML = '<span class="material-symbols-outlined">stylus</span>Editar Item';
-        const cancelBtn = document.getElementById("receiptsDetailsCancelEditBtn");
-        if (cancelBtn) cancelBtn.style.display = '';
-        this._renderItems();
+        this.openAddItemDialog(index);
     },
 
-    /** Cancela o modo de edição e restaura o formulário de item */
+    /** Cancela o modo de edição */
     cancelEditItem() {
         this._editingItemIndex = null;
-        this._restoreAddItemBtn();
-        this._operatorSelect?.clear();
-        clearFormInputs(["itemQuantity"]);
-        this._setNextItemCode();
         this._renderItems();
     },
 
@@ -550,8 +793,10 @@ const ReceiptsDetails = {
         tbody.innerHTML = "";
 
         if (this.items.length === 0) {
+            let cols = 4; // code + material + qty + actions
+            if (showOperatorColumn) cols++;
             const tr = document.createElement("tr");
-            tr.innerHTML = `<td colspan="${showOperatorColumn ? 5 : 4}" class="empty-state">Nenhum item adicionado. Preencha o formulário acima e clique em Adicionar.</td>`;
+            tr.innerHTML = `<td colspan="${cols}" class="empty-state">Nenhum item adicionado. Clique em Adicionar Item.</td>`;
             tbody.appendChild(tr);
             return;
         }
@@ -567,13 +812,14 @@ const ReceiptsDetails = {
             const totalQty = entries.reduce((sum, e) => sum + e.item.quantity, 0);
             const operatorPlaceholder = showOperatorColumn ? '<td class="col-operator"></td>' : '';
             const itemLabel = entries.length === 1 ? 'item' : 'itens';
+            const groupIsLot = entries[0].item.tracking_mode === 'lots';
 
             // Linha de cabeçalho do grupo
             const groupTr = document.createElement('tr');
             groupTr.className = 'receipts-details-group-row';
             groupTr.innerHTML = `
-                <td class="col-code"><span class="group-badge">${entries.length} ${itemLabel}</span></td>
-                <td class="col-material group-material-name">${material}</td>
+                <td class="col-code">${groupIsLot ? `<span class="group-badge">${entries.length} ${itemLabel}</span>` : ''}</td>
+                <td class="col-material group-material-name">${!groupIsLot ? `<span class="group-badge">${entries.length} ${itemLabel}</span> ` : ''}${material}</td>
                 ${operatorPlaceholder}
                 <td class="col-qty group-qty-total">${totalQty}</td>
                 <td class="col-actions"></td>
@@ -584,11 +830,12 @@ const ReceiptsDetails = {
             for (const { item, index } of entries) {
                 const isEditing = this._editingItemIndex === index;
                 const readOnly = this._isReadOnly();
+                const isLot = item.tracking_mode === 'lots';
                 const operatorCell = showOperatorColumn
                     ? `<td class="col-operator">${item.operator || "-"}</td>`
                     : "";
                 const tr = createTableRow(`
-                    <td class="col-code">${item.code}</td>
+                    <td class="col-code">${isLot ? item.code : '—'}</td>
                     <td class="col-material"></td>
                     ${operatorCell}
                     <td class="col-qty">${item.quantity}</td>
@@ -706,31 +953,16 @@ const ReceiptsDetails = {
     updateFormVisibility(nature) {
         const supplierCard = document.getElementById("supplierPurchaseCard");
         const operatorCard = document.getElementById("operatorProductionCard");
-        const itemOperatorWrapper = document.getElementById("itemOperatorWrapper");
 
         if (nature === "P") {
-            // Produção — mostrar detalhes de fornecimento e operador no item
             supplierCard.style.display = "none";
             operatorCard.style.display = "block";
-            if (itemOperatorWrapper) {
-                itemOperatorWrapper.style.display = "";
-            }
         } else if (nature === "C" || nature === "S") {
-            // Compra ou Retorno — mostrar fornecedor/pedido, esconder operador do item
             supplierCard.style.display = "block";
             operatorCard.style.display = "none";
-            if (itemOperatorWrapper) {
-                itemOperatorWrapper.style.display = "none";
-                this._operatorSelect?.clear();
-            }
         } else {
-            // Nenhuma natureza selecionada
             supplierCard.style.display = "none";
             operatorCard.style.display = "none";
-            if (itemOperatorWrapper) {
-                itemOperatorWrapper.style.display = "none";
-                this._operatorSelect?.clear();
-            }
         }
 
         this._toggleOperatorColumn(nature === "P");
@@ -801,14 +1033,6 @@ const ReceiptsDetails = {
 
     // ── Utilitários Privados ──
 
-    /** Restaura o botão de adicionar item e oculta o botão de cancelar edição */
-    _restoreAddItemBtn() {
-        const addBtn = document.getElementById("receiptsDetailsAddBtn");
-        if (addBtn) addBtn.innerHTML = '<span class="material-symbols-outlined">playlist_add</span>Adicionar';
-        const cancelBtn = document.getElementById("receiptsDetailsCancelEditBtn");
-        if (cancelBtn) cancelBtn.style.display = 'none';
-    },
-
     /**
      * Exibe diálogo de confirmação unificado para itens com baixa que serão deletados ou modificados.
      * @param {Array} loweredDeleted - Itens deletados com status OUT_STOCK
@@ -869,7 +1093,8 @@ const ReceiptsDetails = {
             return {
                 ...baseData,
                 supplier: null,
-                order_id: null
+                order_id: null,
+                location_id: this._locationSelect?.getValue()?.value || null,
             };
         } else {
             // Compra ou Retorno de Serviço
@@ -878,6 +1103,7 @@ const ReceiptsDetails = {
                 ...baseData,
                 supplier: this._supplierSelect?.getValue()?.value || null,
                 order_id: orderVal ? parseInt(orderVal) : null,
+                location_id: this._locationSelect?.getValue()?.value || null,
             };
         }
     },
@@ -888,27 +1114,57 @@ const ReceiptsDetails = {
         for (const item of itemList) {
             // Operador só é relevante para natureza Produção
             const operator = nature === "P" ? (item.operator || null) : null;
+            const locationVal = this._locationSelect?.getValue()?.value || null;
 
-            const bagData = {
-                receipt_id: receiptId,
-                volume_id: Number.parseInt(item.code, 10),
-                material: item.material,
-                weight: parseInt(item.quantity),
-                supplier: supplier,
-                operator: operator,
-                status: "IN_STOCK",
-                date_in: date,
-                notes: ""
-            };
+            if (item.tracking_mode === 'simple') {
+                // Simples: cria apenas movimentação de entrada (sem stock_unit)
+                const mat = this._materialsCache.find(m => m.name === item.material);
+                if (!mat) { console.error('Material não encontrado no cache:', item.material); continue; }
+                try {
+                    await apiCall(API + "/stock-movements/entry", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            material_id:     mat.id,
+                            quantity:        Number(item.quantity),
+                            date:            date,
+                            receipt_id:      receiptId,
+                            operator:        operator,
+                            reason:          'purchase',
+                            location_id:     locationVal ? Number(locationVal) : null,
+                            packaging_id:    item.packaging_id || null,
+                            packaging_count: item.packaging_count || null,
+                        })
+                    });
+                } catch (error) {
+                    console.error("Erro ao salvar movimentação de entrada:", error);
+                }
+            } else {
+                // Lotes: cria stock_unit + movimentação (como antes)
+                const bagData = {
+                    receipt_id: receiptId,
+                    volume_id: Number.parseInt(item.code, 10),
+                    material: item.material,
+                    weight: parseInt(item.quantity),
+                    supplier: supplier,
+                    operator: operator,
+                    status: "IN_STOCK",
+                    date_in: date,
+                    notes: "",
+                    location_id: locationVal ? Number(locationVal) : undefined,
+                    packaging_id: item.packaging_id || null,
+                    packaging_count: item.packaging_count || null
+                };
 
-            try {
-                await apiCall(API + "/stock-units", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(bagData)
-                });
-            } catch (error) {
-                console.error("Erro ao salvar bag:", error);
+                try {
+                    await apiCall(API + "/stock-units", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(bagData)
+                    });
+                } catch (error) {
+                    console.error("Erro ao salvar bag:", error);
+                }
             }
         }
     },
@@ -948,9 +1204,19 @@ const ReceiptsDetails = {
         return maxCode + 1;
     },
 
-    /** Define o próximo código de item no campo de entrada */
+    /** Define o próximo código de item no campo de entrada (usado no dialog) */
     _setNextItemCode() {
-        const nextCode = this._getNextItemCode();
-        document.getElementById("itemCode").value = nextCode;
+        // No-op: código é definido ao abrir o dialog
     },
+
+    /**
+     * Retorna o tracking_mode de um material pelo nome.
+     * @param {string} name - Nome do material
+     * @returns {string} 'lots' ou 'simple'
+     */
+    _getMaterialTrackingMode(name) {
+        const mat = this._materialsCache.find(m => m.name === name);
+        return mat?.tracking_mode || 'simple';
+    },
+
 };

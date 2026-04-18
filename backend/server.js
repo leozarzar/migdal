@@ -37,6 +37,9 @@ const notificationsRoutes    = require("./routes/notifications");   // Notificat
 const weeklyReportRoutes     = require("./routes/weekly-report");   // Weekly AI report
 const authRoutes             = require("./routes/auth");             // Authentication
 const rolesRoutes            = require("./routes/roles");            // Roles & permissions
+const settingsRoutes         = require("./routes/settings");         // App settings
+const stockMovementsRoutes   = require("./routes/stock-movements");   // Stock movements (simple mode)
+const locationsRoutes        = require("./routes/locations");         // Storage locations
 // ── Middleware ────────────────────────────────────────────────────────────
 
 const app = express();
@@ -119,7 +122,15 @@ app.use((req, res, next) => {
                 roleId: session.role_id,
                 isAdmin: !!session.is_admin
             };
-            next();
+            // Carregar localizações do usuário
+            db.all(
+                `SELECT location_id FROM user_locations WHERE user_id = ?`,
+                [session.user_id],
+                (locErr, locRows) => {
+                    req.user.locationIds = (locRows || []).map(r => r.location_id);
+                    next();
+                }
+            );
         }
     );
 });
@@ -160,6 +171,9 @@ app.use("/notifications", notificationsRoutes);
 app.use("/weekly-report", weeklyReportRoutes);
 app.use("/auth", authRoutes);
 app.use("/roles", rolesRoutes);
+app.use("/settings", settingsRoutes);
+app.use("/stock-movements", stockMovementsRoutes);
+app.use("/locations", withPermissions(locationsRoutes, 'registry', 'locations'));
 
 // ── Cron: relatório semanal às segunda-feira 07:00 ────────────────────────
 
