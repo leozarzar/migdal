@@ -25,6 +25,12 @@ db.run(`
 // Migration: add color column if it doesn't exist yet
 db.run(`ALTER TABLE materials ADD COLUMN color TEXT`, () => {});
 
+// Migration: add group_id column if it doesn't exist yet
+db.run(`ALTER TABLE materials ADD COLUMN group_id INTEGER`, () => {});
+
+// Migration: add unit_measure column if it doesn't exist yet
+db.run(`ALTER TABLE materials ADD COLUMN unit_measure TEXT DEFAULT 'KG'`, () => {});
+
 // ── GET Endpoints ─────────────────────────────────────────────────────────
 
 /**
@@ -49,7 +55,7 @@ router.get("/", (req, res) => {
  * POST /materials - Cria um novo material
  */
 router.post("/", (req, res) => {
-    const { name, color, group_id } = req.body;
+    const { name, color, group_id, unit_measure } = req.body;
 
     if (!name || !name.trim()) {
         return res.status(400).json({
@@ -59,8 +65,8 @@ router.post("/", (req, res) => {
     }
 
     db.run(
-        `INSERT INTO materials (name, color, group_id) VALUES (?, ?, ?)`,
-        [name.trim(), color || null, group_id || null],
+        `INSERT INTO materials (name, color, group_id, unit_measure) VALUES (?, ?, ?, ?)`,
+        [name.trim(), color || null, group_id || null, unit_measure || 'KG'],
         function (err) {
             if (err) {
                 if (err.message.includes("UNIQUE")) {
@@ -91,7 +97,7 @@ router.post("/", (req, res) => {
  */
 router.put("/:id", (req, res) => {
     const { id } = req.params;
-    const { name, color, group_id } = req.body;
+    const { name, color, group_id, unit_measure } = req.body;
 
     if (!name || !name.trim()) {
         return res.status(400).json({
@@ -101,8 +107,8 @@ router.put("/:id", (req, res) => {
     }
 
     db.run(
-        `UPDATE materials SET name = ?, color = ?, group_id = ? WHERE id = ?`,
-        [name.trim(), color || null, group_id || null, id],
+        `UPDATE materials SET name = ?, color = ?, group_id = ?, unit_measure = ? WHERE id = ?`,
+        [name.trim(), color || null, group_id || null, unit_measure || 'KG', id],
         function (err) {
             if (err) {
                 if (err.message.includes("UNIQUE")) {

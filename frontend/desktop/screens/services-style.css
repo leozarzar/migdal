@@ -1,0 +1,187 @@
+.services-container {
+    width: 100%;
+    padding: 10px;
+}
+
+.services-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    padding: 16px;
+    overflow: hidden;
+}
+
+.services-form-wrapper {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.services-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.services-field-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+    line-height: 1;
+}
+
+.services-input {
+    width: 280px;
+    height: 32px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #0f172a;
+    transition: border-color 0.2s;
+}
+
+.services-input-price {
+    width: 110px;
+}
+
+.services-input:focus {
+    outline: none;
+    border-color: #94a3b8;
+}
+
+.services-select {
+    height: 32px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #0f172a;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.services-select:focus {
+    outline: none;
+    border-color: #94a3b8;
+}
+
+.services-btn-save {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 16px 0 10px;
+    background-color: white;
+    color: #1a1a1a;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.services-btn-save:hover {
+    background-color: #f0f0f0;
+}
+
+.services-btn-save .material-symbols-outlined {
+    font-size: 18px;
+}
+
+.services-btn-cancel {
+    height: 32px;
+    padding: 0 16px;
+    background: white;
+    color: #c62828;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.services-btn-cancel:hover {
+    background-color: #fdecea;
+}
+
+.services-table-container {
+    overflow-x: auto;
+}
+
+.services-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.services-table thead tr {
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.services-table th {
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.services-table th.right,
+.services-table td.right {
+    text-align: right;
+}
+
+.services-table tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+.services-table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+.services-table tbody tr.selected {
+    background-color: #eff6ff;
+}
+
+.services-table td {
+    padding: 8px 10px;
+    color: #1e293b;
+}
+
+.services-col-actions {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.services-col-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    color: #64748b;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.services-col-actions button:hover {
+    background-color: #fee2e2;
+    color: #c62828;
+}
+
+.services-col-actions .material-symbols-outlined {
+    font-size: 17px;
+    vertical-align: middle;
+}

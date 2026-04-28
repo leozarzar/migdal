@@ -31,10 +31,12 @@ const suppliersRoutes = require("./routes/suppliers"); // Supplier registry
 const materialsRoutes = require("./routes/materials");       // Material catalog
 const groupsRoutes = require("./routes/groups");             // Material groups
 const operatorsRoutes = require("./routes/operators");       // Operator registry
+const servicesRoutes = require("./routes/services");         // Services registry
 const consumptionRoutes      = require("./routes/consumption");    // Consumption statistics
 const kpisRoutes             = require('./routes/kpis');            // KPI dashboard
 const notificationsRoutes    = require("./routes/notifications");   // Notification alerts
 const weeklyReportRoutes     = require("./routes/weekly-report");   // Weekly AI report
+const purchaseInvoicesRoutes = require("./routes/purchase-invoices"); // Purchase invoices (NCI)
 // ── Middleware ────────────────────────────────────────────────────────────
 
 const app = express();
@@ -72,10 +74,12 @@ app.use("/suppliers", suppliersRoutes);
 app.use("/materials", materialsRoutes);
 app.use("/groups", groupsRoutes);
 app.use("/operators", operatorsRoutes);
+app.use("/services", servicesRoutes);
 app.use("/consumption", consumptionRoutes);
 app.use('/kpis', kpisRoutes);
 app.use("/notifications", notificationsRoutes);
 app.use("/weekly-report", weeklyReportRoutes);
+app.use("/purchase-invoices", purchaseInvoicesRoutes);
 
 // ── Cron: relatório semanal às segunda-feira 07:00 ────────────────────────
 

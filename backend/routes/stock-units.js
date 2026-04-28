@@ -20,6 +20,10 @@ function normalizeVolumeId(volumeId) {
     return parsedVolumeId;
 }
 
+// ── Migrations ────────────────────────────────────────────────────────────
+
+db.run(`ALTER TABLE stock_units ADD COLUMN service_id INTEGER`, () => {});
+
 // ── GET Endpoints ─────────────────────────────────────────────────────────
 
 /**
@@ -51,7 +55,7 @@ router.get("/", (req, res) => {
  * POST /stock-units - Cria uma nova unidade de estoque
  */
 router.post("/", (req, res) => {
-    const { receipt_id, volume_id, old_id, material, supplier, operator, weight, status, date_in, date_out, notes, deduction_type } = req.body;
+    const { receipt_id, volume_id, old_id, material, supplier, operator, weight, status, date_in, date_out, notes, deduction_type, service_id } = req.body;
     const normalizedVolumeId = normalizeVolumeId(volume_id);
 
     if (normalizedVolumeId === null) {
@@ -63,9 +67,9 @@ router.post("/", (req, res) => {
 
     const normalizedDateOut = (date_out == null || date_out === "") ? null : date_out;
     db.run(
-        `INSERT INTO stock_units (receipt_id, volume_id, old_id, material, supplier, operator, weight, status, date_in, date_out, notes, deduction_type)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [receipt_id, normalizedVolumeId, old_id || null, material, supplier || null, operator || null, weight, status, date_in, normalizedDateOut, notes, deduction_type || null],
+        `INSERT INTO stock_units (receipt_id, volume_id, old_id, material, supplier, operator, weight, status, date_in, date_out, notes, deduction_type, service_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [receipt_id, normalizedVolumeId, old_id || null, material || null, supplier || null, operator || null, weight, status, date_in, normalizedDateOut, notes, deduction_type || null, service_id || null],
         function (err) {
             if (err) {
                 return res.status(500).json({

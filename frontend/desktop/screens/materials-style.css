@@ -119,6 +119,34 @@
     width: 200px;
 }
 
+/* UM select in form */
+
+.materials-um-select {
+    height: 32px;
+    padding: 0 8px;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    width: 70px;
+}
+
+.materials-um-select:focus {
+    outline: none;
+    border-color: #1976d2;
+}
+
+/* UM column in table */
+
+.materials-col-um {
+    width: 50px;
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 600;
+}
+
 /* Color swatch in table */
 
 .materials-col-color {

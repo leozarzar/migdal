@@ -41,6 +41,10 @@ const ROUTES = {
     operators:        { title: "Operadores",   module: Operators },
     groups:           { title: "Grupos",       module: Groups },
     'groups-details': { title: "Grupo",        module: GroupsDetails, parent: 'groups' },
+    services:         { title: "Serviços",     module: Services },
+
+    // ── Documentos ──
+    'purchase-invoices': { title: "Faturas de Compras", module: PurchaseInvoices },
 };
 
 // ══════════════════════════════════════════════════════════════════

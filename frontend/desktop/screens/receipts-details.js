@@ -20,6 +20,10 @@ const ReceiptsDetails = {
     _materialSelect: null,
     _operatorSelect: null,
     _orderSelect: null,
+    _serviceSelect: null,
+
+    /** Cache de materiais (para exibição de UM) */
+    _materialsCache: [],
 
     // ── Ciclo de Vida ──
 
@@ -31,6 +35,7 @@ const ReceiptsDetails = {
         this._materialSelect?.destroy();  this._materialSelect = null;
         this._operatorSelect?.destroy();  this._operatorSelect = null;
         this._orderSelect?.destroy();     this._orderSelect = null;
+        this._serviceSelect?.destroy();   this._serviceSelect = null;
 
         if (Receipts.selectedReceipt) {
             try {
@@ -142,7 +147,13 @@ const ReceiptsDetails = {
                         <div class="item-form-wrapper">
                             <div class="receipts-details-item-form">
                                 <input id="itemCode" placeholder="Código" type="number" min="0" class="form-control" oninput="ReceiptsDetails.validateItemCode(this)">
-                                <div class="select-with-btn">
+                                <div class="select-with-btn" id="itemServiceWrapper" style="display:none">
+                                    <div id="itemServiceContainer"></div>
+                                    <button class="btn-open-tab" onclick="openNewTab('services')" title="Abrir cadastro de serviços em nova aba">
+                                        <span class="material-symbols-outlined">open_in_new</span>
+                                    </button>
+                                </div>
+                                <div class="select-with-btn" id="itemMaterialWrapper">
                                     <div id="itemMaterialContainer"></div>
                                     <button class="btn-open-tab" onclick="openNewTab('materials')" title="Abrir cadastro de materiais em nova aba">
                                         <span class="material-symbols-outlined">open_in_new</span>
@@ -235,15 +246,29 @@ const ReceiptsDetails = {
         });
         this._operatorSelect.mount(document.getElementById('itemOperatorContainer'));
 
+        this._serviceSelect = createSearchSelect({
+            id: 'itemService',
+            placeholder: 'Selecione um serviço',
+            searchable: true,
+            searchPlaceholder: 'Buscar...',
+            sections: [{ key: 'service', items: [] }],
+            onChange: () => { ReceiptsDetails._onServiceChange(); ReceiptsDetails._markDirty(); }
+        });
+        this._serviceSelect.mount(document.getElementById('itemServiceContainer'));
+
         try {
-            const [materials, suppliers, operators] = await Promise.all([
+            const [materials, suppliers, operators, services] = await Promise.all([
                 apiCall(API + "/materials"),
                 apiCall(API + "/suppliers"),
-                apiCall(API + "/operators")
+                apiCall(API + "/operators"),
+                apiCall(API + "/services").catch(() => [])
             ]);
-            this._materialSelect.setItems('material', (materials || []).map(m => ({ value: m.name, label: m.name })));
+            this._materialsCache = materials || [];
+            this._materialSelect.setItems('material', this._materialsCache.map(m => ({ value: m.name, label: m.name })));
             this._supplierSelect.setItems('supplier', (suppliers || []).map(s => ({ value: s.name, label: s.name })));
             this._operatorSelect.setItems('operator', (operators || []).map(o => ({ value: o.name, label: o.name })));
+            this._serviceSelect.setItems('service', (services || []).map(sv => ({ value: String(sv.id), label: sv.name, _serviceType: sv.service_type })));
+            this._servicesCache = services || [];
         } catch (error) {
             console.error("Erro ao carregar dados:", error);
         }
@@ -393,10 +418,43 @@ const ReceiptsDetails = {
     /** Adiciona um item ao recebimento */
     addItem() {
         const code = document.getElementById("itemCode").value.trim();
-        const material = this._materialSelect?.getValue()?.value || '';
         const quantity = document.getElementById("itemQuantity").value;
         const nature = document.getElementById("receiptNature").value;
         const itemOperator = this._operatorSelect?.getValue()?.value || '';
+
+        if (!/^\d+$/.test(code)) {
+            alert("O código do item deve conter apenas números");
+            return;
+        }
+
+        const normalizedCode = Number.parseInt(code, 10);
+
+        if (nature === "S") {
+            const svcVal = this._serviceSelect?.getValue();
+            if (!svcVal) { alert("Selecione um serviço"); return; }
+            const svcId = Number(svcVal.value);
+            const svcObj = (this._servicesCache || []).find(s => s.id === svcId);
+            const isFixed = svcObj?.service_type === 'fixed';
+
+            if (isFixed) {
+                // Serviço fixo: sem material nem quantidade
+                if (!code) { alert("Preencha o código do item"); return; }
+                this.items.push({ code: normalizedCode, material: null, service_id: svcId, service_name: svcVal.label, quantity: 1, operator: "" });
+            } else {
+                // Serviço por quantidade: material opcional, quantidade obrigatória
+                if (!quantity) { alert("Informe a quantidade"); return; }
+                const material = this._materialSelect?.getValue()?.value || null;
+                this.items.push({ code: normalizedCode, material, service_id: svcId, service_name: svcVal.label, quantity: Number(quantity), operator: "" });
+            }
+            this._serviceSelect?.clear();
+            this._materialSelect?.clear();
+            clearFormInputs(["itemQuantity"]);
+            this._setNextItemCode();
+            this._refreshItemsView();
+            return;
+        }
+
+        const material = this._materialSelect?.getValue()?.value || '';
 
         if (!code || !material || !quantity) {
             alert("Preencha todos os campos do item");
@@ -407,14 +465,6 @@ const ReceiptsDetails = {
             alert("Selecione o operador do item");
             return;
         }
-
-        // Valida se o código contém apenas números
-        if (!/^\d+$/.test(code)) {
-            alert("O código do item deve conter apenas números");
-            return;
-        }
-
-        const normalizedCode = Number.parseInt(code, 10);
 
         this.items.push({
             code: normalizedCode,
@@ -467,9 +517,12 @@ const ReceiptsDetails = {
             const operatorCell = showOperatorColumn
                 ? `<td class="col-operator">${item.operator || "-"}</td>`
                 : "";
+            const materialDisplay = item.service_name
+                ? (item.material ? `${item.service_name} / ${item.material}` : item.service_name)
+                : (item.material || "-");
             const tr = createTableRow(`
                 <td class="col-code">${item.code}</td>
-                <td class="col-material">${item.material}</td>
+                <td class="col-material">${materialDisplay}</td>
                 ${operatorCell}
                 <td class="col-qty">${item.quantity}</td>
                 <td class="col-actions">
@@ -581,29 +634,37 @@ const ReceiptsDetails = {
         const operatorCard = document.getElementById("operatorProductionCard");
         const itemOperatorWrapper = document.getElementById("itemOperatorWrapper");
 
+        const itemServiceWrapper = document.getElementById("itemServiceWrapper");
+        const itemMaterialWrapper = document.getElementById("itemMaterialWrapper");
+
         if (nature === "P") {
             // Produção — mostrar detalhes de fornecimento e operador no item
             supplierCard.style.display = "none";
             operatorCard.style.display = "block";
-            if (itemOperatorWrapper) {
-                itemOperatorWrapper.style.display = "";
-            }
-        } else if (nature === "C" || nature === "S") {
-            // Compra ou Retorno — mostrar fornecedor/pedido, esconder operador do item
+            if (itemOperatorWrapper) itemOperatorWrapper.style.display = "";
+            if (itemServiceWrapper) itemServiceWrapper.style.display = "none";
+            if (itemMaterialWrapper) itemMaterialWrapper.style.display = "";
+        } else if (nature === "S") {
+            // Retorno de Serviço — mostrar serviço + material condicional
             supplierCard.style.display = "block";
             operatorCard.style.display = "none";
-            if (itemOperatorWrapper) {
-                itemOperatorWrapper.style.display = "none";
-                this._operatorSelect?.clear();
-            }
+            if (itemOperatorWrapper) { itemOperatorWrapper.style.display = "none"; this._operatorSelect?.clear(); }
+            if (itemServiceWrapper) itemServiceWrapper.style.display = "";
+            if (itemMaterialWrapper) itemMaterialWrapper.style.display = "";
+        } else if (nature === "C") {
+            // Compra — mostrar fornecedor/pedido, esconder operador e serviço
+            supplierCard.style.display = "block";
+            operatorCard.style.display = "none";
+            if (itemOperatorWrapper) { itemOperatorWrapper.style.display = "none"; this._operatorSelect?.clear(); }
+            if (itemServiceWrapper) { itemServiceWrapper.style.display = "none"; this._serviceSelect?.clear(); }
+            if (itemMaterialWrapper) itemMaterialWrapper.style.display = "";
         } else {
             // Nenhuma natureza selecionada
             supplierCard.style.display = "none";
             operatorCard.style.display = "none";
-            if (itemOperatorWrapper) {
-                itemOperatorWrapper.style.display = "none";
-                this._operatorSelect?.clear();
-            }
+            if (itemOperatorWrapper) { itemOperatorWrapper.style.display = "none"; this._operatorSelect?.clear(); }
+            if (itemServiceWrapper) { itemServiceWrapper.style.display = "none"; this._serviceSelect?.clear(); }
+            if (itemMaterialWrapper) itemMaterialWrapper.style.display = "";
         }
 
         this._toggleOperatorColumn(nature === "P");
@@ -672,6 +733,18 @@ const ReceiptsDetails = {
     /** @deprecated Use onSupplierChange() — mantido para compatibilidade */
     async _populateOrderSelect() {},
 
+    /** Oculta/exibe campo de material e quantidade ao mudar o serviço selecionado */
+    _onServiceChange() {
+        const svcVal = this._serviceSelect?.getValue();
+        if (!svcVal) return;
+        const svcObj = (this._servicesCache || []).find(s => String(s.id) === svcVal.value);
+        const isFixed = svcObj?.service_type === 'fixed';
+        const itemMaterialWrapper = document.getElementById("itemMaterialWrapper");
+        const itemQuantityEl = document.getElementById("itemQuantity");
+        if (itemMaterialWrapper) itemMaterialWrapper.style.display = isFixed ? "none" : "";
+        if (itemQuantityEl) itemQuantityEl.style.display = isFixed ? "none" : "";
+    },
+
     // ── Utilitários Privados ──
 
     /** Obtém os dados do formulário de recebimento */
@@ -712,7 +785,8 @@ const ReceiptsDetails = {
             const bagData = {
                 receipt_id: receiptId,
                 volume_id: Number.parseInt(item.code, 10),
-                material: item.material,
+                material: item.material || null,
+                service_id: item.service_id || null,
                 weight: parseInt(item.quantity),
                 supplier: supplier,
                 operator: operator,

@@ -30,6 +30,17 @@ const Materials = {
                         <input type="color" id="materialColor" class="materials-color-input" value="#3b5bdb">
                     </div>
                     <div class="materials-field-group">
+                        <label class="materials-field-label" for="materialUM">Unidade</label>
+                        <select id="materialUM" class="materials-um-select">
+                            <option value="KG">KG</option>
+                            <option value="PÇA">PÇA</option>
+                            <option value="M">M</option>
+                            <option value="L">L</option>
+                            <option value="UN">UN</option>
+                            <option value="T">T</option>
+                        </select>
+                    </div>
+                    <div class="materials-field-group">
                         <label class="materials-field-label">Grupo</label>
                         <div class="select-with-btn materials-group-field">
                             <div id="materialGroupContainer"></div>
@@ -47,6 +58,7 @@ const Materials = {
                             <tr>
                                 <th></th>
                                 <th>Nome</th>
+                                <th>UM</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -90,6 +102,7 @@ const Materials = {
     async saveMaterial() {
         const name = document.getElementById("materialName").value.trim();
         const color = document.getElementById("materialColor")?.value || null;
+        const unit_measure = document.getElementById("materialUM")?.value || "KG";
         const groupSel = this._groupSelect?.getValue();
         const group_id = groupSel ? parseInt(groupSel.value) : null;
 
@@ -104,7 +117,7 @@ const Materials = {
                 await apiCall(API + `/materials/${this.selectedMaterial}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name, color, group_id })
+                    body: JSON.stringify({ name, color, group_id, unit_measure })
                 });
                 alert("Material atualizado com sucesso");
             } else {
@@ -112,7 +125,7 @@ const Materials = {
                 await apiCall(API + "/materials", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name, color, group_id })
+                    body: JSON.stringify({ name, color, group_id, unit_measure })
                 });
                 alert("Material criado com sucesso");
             }
@@ -137,6 +150,8 @@ const Materials = {
         document.getElementById("materialName").value = material.name;
         const colorInput = document.getElementById("materialColor");
         if (colorInput) colorInput.value = material.color || "#3b5bdb";
+        const umSelect = document.getElementById("materialUM");
+        if (umSelect) umSelect.value = material.unit_measure || "KG";
         if (material.group_id) this._groupSelect?.select('group', material.group_id);
         else this._groupSelect?.clear();
         this.selectedMaterial = material.id;
@@ -174,7 +189,7 @@ const Materials = {
 
         if (!materials || materials.length === 0) {
             const tr = document.createElement("tr");
-            tr.innerHTML = `<td colspan="2" class="empty-state">Nenhum material cadastrado.</td>`;
+            tr.innerHTML = `<td colspan="4" class="empty-state">Nenhum material cadastrado.</td>`;
             tbody.appendChild(tr);
             return;
         }
@@ -197,6 +212,7 @@ const Materials = {
         tr.innerHTML = `
             <td class="materials-col-color">${swatch}</td>
             <td class="materials-col-name">${material.name}</td>
+            <td class="materials-col-um">${material.unit_measure || 'KG'}</td>
             <td class="materials-col-actions">
                 <button onclick="Materials.deleteMaterial(event, ${material.id})">
                     <span class="material-symbols-outlined">delete</span>
@@ -221,6 +237,8 @@ const Materials = {
         clearFormInputs(["materialName"]);
         const colorInput = document.getElementById("materialColor");
         if (colorInput) colorInput.value = "#3b5bdb";
+        const umSelect = document.getElementById("materialUM");
+        if (umSelect) umSelect.value = "KG";
         this._groupSelect?.clear();
         clearTableSelection();
         this.selectedMaterial = null;

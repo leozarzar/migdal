@@ -16,6 +16,8 @@
     <link rel="stylesheet" href="desktop/screens/receipts-details-style.css">
     <link rel="stylesheet" href="desktop/screens/materials-style.css">
     <link rel="stylesheet" href="desktop/screens/suppliers-style.css">
+    <link rel="stylesheet" href="desktop/screens/services-style.css">
+    <link rel="stylesheet" href="desktop/screens/purchase-invoices-style.css">
     <link rel="stylesheet" href="desktop/screens/operators-style.css">
     <link rel="stylesheet" href="desktop/screens/dashboard-style.css">
     <link rel="stylesheet" href="desktop/screens/stock-monitor-style.css">
@@ -117,6 +119,18 @@
             Grupos
         </button>
 
+        <button data-route="services" onclick="showScreen('services')">
+            <span class="material-symbols-outlined">build</span>
+            Serviços
+        </button>
+
+        <div class="sidebar-section-label">Documentos</div>
+
+        <button data-route="purchase-invoices" onclick="showScreen('purchase-invoices')">
+            <span class="material-symbols-outlined">receipt_long</span>
+            Faturas de Compras
+        </button>
+
     </div>
 
 
@@ -162,6 +176,8 @@
 <script src="desktop/screens/receipts-details.js"></script>
 <script src="desktop/screens/materials.js"></script>
 <script src="desktop/screens/suppliers.js"></script>
+<script src="desktop/screens/services.js"></script>
+<script src="desktop/screens/purchase-invoices.js"></script>
 <script src="desktop/screens/operators.js"></script>
 <script src="desktop/screens/dashboard.js"></script>
 <script src="desktop/screens/stock-monitor.js"></script>
