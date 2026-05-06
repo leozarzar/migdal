@@ -1,5 +1,13 @@
 node_modules/
 .env
 .DS_Store
+**/.DS_Store
 dist/
 coverage/
+
+# Banco de dados SQLite (dados de produção)
+*.db
+*.sqlite
+
+# Arquivos de importação com dados reais
+resources/

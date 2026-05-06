@@ -86,7 +86,7 @@ app.use("/purchase-invoices", purchaseInvoicesRoutes);
 cron.schedule("0 7 * * 1", () => {
     console.log("[cron] Gerando relatório semanal...");
     const http = require("http");
-    const req  = http.request({ hostname: "localhost", port: 3000, path: "/weekly-report/generate", method: "POST" });
+    const req  = http.request({ hostname: "localhost", port: 3002, path: "/weekly-report/generate", method: "POST" });
     req.on("error", err => console.error("[cron] Erro ao gerar relatório:", err.message));
     req.end();
 }, { timezone: "America/Sao_Paulo" });
@@ -101,10 +101,10 @@ app.listen(3000, () => {
 
     console.log("Server running on 3000");
     console.log("");
-    console.log("  Desktop  →  http://localhost:3000/app");
-    console.log("  Mobile   →  http://localhost:3000/mobile");
+    console.log("  Desktop  →  http://localhost:3002/app");
+    console.log("  Mobile   →  http://localhost:3002/mobile");
     console.log("");
-    console.log("  Desktop  →  http://" + localIP + ":3000/app");
-    console.log("  Mobile   →  http://" + localIP + ":3000/mobile");
+    console.log("  Desktop  →  http://" + localIP + ":3002/app");
+    console.log("  Mobile   →  http://" + localIP + ":3002/mobile");
     console.log("");
 });
