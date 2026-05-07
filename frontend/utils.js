@@ -207,7 +207,10 @@ const apiCall = async (url, options = {}) => {
         
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            const err = new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            err.status = response.status;
+            err.data = errorData;
+            throw err;
         }
 
         if (response.status === 204) {

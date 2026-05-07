@@ -115,6 +115,10 @@
     white-space: nowrap;
 }
 
+.stock-position-table thead th.stock-position-col-num {
+    text-align: center;
+}
+
 .stock-position-table tbody td {
     padding: 7px 14px;
     border-bottom: 1px solid #eceef2;
@@ -137,7 +141,7 @@
 }
 
 .stock-position-col-num {
-    text-align: right;
+    text-align: center;
 }
 
 .stock-position-empty {
@@ -185,8 +189,9 @@
 
 /* ── Botão de saída (modo simples) ── */
 
+
 .stock-position-col-action {
-    width: 40px;
+    width: 48px;
     text-align: center;
 }
 

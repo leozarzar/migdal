@@ -1,4 +1,4 @@
-const API = "http://localhost:3000";
+const API = "http://localhost:3001";
 
 loadBags();
 
@@ -118,7 +118,7 @@ async function useBag(event,code) {
 
     event.stopPropagation();
 
-    await fetch(`http://localhost:3000/bags/${code}/out`, {
+    await fetch(`http://localhost:3001/bags/${code}/out`, {
         method: "PUT"
     });
 
@@ -129,7 +129,7 @@ async function returnBag(event,code) {
 
     event.stopPropagation();
 
-    await fetch(`http://localhost:3000/bags/${code}/in`, {
+    await fetch(`http://localhost:3001/bags/${code}/in`, {
         method: "PUT"
     });
 
@@ -140,7 +140,7 @@ async function deleteBag(event,code) {
 
     event.stopPropagation();
 
-    await fetch(`http://localhost:3000/bags/${code}`, {
+    await fetch(`http://localhost:3001/bags/${code}`, {
         method: "DELETE"
     });
 

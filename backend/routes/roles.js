@@ -35,6 +35,13 @@ db.run(`CREATE TABLE IF NOT EXISTS role_permissions (
     UNIQUE(role_id, module, screen)
 )`);
 
+db.run(`CREATE TABLE IF NOT EXISTS role_locations (
+    role_id     INTEGER NOT NULL,
+    location_id INTEGER NOT NULL,
+    PRIMARY KEY (role_id, location_id),
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+)`);
+
 // Migration: adicionar role_id em users (falha silenciosa se já existir)
 db.run(`ALTER TABLE users ADD COLUMN role_id INTEGER REFERENCES roles(id)`, () => {});
 
@@ -87,12 +94,16 @@ router.get('/:id', (req, res) => {
 
         db.all(`SELECT * FROM role_permissions WHERE role_id = ?`, [id], (err2, permissions) => {
             if (err2) return res.status(500).json({ success: false, message: 'Erro ao buscar permissões.', error: err2.message });
-            // Parse actions JSON
             const parsed = permissions.map(p => ({
                 ...p,
                 actions: JSON.parse(p.actions || '[]')
             }));
-            res.json({ ...role, permissions: parsed });
+
+            db.all(`SELECT location_id FROM role_locations WHERE role_id = ?`, [id], (err3, locRows) => {
+                if (err3) return res.status(500).json({ success: false, message: 'Erro ao buscar localizações.', error: err3.message });
+                const location_ids = (locRows || []).map(r => r.location_id);
+                res.json({ ...role, permissions: parsed, location_ids });
+            });
         });
     });
 });
@@ -217,6 +228,48 @@ router.put('/:id/permissions', requirePermission('admin', 'admin-roles', 'edit')
             stmt.finalize((finErr) => {
                 if (!hasError) {
                     if (finErr) return res.status(500).json({ success: false, message: 'Erro ao finalizar permissões.', error: finErr.message });
+                    res.json({ success: true });
+                }
+            });
+        });
+    });
+});
+
+// ── PUT /roles/:id/locations ──────────────────────────────────────────────
+
+router.put('/:id/locations', requirePermission('admin', 'admin-roles', 'edit'), (req, res) => {
+    const { id } = req.params;
+    const { location_ids } = req.body || {};
+
+    if (!Array.isArray(location_ids)) {
+        return res.status(400).json({ success: false, message: 'location_ids deve ser um array.' });
+    }
+
+    db.get(`SELECT id FROM roles WHERE id = ?`, [id], (err, role) => {
+        if (err) return res.status(500).json({ success: false, message: 'Erro interno.', error: err.message });
+        if (!role) return res.status(404).json({ success: false, message: 'Papel não encontrado.' });
+
+        db.run(`DELETE FROM role_locations WHERE role_id = ?`, [id], (delErr) => {
+            if (delErr) return res.status(500).json({ success: false, message: 'Erro ao limpar localizações.', error: delErr.message });
+
+            if (location_ids.length === 0) {
+                return res.json({ success: true });
+            }
+
+            const stmt = db.prepare(`INSERT OR IGNORE INTO role_locations (role_id, location_id) VALUES (?, ?)`);
+            let hasError = false;
+            for (const locId of location_ids) {
+                if (hasError) break;
+                stmt.run([id, locId], (insertErr) => {
+                    if (insertErr && !hasError) {
+                        hasError = true;
+                        return res.status(500).json({ success: false, message: 'Erro ao inserir localização.', error: insertErr.message });
+                    }
+                });
+            }
+            stmt.finalize((finErr) => {
+                if (!hasError) {
+                    if (finErr) return res.status(500).json({ success: false, message: 'Erro ao finalizar localizações.', error: finErr.message });
                     res.json({ success: true });
                 }
             });

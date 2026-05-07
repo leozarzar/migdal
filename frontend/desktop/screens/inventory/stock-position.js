@@ -33,13 +33,9 @@ const StockPosition = {
                     <table class="stock-position-table">
                         <thead>
                             <tr>
-                                <th></th>
                                 <th>Material</th>
-                                <th>Grupo</th>
                                 <th class="stock-position-col-num">Saldo</th>
                                 <th class="stock-position-col-num">Lotes</th>
-                                <th>Entrada mais antiga</th>
-                                <th class="stock-position-col-num">Dias</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -66,7 +62,7 @@ const StockPosition = {
             this._data = await apiCall(url) || [];
         } catch (e) { alert(e.message); return; }
 
-        this._populateGroupFilter();
+            await this._populateGroupFilter();
         this._renderTable();
     },
 
@@ -163,7 +159,7 @@ const StockPosition = {
         this._renderTable();
     },
 
-    _populateGroupFilter() {
+    async _populateGroupFilter() {
         const container = document.getElementById('stockPositionGroupContainer');
         if (!container) return;
 
@@ -171,25 +167,26 @@ const StockPosition = {
             this._groupSelect = createSearchSelect({
                 placeholder: 'Grupo',
                 size: 'small',
-                allowClear: true,
-                onChange: (item) => this._onGroupChange(item ? String(item.id) : '')
+                sections: [{ key: 'groups', items: [] }],
+                onChange: (sel) => this._onGroupChange(sel && sel.value != null ? String(sel.value) : '')
             });
             this._groupSelect.mount(container);
         }
 
-        const groups = [];
-        const seen = new Set();
-        for (const row of this._data) {
-            if (row.group_id && !seen.has(row.group_id)) {
-                seen.add(row.group_id);
-                groups.push({ id: row.group_id, label: row.group_name });
-            }
+        let groups = [];
+        try {
+            groups = await apiCall(API + '/groups');
+        } catch (e) {
+            groups = [];
         }
-        groups.sort((a, b) => a.label.localeCompare(b.label));
-        this._groupSelect.setItems(groups);
+
+        const items = groups
+            .map(g => ({ value: g.id, label: g.name }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+        this._groupSelect.setItems('groups', items);
 
         if (this._selectedGroup) {
-            this._groupSelect.setValue(this._selectedGroup);
+            this._groupSelect.select('groups', this._selectedGroup);
         }
     },
 
@@ -213,6 +210,8 @@ const StockPosition = {
         const filtered = this._getFilteredData();
 
         // Resumo
+        // Descobrir unidades de medida distintas
+        const units = Array.from(new Set(filtered.map(r => r.unit).filter(Boolean)));
         const totalBalance = filtered.reduce((s, r) => s + r.balance, 0);
         const totalLots = filtered.reduce((s, r) => s + r.lots_in_stock, 0);
         const materialsWithStock = filtered.filter(r => r.balance > 0).length;
@@ -226,10 +225,11 @@ const StockPosition = {
                 <span class="stock-position-summary-item">
                     <strong>${materialsWithStock}</strong> com saldo
                 </span>
+                ${units.length === 1 ? `
                 <span class="stock-position-summary-sep">·</span>
                 <span class="stock-position-summary-item">
-                    <strong>${totalBalance.toLocaleString('pt-BR')} kg</strong> total
-                </span>
+                    <strong>${totalBalance.toLocaleString('pt-BR')} ${units[0]}</strong> total
+                </span>` : ''}
                 ${totalLots > 0 ? `
                 <span class="stock-position-summary-sep">·</span>
                 <span class="stock-position-summary-item">
@@ -239,7 +239,7 @@ const StockPosition = {
         }
 
         if (filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="stock-position-empty">Nenhum material encontrado.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="stock-position-empty">Nenhum material encontrado.</td></tr>`;
             return;
         }
 
@@ -252,17 +252,6 @@ const StockPosition = {
     _createRow(row) {
         const tr = document.createElement('tr');
         const hasStock = row.balance > 0;
-        const days = row.oldest_entry ? calculateDaysDifference(row.oldest_entry) : null;
-
-        let statusClass = 'stock-position-status--empty';
-        if (hasStock && days !== null) {
-            if (days > 60) statusClass = 'stock-position-status--danger';
-            else if (days > 30) statusClass = 'stock-position-status--warning';
-            else statusClass = 'stock-position-status--ok';
-        } else if (hasStock) {
-            statusClass = 'stock-position-status--ok';
-        }
-
         const isLot = row.tracking_mode === 'lots';
         const clickable = isLot ? hasStock : true;
         const cursorClass = clickable ? 'stock-position-row--clickable' : '';
@@ -273,19 +262,14 @@ const StockPosition = {
         }
 
         tr.innerHTML = `
-            <td><span class="stock-position-status-dot ${statusClass}"></span></td>
             <td>
                 <span class="stock-position-material-name">${_esc(row.material)}</span>
-                ${row.material_color ? `<span class="stock-position-material-color" style="background:${_esc(row.material_color)}"></span>` : ''}
             </td>
-            <td class="stock-position-group">${_esc(row.group_name || '—')}</td>
-            <td class="stock-position-col-num"><strong>${row.balance.toLocaleString('pt-BR')} kg</strong></td>
+            <td class="stock-position-col-num"><strong>${row.balance.toLocaleString('pt-BR')} ${row.unit || ''}</strong></td>
             <td class="stock-position-col-num">${isLot ? row.lots_in_stock : '—'}</td>
-            <td>${row.oldest_entry ? _esc(row.oldest_entry.split('-').reverse().join('/')) : '—'}</td>
-            <td class="stock-position-col-num">${days !== null ? days + 'd' : '—'}</td>
             <td class="stock-position-col-action">
                 ${!isLot && hasStock ? `<button class="stock-position-exit-btn" onclick="StockPosition.openExitDialog(event, ${row.material_id})" title="Registrar saída">
-                    <span class="material-symbols-outlined">remove_circle_outline</span>
+                    <span class="material-symbols-outlined">output</span>
                 </button>` : ''}
             </td>
         `;

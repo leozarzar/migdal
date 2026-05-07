@@ -22,7 +22,6 @@ const AdminUsers = {
                                 <th>Nome</th>
                                 <th>E-mail</th>
                                 <th>Papel</th>
-                                <th>Localizações</th>
                                 <th>Cadastro</th>
                             </tr>
                         </thead>
@@ -116,7 +115,7 @@ const AdminUsers = {
         if (!tbody) return;
 
         if (this._users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">Nenhum usuário cadastrado.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px">Nenhum usuário cadastrado.</td></tr>';
             return;
         }
 
@@ -126,17 +125,6 @@ const AdminUsers = {
             const options = this._roles.map(r =>
                 `<option value="${r.id}"${r.id === user.role_id ? ' selected' : ''}>${_esc(r.name)}</option>`
             ).join('');
-
-            const userLocs = this._userLocations[user.id] || [];
-            const locCheckboxes = this._locations.length > 0
-                ? this._locations.map(loc => {
-                    const checked = userLocs.includes(loc.id) ? 'checked' : '';
-                    return `<label class="admin-users-loc-label">
-                        <input type="checkbox" ${checked} ${canEdit ? `onchange="AdminUsers.toggleUserLocation(this, ${user.id}, ${loc.id})"` : 'disabled'}>
-                        <span>${_esc(loc.name)}</span>
-                    </label>`;
-                }).join('')
-                : '<span class="admin-users-no-locs">Sem localizações</span>';
 
             const date = user.created_at
                 ? new Date(user.created_at).toLocaleDateString('pt-BR')
@@ -153,7 +141,6 @@ const AdminUsers = {
                         ${options}
                     </select>
                 </td>
-                <td class="admin-users-loc-cell">${locCheckboxes}</td>
                 <td><span class="admin-users-date">${date}</span></td>
             </tr>`;
         }).join('');

@@ -23,9 +23,10 @@ const stockMonitorRoutes = require("./routes/stock-monitor");   // Stock balance
 const stockPoliciesRoutes = require("./routes/stock-policies"); // Inventory policies & forecasting
 
 // Procurement
-const ordersRoutes = require("./routes/orders");       // Purchase orders
-const receiptsRoutes = require("./routes/receipts");   // Goods receipts
-const suppliersRoutes = require("./routes/suppliers"); // Supplier registry
+const ordersRoutes = require("./routes/orders");             // Purchase orders
+const receiptsRoutes = require("./routes/receipts");         // Goods receipts
+const suppliersRoutes = require("./routes/suppliers");       // Supplier registry
+const purchaseInvoicesRoutes = require("./routes/purchase-invoices"); // Purchase invoices
 
 // Master data
 const materialsRoutes = require("./routes/materials");       // Material catalog
@@ -122,10 +123,12 @@ app.use((req, res, next) => {
                 roleId: session.role_id,
                 isAdmin: !!session.is_admin
             };
-            // Carregar localizações do usuário
+            // Carregar localizações do usuário (user_locations) + localizações do papel (role_locations)
             db.all(
-                `SELECT location_id FROM user_locations WHERE user_id = ?`,
-                [session.user_id],
+                `SELECT location_id FROM user_locations WHERE user_id = ?
+                 UNION
+                 SELECT location_id FROM role_locations WHERE role_id = ?`,
+                [session.user_id, session.role_id],
                 (locErr, locRows) => {
                     req.user.locationIds = (locRows || []).map(r => r.location_id);
                     next();
@@ -161,6 +164,7 @@ app.use("/stock-policies", stockPoliciesRoutes);
 app.use("/orders", ordersRoutes);
 app.use("/receipts", receiptsRoutes);
 app.use("/suppliers", withPermissions(suppliersRoutes, 'registry', 'suppliers'));
+app.use("/purchase-invoices", purchaseInvoicesRoutes);
 
 app.use("/materials", withPermissions(materialsRoutes, 'registry', 'materials'));
 app.use("/groups", withPermissions(groupsRoutes, 'registry', 'groups'));
@@ -180,25 +184,25 @@ app.use("/locations", withPermissions(locationsRoutes, 'registry', 'locations'))
 cron.schedule("0 7 * * 1", () => {
     console.log("[cron] Gerando relatório semanal...");
     const http = require("http");
-    const req  = http.request({ hostname: "localhost", port: 3000, path: "/weekly-report/generate", method: "POST" });
+    const req  = http.request({ hostname: "localhost", port: 3001, path: "/weekly-report/generate", method: "POST" });
     req.on("error", err => console.error("[cron] Erro ao gerar relatório:", err.message));
     req.end();
 }, { timezone: "America/Sao_Paulo" });
 // ── Server Startup ────────────────────────────────────────────────────────
 
-app.listen(3000, () => {
+app.listen(3001, () => {
     const { networkInterfaces } = require("os");
     const nets = networkInterfaces();
     const localIP = Object.values(nets)
         .flat()
         .find(n => n.family === "IPv4" && !n.internal)?.address || "localhost";
 
-    console.log("Server running on 3000");
+    console.log("Server running on 3001");
     console.log("");
-    console.log("  Desktop  →  http://localhost:3000/app");
-    console.log("  Mobile   →  http://localhost:3000/mobile");
+    console.log("  Desktop  →  http://localhost:3001/app");
+    console.log("  Mobile   →  http://localhost:3001/mobile");
     console.log("");
-    console.log("  Desktop  →  http://" + localIP + ":3000/app");
-    console.log("  Mobile   →  http://" + localIP + ":3000/mobile");
+    console.log("  Desktop  →  http://" + localIP + ":3001/app");
+    console.log("  Mobile   →  http://" + localIP + ":3001/mobile");
     console.log("");
 });

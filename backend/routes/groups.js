@@ -28,46 +28,87 @@ db.run(`ALTER TABLE materials ADD COLUMN group_id INTEGER`, () => {});
 // ── GET Endpoints ─────────────────────────────────────────────────────────
 
 /**
- * GET /groups - Lista todos os grupos
+ * GET /groups - Lista grupos visíveis ao usuário.
+ * Non-admin: apenas grupos com materiais vinculados às localizações do usuário.
+ * Admin: todos os grupos.
  */
 router.get("/", (req, res) => {
-    db.all(
-        `SELECT g.id, g.name, COUNT(m.id) AS material_count
-         FROM groups g
-         LEFT JOIN materials m ON m.group_id = g.id
-         GROUP BY g.id
-         ORDER BY g.name`,
-        [],
-        (err, rows) => {
-            if (err) {
-                return res.status(500).json({
-                    success: false,
-                    message: "Erro ao carregar grupos",
-                    error: err.message
-                });
+    const user = req.user || {};
+
+    if (user.isAdmin) {
+        db.all(
+            `SELECT g.id, g.name, COUNT(m.id) AS material_count
+             FROM groups g
+             LEFT JOIN materials m ON m.group_id = g.id
+             GROUP BY g.id
+             ORDER BY g.name`,
+            [],
+            (err, rows) => {
+                if (err) return res.status(500).json({ success: false, message: "Erro ao carregar grupos", error: err.message });
+                res.json(rows || []);
             }
-            res.json(rows || []);
-        }
-    );
+        );
+        return;
+    }
+
+    const userLocs = user.locationIds || [];
+    if (userLocs.length === 0) {
+        return res.json([]);
+    }
+    {
+        const placeholders = userLocs.map(() => '?').join(',');
+        db.all(
+            `SELECT g.id, g.name, COUNT(DISTINCT m.id) AS material_count
+             FROM groups g
+             INNER JOIN materials m ON m.group_id = g.id
+             INNER JOIN material_locations ml ON ml.material_id = m.id
+             WHERE ml.location_id IN (${placeholders})
+             GROUP BY g.id
+             ORDER BY g.name`,
+            userLocs,
+            (err, rows) => {
+                if (err) return res.status(500).json({ success: false, message: "Erro ao carregar grupos", error: err.message });
+                res.json(rows || []);
+            }
+        );
+    }
 });
 
 /**
- * GET /groups/:id - Busca grupo com seus materiais
+ * GET /groups/:id - Busca grupo com seus materiais (filtrados por localização para non-admin).
  */
 router.get("/:id", (req, res) => {
     const { id } = req.params;
+    const user = req.user || {};
+
     db.get("SELECT * FROM groups WHERE id = ?", [id], (err, group) => {
         if (err) return res.status(500).json({ success: false, message: "Erro ao buscar grupo" });
         if (!group) return res.status(404).json({ success: false, message: "Grupo não encontrado" });
 
-        db.all(
-            "SELECT id, name, color FROM materials WHERE group_id = ? ORDER BY name",
-            [id],
-            (err2, materials) => {
-                if (err2) return res.status(500).json({ success: false, message: "Erro ao buscar materiais do grupo" });
-                res.json({ ...group, materials: materials || [] });
-            }
-        );
+        if (!user.isAdmin && (user.locationIds || []).length > 0) {
+            const userLocs = user.locationIds;
+            const placeholders = userLocs.map(() => '?').join(',');
+            db.all(
+                `SELECT m.id, m.name, m.color FROM materials m
+                 INNER JOIN material_locations ml ON ml.material_id = m.id
+                 WHERE m.group_id = ? AND ml.location_id IN (${placeholders})
+                 ORDER BY m.name`,
+                [id, ...userLocs],
+                (err2, materials) => {
+                    if (err2) return res.status(500).json({ success: false, message: "Erro ao buscar materiais do grupo" });
+                    res.json({ ...group, materials: materials || [] });
+                }
+            );
+        } else {
+            db.all(
+                "SELECT id, name, color FROM materials WHERE group_id = ? ORDER BY name",
+                [id],
+                (err2, materials) => {
+                    if (err2) return res.status(500).json({ success: false, message: "Erro ao buscar materiais do grupo" });
+                    res.json({ ...group, materials: materials || [] });
+                }
+            );
+        }
     });
 });
 

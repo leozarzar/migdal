@@ -59,6 +59,21 @@
     line-height: 1.5;
 }
 
+/* ── Seção de localizações ── */
+
+.admin-roles-details-section {
+    margin-bottom: 20px;
+}
+
+.admin-roles-details-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+}
+
 /* ── Árvore de permissões ── */
 
 .admin-perm-tree {

@@ -173,6 +173,19 @@
     font-size: 17px;
 }
 
+/* Import dialog */
+
+.suppliers-import-search {
+    margin-bottom: 12px;
+}
+
+.suppliers-import-table-container {
+    max-height: 360px;
+    overflow: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
 .empty-state {
     padding: 24px 16px;
     text-align: center;

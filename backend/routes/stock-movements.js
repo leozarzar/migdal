@@ -253,6 +253,17 @@ router.post("/transfer", requirePermission('inventory', 'stock-movements', 'crea
     }
 
     try {
+        // Verify material is linked to destination location
+        const destLink = await dbAll(
+            `SELECT 1 FROM material_locations WHERE material_id = ? AND location_id = ?`,
+            [material_id, to_location_id]
+        );
+        if (destLink.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "O material não está vinculado à localização de destino. Importe-o antes de realizar a transferência."
+            });
+        }
         const exitResult = await dbRun(
             `INSERT INTO stock_movements (type, material_id, quantity, date, lot_id, location_id, operator, reason, notes)
              VALUES ('exit', ?, ?, ?, NULL, ?, ?, 'transfer', ?)`,

@@ -22,6 +22,9 @@ const StockMovements = {
     _dialogToLocSelect: null,
     _exitPkgWeight: null,
     _exitPackagings: [],
+    _entryMaterialData: null,
+    _entryPackagings: [],
+    _entryPkgWeight: null,
 
     // ── Ciclo de Vida ────────────────────────────────────────────────
 
@@ -117,10 +120,25 @@ const StockMovements = {
     /**
      * Abre diálogo de registro de entrada.
      */
-    openEntryDialog() {
+    async openEntryDialog() {
         this._entryDialog?.destroy();
         this._dialogMaterialSelect?.destroy();
         this._dialogLocationSelect?.destroy();
+        this._entryMaterialData = null;
+        this._entryPackagings = [];
+        this._entryPkgWeight = null;
+
+        const globalLoc = AppState.getLocationFilter();
+        const showLocField = !globalLoc;
+        const today = new Date().toISOString().slice(0, 10);
+
+        // Buscar todos os materiais disponíveis para entrada (sem filtro hasMovements)
+        let entryMaterials = this._materials;
+        try {
+            const q = new URLSearchParams();
+            if (globalLoc) q.set('location_id', globalLoc);
+            entryMaterials = await apiCall(`${API}/materials?${q}`) || this._materials;
+        } catch { /* usa lista já carregada */ }
 
         this._entryDialog = createDialog({
             title: 'Registrar Entrada',
@@ -129,23 +147,41 @@ const StockMovements = {
                     <label>Material <span class="required">*</span>
                         <div id="stockMovementsEntryMaterial"></div>
                     </label>
-                    <label>Quantidade (kg) <span class="required">*</span>
+                    <div id="stockMovementsEntryTrackingGroup" style="display:none">
+                        <label>Modo de lançamento
+                            <select id="stockMovementsEntryTrackMode" class="dialog-input" onchange="StockMovements._onEntryTrackModeChange()">
+                                <option value="lot">Por lote</option>
+                                <option value="single">Avulso</option>
+                            </select>
+                        </label>
+                        <label id="stockMovementsEntryLotLabel">Número do lote <span class="required">*</span>
+                            <input id="stockMovementsEntryLot" type="text" class="dialog-input" placeholder="Ex: LOT-001">
+                        </label>
+                    </div>
+                    <div id="stockMovementsEntryPkgGroup" style="display:none">
+                        <label>Modo de entrada
+                            <select id="stockMovementsEntryMode" class="dialog-input" onchange="StockMovements._onEntryModeChange()">
+                                <option value="qty">Por quantidade</option>
+                                <option value="pkg">Por embalagem</option>
+                            </select>
+                        </label>
+                        <label id="stockMovementsEntryPkgSelectLabel" style="display:none">Embalagem
+                            <select id="stockMovementsEntryPkgSelect" class="dialog-input" onchange="StockMovements._onEntryPkgSelectChange()"></select>
+                        </label>
+                    </div>
+                    <label id="stockMovementsEntryQtyLabel">Quantidade <span class="required">*</span>
                         <input id="stockMovementsEntryQty" type="number" step="any" min="0.01" class="dialog-input" placeholder="0,00">
                     </label>
+                    <label id="stockMovementsEntryPkgCountLabel" style="display:none">Quantidade de embalagens <span class="required">*</span>
+                        <input id="stockMovementsEntryPkgCount" type="number" step="1" min="1" class="dialog-input" placeholder="0">
+                        <span id="stockMovementsEntryPkgHint" class="stock-movements-pkg-hint"></span>
+                    </label>
                     <label>Data <span class="required">*</span>
-                        <input id="stockMovementsEntryDate" type="date" class="dialog-input" value="${new Date().toISOString().slice(0, 10)}">
+                        <input id="stockMovementsEntryDate" type="date" class="dialog-input" value="${today}">
                     </label>
-                    <label>Localização
+                    ${showLocField ? `<label>Localização
                         <div id="stockMovementsEntryLocation"></div>
-                    </label>
-                    <label>Motivo
-                        <select id="stockMovementsEntryReason" class="dialog-input">
-                            <option value="purchase">Compra</option>
-                            <option value="production">Produção</option>
-                            <option value="adjustment">Ajuste</option>
-                            <option value="service_return">Retorno de Serviço</option>
-                        </select>
-                    </label>
+                    </label>` : ''}
                     <label>Observações
                         <input id="stockMovementsEntryNotes" type="text" class="dialog-input" placeholder="Opcional">
                     </label>
@@ -159,27 +195,32 @@ const StockMovements = {
         this._entryDialog.open();
 
         this._dialogMaterialSelect = createSearchSelect({
+            id: 'smEntryMat',
             placeholder: 'Selecione o material',
             searchable: true,
             searchPlaceholder: 'Buscar...',
+            sections: [{ key: 'mat', items: [] }],
+            onChange: (sel) => this._onEntryMaterialChange(sel.value),
         });
         this._dialogMaterialSelect.mount(document.getElementById('stockMovementsEntryMaterial'));
-        this._dialogMaterialSelect.setItems(this._materials.map(m => ({ id: m.id, label: m.name })));
+        this._dialogMaterialSelect.setItems('mat', entryMaterials.map(m => ({ value: m.id, label: m.name })));
 
-        this._dialogLocationSelect = createSearchSelect({
-            placeholder: 'Selecione a localização',
-            searchable: true,
-            searchPlaceholder: 'Buscar...',
-            allowClear: true,
-        });
-        this._dialogLocationSelect.mount(document.getElementById('stockMovementsEntryLocation'));
-        this._dialogLocationSelect.setItems(this._locations.map(l => ({ id: l.id, label: l.name })));
-
-        const globalLocEntry = AppState.getLocationFilter();
-        if (globalLocEntry) {
-            this._dialogLocationSelect.setValue(globalLocEntry);
-        } else if (this._locations.length === 1) {
-            this._dialogLocationSelect.setValue(String(this._locations[0].id));
+        if (showLocField) {
+            this._dialogLocationSelect = createSearchSelect({
+                id: 'smEntryLoc',
+                placeholder: 'Selecione a localização',
+                searchable: true,
+                searchPlaceholder: 'Buscar...',
+                sections: [{ key: 'loc', items: [] }],
+                allowClear: true,
+            });
+            this._dialogLocationSelect.mount(document.getElementById('stockMovementsEntryLocation'));
+            this._dialogLocationSelect.setItems('loc', this._locations.map(l => ({ value: l.id, label: l.name })));
+            if (this._locations.length === 1) {
+                this._dialogLocationSelect.select('loc', String(this._locations[0].id));
+            }
+        } else {
+            this._dialogLocationSelect = null;
         }
     },
 
@@ -190,6 +231,10 @@ const StockMovements = {
         this._exitDialog?.destroy();
         this._dialogMaterialSelect?.destroy();
         this._dialogLocationSelect?.destroy();
+
+        const globalLoc = AppState.getLocationFilter();
+        const showLocField = !globalLoc;
+        const today = new Date().toISOString().slice(0, 10);
 
         this._exitDialog = createDialog({
             title: 'Registrar Saída',
@@ -217,11 +262,11 @@ const StockMovements = {
                         <span id="stockMovementsExitPkgHint" class="stock-movements-pkg-hint"></span>
                     </label>
                     <label>Data <span class="required">*</span>
-                        <input id="stockMovementsExitDate" type="date" class="dialog-input" value="${new Date().toISOString().slice(0, 10)}">
+                        <input id="stockMovementsExitDate" type="date" class="dialog-input" value="${today}">
                     </label>
-                    <label>Localização
+                    ${showLocField ? `<label>Localização
                         <div id="stockMovementsExitLocation"></div>
-                    </label>
+                    </label>` : ''}
                     <label>Motivo
                         <select id="stockMovementsExitReason" class="dialog-input">
                             <option value="consumption">Consumo</option>
@@ -241,28 +286,32 @@ const StockMovements = {
         this._exitDialog.open();
 
         this._dialogMaterialSelect = createSearchSelect({
+            id: 'smExitMat',
             placeholder: 'Selecione o material',
             searchable: true,
             searchPlaceholder: 'Buscar...',
-            onChange: ({ value }) => this._onExitMaterialChange(value),
+            sections: [{ key: 'mat', items: [] }],
+            onChange: (sel) => this._onExitMaterialChange(sel.value),
         });
         this._dialogMaterialSelect.mount(document.getElementById('stockMovementsExitMaterial'));
-        this._dialogMaterialSelect.setItems(this._materials.map(m => ({ id: m.id, label: m.name })));
+        this._dialogMaterialSelect.setItems('mat', this._materials.map(m => ({ value: m.id, label: m.name })));
 
-        this._dialogLocationSelect = createSearchSelect({
-            placeholder: 'Selecione a localização',
-            searchable: true,
-            searchPlaceholder: 'Buscar...',
-            allowClear: true,
-        });
-        this._dialogLocationSelect.mount(document.getElementById('stockMovementsExitLocation'));
-        this._dialogLocationSelect.setItems(this._locations.map(l => ({ id: l.id, label: l.name })));
-
-        const globalLocExit = AppState.getLocationFilter();
-        if (globalLocExit) {
-            this._dialogLocationSelect.setValue(globalLocExit);
-        } else if (this._locations.length === 1) {
-            this._dialogLocationSelect.setValue(String(this._locations[0].id));
+        if (showLocField) {
+            this._dialogLocationSelect = createSearchSelect({
+                id: 'smExitLoc',
+                placeholder: 'Selecione a localização',
+                searchable: true,
+                searchPlaceholder: 'Buscar...',
+                sections: [{ key: 'loc', items: [] }],
+                allowClear: true,
+            });
+            this._dialogLocationSelect.mount(document.getElementById('stockMovementsExitLocation'));
+            this._dialogLocationSelect.setItems('loc', this._locations.map(l => ({ value: l.id, label: l.name })));
+            if (this._locations.length === 1) {
+                this._dialogLocationSelect.select('loc', String(this._locations[0].id));
+            }
+        } else {
+            this._dialogLocationSelect = null;
         }
     },
 
@@ -275,6 +324,10 @@ const StockMovements = {
         this._dialogFromLocSelect?.destroy();
         this._dialogToLocSelect?.destroy();
 
+        const globalLoc = AppState.getLocationFilter();
+        const originLoc = globalLoc ? this._locations.find(l => String(l.id) === String(globalLoc)) : null;
+        const today = new Date().toISOString().slice(0, 10);
+
         this._transferDialog = createDialog({
             title: 'Transferência entre Localizações',
             bodyHTML: `
@@ -286,10 +339,13 @@ const StockMovements = {
                         <input id="stockMovementsTransferQty" type="number" step="any" min="0.01" class="dialog-input" placeholder="0,00">
                     </label>
                     <label>Data <span class="required">*</span>
-                        <input id="stockMovementsTransferDate" type="date" class="dialog-input" value="${new Date().toISOString().slice(0, 10)}">
+                        <input id="stockMovementsTransferDate" type="date" class="dialog-input" value="${today}">
                     </label>
                     <label>Origem <span class="required">*</span>
-                        <div id="stockMovementsTransferFrom"></div>
+                        ${originLoc
+                            ? `<div class="stock-movements-loc-locked">${_esc(originLoc.name)}</div>`
+                            : `<div id="stockMovementsTransferFrom"></div>`
+                        }
                     </label>
                     <label>Destino <span class="required">*</span>
                         <div id="stockMovementsTransferTo"></div>
@@ -307,33 +363,42 @@ const StockMovements = {
         this._transferDialog.open();
 
         this._dialogMaterialSelect = createSearchSelect({
+            id: 'smTransferMat',
             placeholder: 'Selecione o material',
             searchable: true,
             searchPlaceholder: 'Buscar...',
+            sections: [{ key: 'mat', items: [] }],
         });
         this._dialogMaterialSelect.mount(document.getElementById('stockMovementsTransferMaterial'));
-        this._dialogMaterialSelect.setItems(this._materials.map(m => ({ id: m.id, label: m.name })));
+        this._dialogMaterialSelect.setItems('mat', this._materials.map(m => ({ value: m.id, label: m.name })));
 
-        this._dialogFromLocSelect = createSearchSelect({
-            placeholder: 'Selecione a origem',
-            searchable: true,
-            searchPlaceholder: 'Buscar...',
-        });
-        this._dialogFromLocSelect.mount(document.getElementById('stockMovementsTransferFrom'));
-        this._dialogFromLocSelect.setItems(this._locations.map(l => ({ id: l.id, label: l.name })));
-
-        const globalLocTransfer = AppState.getLocationFilter();
-        if (globalLocTransfer) {
-            this._dialogFromLocSelect.setValue(globalLocTransfer);
+        if (!originLoc) {
+            this._dialogFromLocSelect = createSearchSelect({
+                id: 'smTransferFrom',
+                placeholder: 'Selecione a origem',
+                searchable: true,
+                searchPlaceholder: 'Buscar...',
+                sections: [{ key: 'loc', items: [] }],
+            });
+            this._dialogFromLocSelect.mount(document.getElementById('stockMovementsTransferFrom'));
+            this._dialogFromLocSelect.setItems('loc', this._locations.map(l => ({ value: l.id, label: l.name })));
+        } else {
+            this._dialogFromLocSelect = null;
         }
 
         this._dialogToLocSelect = createSearchSelect({
+            id: 'smTransferTo',
             placeholder: 'Selecione o destino',
             searchable: true,
             searchPlaceholder: 'Buscar...',
+            sections: [{ key: 'loc', items: [] }],
         });
         this._dialogToLocSelect.mount(document.getElementById('stockMovementsTransferTo'));
-        this._dialogToLocSelect.setItems(this._locations.map(l => ({ id: l.id, label: l.name })));
+        // Destino: todas as localizações exceto a origem
+        const destLocs = originLoc
+            ? this._locations.filter(l => String(l.id) !== String(globalLoc))
+            : this._locations;
+        this._dialogToLocSelect.setItems('loc', destLocs.map(l => ({ value: l.id, label: l.name })));
     },
 
     /**
@@ -457,6 +522,95 @@ const StockMovements = {
 
     // ── Submit helpers ───────────────────────────────────────────────
 
+    /** Atualiza o dialog de entrada quando o material muda */
+    async _onEntryMaterialChange(materialId) {
+        this._entryMaterialData = null;
+        this._entryPackagings = [];
+        this._entryPkgWeight = null;
+
+        const trackingGroup = document.getElementById('stockMovementsEntryTrackingGroup');
+        const pkgGroup = document.getElementById('stockMovementsEntryPkgGroup');
+        const qtyLabel = document.getElementById('stockMovementsEntryQtyLabel');
+        const pkgCountLabel = document.getElementById('stockMovementsEntryPkgCountLabel');
+
+        if (trackingGroup) trackingGroup.style.display = 'none';
+        if (pkgGroup) pkgGroup.style.display = 'none';
+        if (qtyLabel) qtyLabel.style.display = '';
+        if (pkgCountLabel) pkgCountLabel.style.display = 'none';
+
+        if (!materialId) return;
+
+        try {
+            this._entryMaterialData = await apiCall(API + `/materials/${materialId}`);
+        } catch { return; }
+
+        // Rastreio por lote
+        if (this._entryMaterialData.tracking_mode === 'lot') {
+            if (trackingGroup) trackingGroup.style.display = '';
+            this._onEntryTrackModeChange();
+        }
+
+        // Embalagens
+        this._entryPackagings = this._entryMaterialData.packagings || [];
+        if (this._entryPackagings.length > 0) {
+            const pkgSelectEl = document.getElementById('stockMovementsEntryPkgSelect');
+            if (pkgSelectEl) {
+                pkgSelectEl.innerHTML = this._entryPackagings.map(p =>
+                    `<option value="${p.id}" data-qty="${p.quantity || ''}">${_esc(p.name)}${p.quantity ? ` (${p.quantity} kg)` : ''}</option>`
+                ).join('');
+            }
+            if (pkgGroup) pkgGroup.style.display = '';
+            const modeEl = document.getElementById('stockMovementsEntryMode');
+            if (modeEl) modeEl.value = 'qty';
+            this._onEntryModeChange();
+        }
+    },
+
+    /** Alterna visibilidade do campo de número do lote */
+    _onEntryTrackModeChange() {
+        const mode = document.getElementById('stockMovementsEntryTrackMode')?.value;
+        const lotLabel = document.getElementById('stockMovementsEntryLotLabel');
+        if (lotLabel) lotLabel.style.display = mode === 'lot' ? '' : 'none';
+    },
+
+    /** Alterna entre modo quantidade / embalagem na entrada */
+    _onEntryModeChange() {
+        const mode = document.getElementById('stockMovementsEntryMode')?.value;
+        const pkgSelectLabel = document.getElementById('stockMovementsEntryPkgSelectLabel');
+        if (mode === 'pkg') {
+            if (pkgSelectLabel) pkgSelectLabel.style.display = '';
+            this._onEntryPkgSelectChange();
+        } else {
+            if (pkgSelectLabel) pkgSelectLabel.style.display = 'none';
+            const qtyLabel = document.getElementById('stockMovementsEntryQtyLabel');
+            const pkgCountLabel = document.getElementById('stockMovementsEntryPkgCountLabel');
+            if (qtyLabel) qtyLabel.style.display = '';
+            if (pkgCountLabel) pkgCountLabel.style.display = 'none';
+        }
+    },
+
+    /** Ajusta campos quando a embalagem selecionada muda */
+    _onEntryPkgSelectChange() {
+        const sel = document.getElementById('stockMovementsEntryPkgSelect');
+        if (!sel) return;
+        const opt = sel.selectedOptions[0];
+        const qty = parseFloat(opt?.dataset.qty) || 0;
+        const hintEl = document.getElementById('stockMovementsEntryPkgHint');
+        const qtyLabel = document.getElementById('stockMovementsEntryQtyLabel');
+        const pkgCountLabel = document.getElementById('stockMovementsEntryPkgCountLabel');
+        this._entryPkgWeight = qty || null;
+        if (hintEl) hintEl.textContent = qty ? `${qty} kg por embalagem` : '';
+        // Embalagem com quantidade definida: só pede contagem de embalagens
+        // Embalagem sem quantidade: pede os dois
+        if (qty) {
+            if (qtyLabel) qtyLabel.style.display = 'none';
+            if (pkgCountLabel) pkgCountLabel.style.display = '';
+        } else {
+            if (qtyLabel) qtyLabel.style.display = '';
+            if (pkgCountLabel) pkgCountLabel.style.display = '';
+        }
+    },
+
     /** Atualiza o dialog de saída quando o material muda */
     async _onExitMaterialChange(materialId) {
         const pkgGroup = document.getElementById('stockMovementsExitPkgGroup');
@@ -523,9 +677,9 @@ const StockMovements = {
         const material = this._dialogMaterialSelect?.getValue();
         const qty = parseFloat(document.getElementById('stockMovementsEntryQty')?.value);
         const date = document.getElementById('stockMovementsEntryDate')?.value;
-        const reason = document.getElementById('stockMovementsEntryReason')?.value || 'purchase';
         const notes = document.getElementById('stockMovementsEntryNotes')?.value || '';
         const location = this._dialogLocationSelect?.getValue();
+        const locationId = location ? Number(location.value) : (AppState.getLocationFilter() ? Number(AppState.getLocationFilter()) : undefined);
 
         if (!material) { alert('Selecione um material.'); return; }
         if (!qty || qty <= 0) { alert('Informe uma quantidade válida.'); return; }
@@ -536,12 +690,12 @@ const StockMovements = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    material_id: material.id,
+                    material_id: material.value,
                     quantity: qty,
                     date,
-                    reason,
+                    reason: 'purchase',
                     notes: notes || null,
-                    location_id: location ? Number(location.id) : undefined,
+                    location_id: locationId,
                 })
             });
             this._entryDialog.close();
@@ -565,6 +719,7 @@ const StockMovements = {
         const reason = document.getElementById('stockMovementsExitReason')?.value || 'consumption';
         const notes = document.getElementById('stockMovementsExitNotes')?.value || '';
         const location = this._dialogLocationSelect?.getValue();
+        const locationId = location ? Number(location.value) : (AppState.getLocationFilter() ? Number(AppState.getLocationFilter()) : undefined);
 
         if (!material) { alert('Selecione um material.'); return; }
         if (!qty || qty <= 0) { alert('Informe uma quantidade válida.'); return; }
@@ -575,12 +730,12 @@ const StockMovements = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    material_id: material.id,
+                    material_id: material.value,
                     quantity: qty,
                     date,
                     reason,
                     notes: notes || null,
-                    location_id: location ? Number(location.id) : undefined,
+                    location_id: locationId,
                 })
             });
             this._exitDialog.close();
@@ -597,23 +752,26 @@ const StockMovements = {
         const fromLoc = this._dialogFromLocSelect?.getValue();
         const toLoc = this._dialogToLocSelect?.getValue();
 
+        const fromLocationId = fromLoc ? Number(fromLoc.value) : (AppState.getLocationFilter() ? Number(AppState.getLocationFilter()) : null);
+        const toLocationId = toLoc ? Number(toLoc.value) : null;
+
         if (!material) { alert('Selecione um material.'); return; }
         if (!qty || qty <= 0) { alert('Informe uma quantidade válida.'); return; }
         if (!date) { alert('Informe a data.'); return; }
-        if (!fromLoc) { alert('Selecione a localização de origem.'); return; }
-        if (!toLoc) { alert('Selecione a localização de destino.'); return; }
-        if (String(fromLoc.id) === String(toLoc.id)) { alert('Origem e destino devem ser diferentes.'); return; }
+        if (!fromLocationId) { alert('Selecione a localização de origem.'); return; }
+        if (!toLocationId) { alert('Selecione a localização de destino.'); return; }
+        if (fromLocationId === toLocationId) { alert('Origem e destino devem ser diferentes.'); return; }
 
         try {
             await apiCall(API + '/stock-movements/transfer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    material_id: material.id,
+                    material_id: material.value,
                     quantity: qty,
                     date,
-                    from_location_id: Number(fromLoc.id),
-                    to_location_id: Number(toLoc.id),
+                    from_location_id: fromLocationId,
+                    to_location_id: toLocationId,
                     notes: notes || null,
                 })
             });

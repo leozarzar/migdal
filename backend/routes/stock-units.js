@@ -167,6 +167,19 @@ router.get("/position", (req, res) => {
         locParams.push(...userLocs);
     }
 
+    // Filtro de vínculo: esconde materiais desvinculados com saldo zero quando há filtro de localização
+    let linkedHaving = '';
+    let linkedHavingParams = [];
+    if (location_id) {
+        linkedHaving = ' OR EXISTS (SELECT 1 FROM material_locations ml WHERE ml.material_id = m.id AND ml.location_id = ?)';
+        linkedHavingParams = [location_id];
+    } else if (userLocs) {
+        const ph = userLocs.map(() => '?').join(',');
+        linkedHaving = ` OR EXISTS (SELECT 1 FROM material_locations ml WHERE ml.material_id = m.id AND ml.location_id IN (${ph}))`;
+        linkedHavingParams = [...userLocs];
+    }
+    const havingClause = linkedHaving ? `HAVING balance > 0${linkedHaving}` : '';
+
     // Query 1: Materiais lot-tracked (lot_id não-nulo)
     const lotSQL = `
         WITH lot_balance AS (
@@ -185,6 +198,7 @@ router.get("/position", (req, res) => {
             m.color                                                         AS material_color,
             m.tracking_mode,
             m.allow_partial_exit,
+            m.unit_of_measure                                               AS unit,
             g.id                                                            AS group_id,
             g.name                                                          AS group_name,
             COALESCE(SUM(lb.entry_qty - lb.exit_qty), 0)                    AS balance,
@@ -195,12 +209,14 @@ router.get("/position", (req, res) => {
         JOIN materials m ON m.id = lb.material_id
         LEFT JOIN groups g ON g.id = m.group_id
         GROUP BY lb.material_id
+        ${havingClause}
         ORDER BY m.name
     `;
 
     // Query 2: Materiais simple (sem lot_id, saldo via entry/exit)
     let simpleParams = [];
     let simpleLocFilter = '';
+    let simpleHavingParams = [...linkedHavingParams];
     if (location_id) {
         simpleLocFilter = ' AND sm.location_id = ?';
         simpleParams = [location_id];
@@ -209,6 +225,7 @@ router.get("/position", (req, res) => {
         simpleLocFilter = ` AND sm.location_id IN (${placeholders})`;
         simpleParams = [...userLocs];
     }
+    const simpleHavingClause = havingClause.replace('balance > 0', 'COALESCE(SUM(CASE WHEN sm.type = \'entry\' THEN sm.quantity ELSE -sm.quantity END), 0) > 0');
     const simpleSQL = `
         SELECT
             m.name                                                          AS material,
@@ -216,6 +233,7 @@ router.get("/position", (req, res) => {
             m.color                                                         AS material_color,
             m.tracking_mode,
             m.allow_partial_exit,
+            m.unit_of_measure                                               AS unit,
             g.id                                                            AS group_id,
             g.name                                                          AS group_name,
             COALESCE(SUM(CASE WHEN sm.type = 'entry' THEN sm.quantity ELSE -sm.quantity END), 0) AS balance,
@@ -227,10 +245,11 @@ router.get("/position", (req, res) => {
         LEFT JOIN groups g ON g.id = m.group_id
         WHERE 1=1${simpleLocFilter}
         GROUP BY sm.material_id
+        ${simpleHavingClause}
         ORDER BY m.name
     `;
 
-    db.all(lotSQL, locParams, (err1, lotRows) => {
+    db.all(lotSQL, [...locParams, ...linkedHavingParams], (err1, lotRows) => {
         if (err1) {
             return res.status(500).json({
                 success: false,
@@ -238,7 +257,7 @@ router.get("/position", (req, res) => {
                 error: err1.message
             });
         }
-        db.all(simpleSQL, simpleParams, (err2, simpleRows) => {
+        db.all(simpleSQL, [...simpleParams, ...simpleHavingParams], (err2, simpleRows) => {
             if (err2) {
                 return res.status(500).json({
                     success: false,

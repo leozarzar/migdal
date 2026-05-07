@@ -18,9 +18,11 @@ const AdminRolesDetails = {
     _role: null,
     _permissions: {},   // { "moduleId::screenId": Set<action> }
     _isDirty: false,
+    _locationSelect: null,
 
 // ── Ciclo de Vida ────────────────────────────────────────────────
     render() {
+        this._locationSelect?.destroy(); this._locationSelect = null;
         return `
         <div class="admin-roles-details-container">
             <div class="admin-roles-details-card">
@@ -33,6 +35,11 @@ const AdminRolesDetails = {
                         <label for="adminRolesDetailsDesc">Descrição</label>
                         <textarea id="adminRolesDetailsDesc" placeholder="Descreva as responsabilidades deste papel..." rows="3" oninput="AdminRolesDetails._markDirty()"></textarea>
                     </div>
+                </div>
+
+                <div class="admin-roles-details-section">
+                    <div class="admin-roles-details-section-title">Localizações com acesso</div>
+                    <div id="adminRolesDetailsLocationSelect"></div>
                 </div>
 
                 <div class="admin-perm-tree">
@@ -51,6 +58,20 @@ const AdminRolesDetails = {
     async load() {
         const roleId = AdminRoles.selectedRoleId;
 
+        // Criar SearchSelect de localizações (sempre, mesmo no modo criação)
+        this._locationSelect = createSearchSelect({
+            placeholder: 'Selecionar localizações...',
+            multiple: true,
+            sections: [{ key: 'locations', items: [] }]
+        });
+        this._locationSelect.mount(document.getElementById('adminRolesDetailsLocationSelect'));
+
+        let locations = [];
+        try {
+            locations = await apiCall(API + '/locations');
+        } catch (e) { /* lista vazia se falhar */ }
+        this._locationSelect.setItems('locations', locations.map(l => ({ value: l.id, label: l.name })));
+
         // Modo criação: role ainda não existe
         if (!roleId) {
             this._role = null;
@@ -67,6 +88,11 @@ const AdminRolesDetails = {
 
         document.getElementById('adminRolesDetailsName').value  = this._role.name || '';
         document.getElementById('adminRolesDetailsDesc').value = this._role.description || '';
+
+        // Pré-selecionar localizações do papel
+        if (this._role.location_ids && this._role.location_ids.length > 0) {
+            this._locationSelect.setSelectedValues('locations', this._role.location_ids);
+        }
 
         // Converter permissões em mapa
         this._permissions = {};
@@ -124,6 +150,15 @@ const AdminRolesDetails = {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ permissions })
+            });
+
+            // Salvar localizações do papel
+            const selectedLocs = this._locationSelect ? this._locationSelect.getValues() : [];
+            const location_ids = selectedLocs.map(item => item.value);
+            await apiCall(API + '/roles/' + roleId + '/locations', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ location_ids })
             });
 
             this._isDirty = false;

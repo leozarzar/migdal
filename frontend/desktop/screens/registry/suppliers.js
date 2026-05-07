@@ -9,10 +9,14 @@ const Suppliers = {
 
     selectedSupplier: null,
 
+    /** Dialog de importação do catálogo global */
+    _importDialog: null,
+
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML da tela. */
     render() {
+        this._importDialog?.destroy(); this._importDialog = null;
         return `
         <div class="suppliers-container">
             <div class="suppliers-card">
@@ -41,7 +45,11 @@ const Suppliers = {
     async load() {
         this._resetForm();
         const headerOptions = document.getElementById("headerOptionsContent");
-        if (headerOptions) headerOptions.innerHTML = "";
+        if (headerOptions) {
+            headerOptions.innerHTML = hasPermission('registry', 'suppliers', 'create') ? `
+                <button class="btn-secondary" onclick="Suppliers.importFromCatalog()">Importar do catálogo</button>
+            ` : '';
+        }
 
         const formWrapper = document.querySelector('.suppliers-form-wrapper');
         if (formWrapper) formWrapper.style.display = hasPermission('registry', 'suppliers', 'create') ? '' : 'none';
@@ -80,13 +88,27 @@ const Suppliers = {
                 });
                 alert("Fornecedor atualizado com sucesso");
             } else {
-                // Criar
-                await apiCall(API + "/suppliers", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name })
-                });
-                alert("Fornecedor criado com sucesso");
+                // Criar — inclui location_id
+                const locationId = Suppliers._getActiveLocationId();
+                if (!window.AppUser?.isAdmin && !locationId) {
+                    alert('Selecione uma localização na barra lateral antes de cadastrar.');
+                    return;
+                }
+
+                try {
+                    await apiCall(API + "/suppliers", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name, location_id: locationId })
+                    });
+                    alert("Fornecedor criado com sucesso");
+                } catch (error) {
+                    if (error.status === 409 && error.data?.conflict) {
+                        this._handleConflict(error.data.existing, locationId);
+                        return;
+                    }
+                    throw error;
+                }
             }
             this.load();
         } catch (error) {
@@ -119,17 +141,28 @@ const Suppliers = {
         this._resetForm();
     },
 
-    /** Deleta um fornecedor após confirmação do usuário. */
+    /** Desvincula o fornecedor da localização ativa (ou exclui do catálogo se admin sem localização). */
     async deleteSupplier(event, id) {
         event.stopPropagation();
-        
-        if (!confirm("Tem certeza que deseja deletar?")) return;
+        const locationId = this._getActiveLocationId();
+        const msg = locationId
+            ? 'Desvincular este fornecedor da localização atual?\n\nAtenção: saldos em estoque associados permanecerão visíveis até que o item seja zerado.'
+            : 'Excluir este fornecedor do catálogo global? Esta ação não pode ser desfeita.';
+        if (!confirm(msg)) return;
 
         try {
-            await apiCall(API + `/suppliers/${id}`, { method: "DELETE" });
+            if (locationId) {
+                await apiCall(API + `/suppliers/${id}/link`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ location_id: locationId })
+                });
+            } else {
+                await apiCall(API + `/suppliers/${id}`, { method: 'DELETE' });
+            }
             this.load();
         } catch (error) {
-            alert("Erro ao deletar fornecedor");
+            alert(error.message || 'Erro ao remover fornecedor');
         }
     },
 
@@ -186,5 +219,137 @@ const Suppliers = {
         if (cancelBtn) cancelBtn.style.display = "none";
         const saveBtn = document.getElementById("supplierSaveBtn");
         if (saveBtn) saveBtn.innerHTML = '<span class="material-symbols-outlined">playlist_add</span>Adicionar';
+    },
+
+    // ── Importação do Catálogo Global ──
+
+    /** Abre dialog para importar fornecedores do catálogo global. */
+    async importFromCatalog() {
+        const locationId = Suppliers._getActiveLocationId();
+        if (!window.AppUser?.isAdmin && !locationId) {
+            alert('Selecione uma localização na barra lateral antes de importar.');
+            return;
+        }
+
+        let globalSuppliers;
+        try {
+            globalSuppliers = await apiCall(API + '/suppliers/global');
+        } catch (e) {
+            alert('Erro ao carregar catálogo global');
+            return;
+        }
+
+        if (!globalSuppliers || globalSuppliers.length === 0) {
+            alert('Não há fornecedores disponíveis para importação.');
+            return;
+        }
+
+        const listHTML = globalSuppliers.map(s => `
+            <tr class="suppliers-import-row" data-supplier-id="${s.id}">
+                <td class="suppliers-import-name">${_esc(s.name)}</td>
+                <td>
+                    <button class="btn-primary btn-sm" onclick="Suppliers._linkSupplier(${s.id})">Vincular</button>
+                </td>
+            </tr>
+        `).join('');
+
+        this._importDialog?.destroy();
+        this._importDialog = createDialog({
+            title: 'Importar do Catálogo Global',
+            subtitle: 'Selecione fornecedores para vincular à sua localização.',
+            bodyHTML: `
+                <div class="suppliers-import-search">
+                    <input type="text" id="suppliersImportSearch" class="md-form-control" placeholder="Filtrar fornecedores..." oninput="Suppliers._filterImportList()">
+                </div>
+                <div class="suppliers-import-table-container">
+                    <table class="suppliers-table">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="suppliersImportBody">${listHTML}</tbody>
+                    </table>
+                </div>
+            `,
+        });
+        this._importDialog.open();
+    },
+
+    /** Vincula um fornecedor do catálogo global à localização ativa. */
+    async _linkSupplier(supplierId) {
+        const locationId = Suppliers._getActiveLocationId();
+        try {
+            await apiCall(API + `/suppliers/${supplierId}/link`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ location_id: locationId })
+            });
+            const row = document.querySelector(`.suppliers-import-row[data-supplier-id="${supplierId}"]`);
+            if (row) row.remove();
+            const suppliers = await apiCall(API + '/suppliers');
+            this._renderTable(suppliers);
+        } catch (e) {
+            alert(e.message || 'Erro ao vincular fornecedor');
+        }
+    },
+
+    /** Filtra a lista de importação pelo campo de busca. */
+    _filterImportList() {
+        const search = (document.getElementById('suppliersImportSearch')?.value || '').toLowerCase();
+        const rows = document.querySelectorAll('.suppliers-import-row');
+        for (const row of rows) {
+            const name = row.querySelector('.suppliers-import-name')?.textContent?.toLowerCase() || '';
+            row.style.display = name.includes(search) ? '' : 'none';
+        }
+    },
+
+    /** Mostra dialog de colisão de nome ao tentar criar fornecedor com nome já existente. */
+    _handleConflict(existing, locationId) {
+        const dlg = createDialog({
+            title: 'Fornecedor já existe',
+            subtitle: 'Um fornecedor com esse nome já existe no catálogo global. Deseja vinculá-lo à sua localização?',
+            bodyHTML: `
+                <div class="suppliers-conflict-info">
+                    <p><strong>${_esc(existing.name)}</strong></p>
+                </div>
+            `,
+            actions: [
+                {
+                    label: 'Vincular à minha localização',
+                    className: 'btn-primary',
+                    onClick: async () => {
+                        try {
+                            await apiCall(API + `/suppliers/${existing.id}/link`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ location_id: locationId })
+                            });
+                            dlg.close();
+                            dlg.destroy();
+                            Suppliers.load();
+                        } catch (e) {
+                            alert(e.message || 'Erro ao vincular fornecedor');
+                        }
+                    }
+                },
+                {
+                    label: 'Cancelar',
+                    className: 'btn-secondary',
+                    onClick: () => { dlg.close(); dlg.destroy(); }
+                }
+            ]
+        });
+        dlg.open();
+    },
+
+    /** Retorna o location_id ativo (do filtro da sidebar ou localização única do usuário). */
+    _getActiveLocationId() {
+        const filterId = AppState.getLocationFilter();
+        if (filterId) return Number(filterId);
+        const userLocs = (window.AppUser || {}).locationIds || [];
+        if (userLocs.length === 1) return userLocs[0];
+        return null;
     },
 };

@@ -118,6 +118,11 @@ body {
     min-width: 0;
 }
 
+.sidebar-location-select:disabled {
+    cursor: default;
+    opacity: 0.8;
+}
+
 .sidebar-location-select:focus {
     outline: none;
     border-color: #4a90d9;

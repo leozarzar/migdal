@@ -81,6 +81,7 @@ const MODULE_REGISTRY = {
             'order-details':   { title: 'Detalhes',      module: OrdersDetails,   parent: 'orders',   hidden: true },
             receipts:          { title: 'Recebimentos',  module: Receipts,        icon: 'move_to_inbox',  actions: ['view', 'create', 'edit', 'delete'] },
             'receipt-details': { title: 'Detalhes',      module: ReceiptsDetails, parent: 'receipts', hidden: true },
+            'purchase-invoices': { title: 'Faturas de Compras', module: PurchaseInvoices, icon: 'receipt_long', actions: ['view', 'create', 'delete'] },
         }
     },
     registry: {
@@ -94,7 +95,6 @@ const MODULE_REGISTRY = {
             operators:        { title: 'Operadores',      module: Operators,     icon: 'badge',     actions: ['view', 'create', 'edit', 'delete'] },
             groups:           { title: 'Grupos',          module: Groups,        icon: 'folder',    actions: ['view', 'create', 'edit', 'delete'] },
             'groups-details': { title: 'Grupo',           module: GroupsDetails, parent: 'groups', hidden: true },
-            locations:        { title: 'Localizações',    module: Locations,     icon: 'warehouse', actions: ['view', 'create', 'edit', 'delete'] },
         }
     },
     admin: {
@@ -105,7 +105,7 @@ const MODULE_REGISTRY = {
             'admin-roles':         { title: 'Papéis',         module: AdminRoles,        icon: 'shield_person',  actions: ['view', 'create', 'edit', 'delete'] },
             'admin-roles-details': { title: 'Detalhes',        module: AdminRolesDetails, parent: 'admin-roles', hidden: true },
             'admin-users':         { title: 'Usuários',        module: AdminUsers,        icon: 'group',          actions: ['view', 'create', 'edit', 'delete'] },
-
+            locations:             { title: 'Localizações',    module: Locations,         icon: 'warehouse',      actions: ['view', 'create', 'edit', 'delete'] },
         }
     },
 };
@@ -623,12 +623,27 @@ const AppState = {
             const locations = await apiCall(API + '/locations');
             const filtered = filterUserLocations(locations || []);
             filtered.sort((a, b) => a.name.localeCompare(b.name));
-            for (const loc of filtered) {
+
+            if (filtered.length === 1) {
+                // Única localização disponível: esconde a opção "Todos" e seleciona automaticamente
+                select.querySelector('option[value=""]').remove();
                 const opt = document.createElement('option');
-                opt.value = String(loc.id);
-                opt.textContent = loc.name;
-                if (String(loc.id) === this._locationFilter) opt.selected = true;
+                opt.value = String(filtered[0].id);
+                opt.textContent = filtered[0].name;
+                opt.selected = true;
                 select.appendChild(opt);
+                // Força o filtro para essa localização sem recarregar (ainda não há tela ativa)
+                this._locationFilter = String(filtered[0].id);
+                localStorage.setItem('wcm.filter.location', this._locationFilter);
+                select.disabled = true;
+            } else {
+                for (const loc of filtered) {
+                    const opt = document.createElement('option');
+                    opt.value = String(loc.id);
+                    opt.textContent = loc.name;
+                    if (String(loc.id) === this._locationFilter) opt.selected = true;
+                    select.appendChild(opt);
+                }
             }
         } catch { /* ignora — select permanece com a opção padrão "Todos" */ }
     },

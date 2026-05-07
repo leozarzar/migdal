@@ -158,6 +158,35 @@
 }
 }
 
+/* Import dialog */
+
+.materials-import-search {
+    margin-bottom: 12px;
+}
+
+.materials-import-table-container {
+    max-height: 360px;
+    overflow: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.materials-import-group {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #f0f4ff;
+    color: #3b5bdb;
+}
+
+.btn-sm {
+    padding: 4px 12px;
+    font-size: 12px;
+    height: 28px;
+}
+
 .empty-state {
     padding: 24px 16px;
     text-align: center;

@@ -238,13 +238,27 @@ const MaterialsDetails = {
                     body: JSON.stringify(payload)
                 });
             } else {
-                // Criar material
-                const result = await apiCall(API + "/materials", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
-                });
-                materialId = result.id;
+                // Criar material — inclui location_id
+                const locationId = Materials._getActiveLocationId();
+                if (!window.AppUser?.isAdmin && !locationId) {
+                    alert('Selecione uma localização na barra lateral antes de cadastrar.');
+                    return;
+                }
+
+                try {
+                    const result = await apiCall(API + "/materials", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ ...payload, location_id: locationId })
+                    });
+                    materialId = result.id;
+                } catch (error) {
+                    if (error.status === 409 && error.data?.conflict) {
+                        this._handleConflict(error.data.existing, locationId);
+                        return;
+                    }
+                    throw error;
+                }
             }
 
             // Sincronizar embalagens: remover
@@ -266,6 +280,53 @@ const MaterialsDetails = {
         } catch (error) {
             alert(error.message || "Erro ao salvar material");
         }
+    },
+
+    /** Mostra dialog de colisão de nome ao tentar criar material com nome já existente. */
+    _handleConflict(existing, locationId) {
+        const uom = existing.unit_of_measure || 'kg';
+        const colorDot = existing.color
+            ? `<span class="materials-color-swatch" style="background:${existing.color}"></span>`
+            : '';
+
+        const dlg = createDialog({
+            title: 'Material já existe',
+            subtitle: 'Um material com esse nome já existe no catálogo global. Deseja vinculá-lo à sua localização?',
+            bodyHTML: `
+                <div class="md-conflict-info">
+                    <p>${colorDot} <strong>${_esc(existing.name)}</strong></p>
+                    <p>Unidade: ${_esc(uom)}</p>
+                    <p>Rastreio: ${existing.tracking_mode === 'lots' ? 'Lotes' : 'Simples'}</p>
+                </div>
+            `,
+            actions: [
+                {
+                    label: 'Vincular à minha localização',
+                    className: 'btn-primary',
+                    onClick: async () => {
+                        try {
+                            await apiCall(API + `/materials/${existing.id}/link`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ location_id: locationId })
+                            });
+                            dlg.close();
+                            dlg.destroy();
+                            this._isDirty = false;
+                            showScreen('materials');
+                        } catch (e) {
+                            alert(e.message || 'Erro ao vincular material');
+                        }
+                    }
+                },
+                {
+                    label: 'Cancelar',
+                    className: 'btn-secondary',
+                    onClick: () => { dlg.close(); dlg.destroy(); }
+                }
+            ]
+        });
+        dlg.open();
     },
 
     /** Adiciona uma embalagem à lista local (salva junto com o material). */

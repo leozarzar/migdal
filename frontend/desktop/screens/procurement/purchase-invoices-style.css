@@ -1,0 +1,248 @@
+/* purchase-invoices-style.css */
+
+.pi-container {
+    padding: 16px;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.pi-card {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+.pi-toolbar {
+    padding: 10px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pi-btn-new {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 14px;
+    background: #1e40af;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s;
+    font-family: inherit;
+}
+
+.pi-btn-new:hover { background: #1d3a9a; }
+.pi-btn-new .material-symbols-outlined { font-size: 17px; }
+
+/* Table */
+
+.pi-table-container {
+    overflow: auto;
+    flex: 1;
+}
+
+.pi-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.pi-table thead th {
+    padding: 8px 14px;
+    text-align: left;
+    font-weight: 600;
+    background: linear-gradient(#f3f4f6, #e9ebef);
+    border-bottom: 1px solid #dcdfe4;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.pi-table thead th.right,
+.pi-table tbody td.right { text-align: right; }
+
+.pi-table tbody td {
+    padding: 6px 14px;
+    border-bottom: 1px solid #eceef2;
+}
+
+.pi-table tbody tr:last-child td { border-bottom: none; }
+.pi-table tbody tr:hover { background: #f8fafc; }
+
+.pi-col-actions {
+    width: 80px;
+    text-align: right;
+}
+
+.pi-col-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    background: white;
+    color: #64748b;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.pi-table tbody tr:hover .pi-col-actions button {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.pi-col-actions button:hover { background: #fff0f0; border-color: #f44336; color: #d32f2f; }
+.pi-col-actions button .material-symbols-outlined { font-size: 16px; }
+
+/* Dialog Steps */
+
+.pi-step-body {
+    min-height: 260px;
+}
+
+.pi-step-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 12px;
+}
+
+.pi-supplier-container {
+    width: 340px;
+}
+
+.pi-empty {
+    color: #94a3b8;
+    font-size: 13px;
+    padding: 16px 0;
+}
+
+/* Step 2 — Receipts */
+
+.pi-receipts-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.pi-receipts-table th {
+    padding: 6px 10px;
+    text-align: left;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.pi-receipts-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.pi-receipts-table tr:last-child td { border-bottom: none; }
+.pi-receipt-cb { cursor: pointer; width: 15px; height: 15px; }
+
+/* Step 3 — Items */
+
+.pi-items-wrapper {
+    overflow-x: auto;
+}
+
+.pi-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.pi-items-table th {
+    padding: 6px 10px;
+    text-align: left;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.pi-items-table th.right,
+.pi-items-table td.right { text-align: right; }
+
+.pi-items-table td {
+    padding: 5px 10px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.pi-price-input {
+    width: 90px;
+    height: 28px;
+    padding: 0 6px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    text-align: right;
+}
+
+.pi-price-input:focus { outline: none; border-color: #94a3b8; }
+
+.pi-total-row {
+    text-align: right;
+    padding: 8px 10px;
+    font-size: 13px;
+    color: #334155;
+    border-top: 2px solid #e2e8f0;
+}
+
+/* Step 4 — Metadata form */
+
+.pi-meta-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 4px 0;
+}
+
+.pi-meta-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 130px;
+}
+
+.pi-meta-field label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.pi-meta-input {
+    height: 32px;
+    padding: 0 8px;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    color: #0f172a;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.pi-meta-input:read-only { background: #f8fafc; color: #94a3b8; }
+.pi-meta-input:focus { outline: none; border-color: #94a3b8; }
