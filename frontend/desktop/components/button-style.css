@@ -1,0 +1,156 @@
+/* ── Button ───────────────────────────────────────────────────────────────── */
+
+.wcm-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 2.25rem;
+    padding: 0 12px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    outline: none;
+}
+
+.wcm-btn:focus-visible {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+.wcm-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.wcm-btn .material-symbols-outlined {
+    font-size: 16px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+/* ── Sizes ───────────────────────────────────────────────────────────────── */
+
+.wcm-btn--sm {
+    height: 2.25rem;
+    padding: 0 12px;
+    font-size: 13px;
+}
+
+.wcm-btn--md {
+    height: 2.5rem;
+    padding: 0 16px;
+    font-size: 14px;
+}
+
+.wcm-btn--lg {
+    height: 2.75rem;
+    padding: 0 20px;
+    font-size: 15px;
+}
+
+.wcm-btn--icon-only {
+    padding: 0;
+    width: 2.25rem;
+}
+
+.wcm-btn--icon-only.wcm-btn--md {
+    width: 2.5rem;
+}
+
+.wcm-btn--icon-only.wcm-btn--lg {
+    width: 2.75rem;
+}
+
+/* ── Variants ────────────────────────────────────────────────────────────── */
+
+/* primary */
+.wcm-btn--primary {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+    color: #ffffff;
+}
+
+.wcm-btn--primary:hover:not(:disabled) {
+    background-color: #2563eb;
+    border-color: #2563eb;
+}
+
+.wcm-btn--primary:active:not(:disabled) {
+    background-color: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+/* secondary */
+.wcm-btn--secondary {
+    background-color: #ffffff;
+    border-color: #dcdfe4;
+    color: #3b82f6;
+}
+
+.wcm-btn--secondary:hover:not(:disabled) {
+    background-color: #f0f5ff;
+    border-color: #b0b8c5;
+}
+
+.wcm-btn--secondary:active:not(:disabled) {
+    background-color: #e0eaff;
+    border-color: #93a3b8;
+}
+
+/* cancel */
+.wcm-btn--cancel {
+    background-color: #ffffff;
+    border-color: #fca5a5;
+    color: #f87171;
+}
+
+.wcm-btn--cancel:hover:not(:disabled) {
+    background-color: #fef2f2;
+    border-color: #f87171;
+    color: #ef4444;
+}
+
+.wcm-btn--cancel:active:not(:disabled) {
+    background-color: #fee2e2;
+    border-color: #ef4444;
+    color: #dc2626;
+}
+
+/* ghost */
+.wcm-btn--ghost {
+    background-color: transparent;
+    border-color: transparent;
+    color: #374151;
+}
+
+.wcm-btn--ghost:hover:not(:disabled) {
+    background-color: #f3f4f6;
+}
+
+/* ── Loading spinner ─────────────────────────────────────────────────────── */
+
+.wcm-btn--loading {
+    pointer-events: none;
+    opacity: 0.75;
+}
+
+.wcm-btn-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: wcm-btn-spin 0.6s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes wcm-btn-spin {
+    to { transform: rotate(360deg); }
+}

@@ -16,44 +16,6 @@
     overflow: hidden;
 }
 
-.admin-users-table-container {
-    max-height: 490px;
-    overflow: auto;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-}
-
-.admin-users-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    font-size: 13px;
-}
-
-.admin-users-table thead th {
-    text-align: left;
-    font-weight: 600;
-    padding: 8px 16px;
-    background: linear-gradient(#f3f4f6, #e9ebef);
-    border-bottom: 1px solid #dcdfe4;
-    position: sticky;
-    top: 0;
-    z-index: 5;
-}
-
-.admin-users-table tbody td {
-    padding: 6px 16px;
-    border-bottom: 1px solid #eceef2;
-}
-
-.admin-users-table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-.admin-users-table tbody tr:hover {
-    background-color: #f4f6f8;
-}
-
 /* Select de papel */
 
 .admin-users-role-select {

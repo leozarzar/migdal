@@ -9,13 +9,16 @@ const Receipts = {
 
     selectedReceipt: null,
     _supplierSelect: null,
+    _dataTable: null,
+    _allReceipts: [],
 
     // ── Ciclo de Vida ──
 
-    /** Retorna o template HTML da tela e reseta a seleção. */
     render() {
         this.selectedReceipt = null;
-        this._supplierSelect = null;
+        this._supplierSelect?.destroy(); this._supplierSelect = null;
+        this._dataTable?.destroy(); this._dataTable = null;
+        this._allReceipts = [];
         return `
         <div class="receipts-container">
             <div class="receipts-card">
@@ -25,56 +28,102 @@ const Receipts = {
                     </div>
                     <div id="receiptsSupplierContainer" class="receipts-filter-select-wrap"></div>
                 </div>
-                <div class="receipts-table-container">
-                    <table class="receipts-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Data</th>
-                                <th>Fornecedor</th>
-                                <th class="header-qty">Quantidade</th>
-                                <th>Pedido</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="receiptsTableBody"></tbody>
-                    </table>
-                </div>
+                <div id="receiptsTableContainer"></div>
             </div>
         </div>
         `;
     },
 
-    /** Inicializa a tela: configura header, carrega e renderiza recebimentos. */
     async load() {
         this._setHeaderOptions();
+
+        if (!this._supplierSelect) {
+            this._supplierSelect = createSelect({
+                placeholder: 'Fornecedor',
+                searchable: true,
+                clearable: true,
+                sections: [{ key: 'supplier', items: [] }],
+                onChange: () => this._applyFilter(),
+            });
+            this._supplierSelect.mount(document.getElementById('receiptsSupplierContainer'));
+        }
+
+        if (!this._dataTable) {
+            this._dataTable = createDataTable({
+                columns: [
+                    {
+                        key: 'code', header: 'ID', width: '90px',
+                        render: r => `<span class="code-badge">#${r.nature}${r.id}</span>`,
+                    },
+                    {
+                        key: 'date', header: 'Data', sortable: true,
+                        sortValue: r => r.date || '',
+                        render: r => r.date
+                            ? r.date.split('-').reverse().join('/').replace(/^(\d{2}\/\d{2}\/)\d{2}(\d{2})$/, '$1$2')
+                            : '',
+                    },
+                    {
+                        key: 'supplier', header: 'Fornecedor', sortable: true,
+                        render: r => r.supplier || '',
+                    },
+                    {
+                        key: 'total_qty', header: 'Quantidade', sortable: true,
+                        sortValue: r => r.total_qty || 0,
+                        render: r => r.total_qty != null ? String(r.total_qty) : '',
+                    },
+                    {
+                        key: 'order_id', header: 'Pedido',
+                        render: r => r.order_id
+                            ? `<span class="code-badge receipts-order-link" onclick="Receipts.openOrder(event,${r.order_id})">#${r.order_id}</span>`
+                            : '',
+                    },
+                ],
+                getRowKey: r => r.id,
+                actions: [
+                    {
+                        label: 'Excluir',
+                        icon: 'delete',
+                        variant: 'destructive',
+                        hidden: () => !hasPermission('procurement', 'receipts', 'delete'),
+                        onClick: r => this.deleteReceipt(r.id),
+                    },
+                ],
+                onRowClick: r => this.selectReceipt(r),
+                emptyMessage: 'Nenhum recebimento encontrado.',
+                emptyIcon: 'inventory_2',
+            });
+            this._dataTable.mount(document.getElementById('receiptsTableContainer'));
+        }
+
+        this._dataTable.setLoading(true);
+
         try {
             const receipts = await apiCall(API + "/receipts");
-            const suppliers = [...new Set(receipts.map(r => r.supplier).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
-            if (!this._supplierSelect) {
-                this._supplierSelect = createSearchSelect({
-                    id: 'receiptsSupplier',
-                    placeholder: 'Fornecedor',
-                    searchable: true,
-                    multiple: false,
-                    sections: [{ key: 'supplier', items: [] }],
-                    onChange: ({ value }) => {
-                        localStorage.setItem('wcm.receipts.supplier', value != null ? String(value) : '');
-                        Receipts.load();
-                    }
-                });
-                this._supplierSelect.mount(document.getElementById('receiptsSupplierContainer'));
-                this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
-                const saved = localStorage.getItem('wcm.receipts.supplier');
-                if (saved) this._supplierSelect.select('supplier', saved);
-            } else {
-                this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
+            const receiptsWithQty = await Promise.all(receipts.map(async r => {
+                try {
+                    const items = await apiCall(API + `/receipts/items/${r.id}`);
+                    return { ...r, total_qty: sumProperty(items, "weight") };
+                } catch {
+                    return { ...r, total_qty: 0 };
+                }
+            }));
+
+            this._allReceipts = receiptsWithQty;
+
+            const suppliers = [...new Set(receipts.map(r => r.supplier).filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b));
+            this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
+
+            const saved = localStorage.getItem('wcm.receipts.supplier');
+            if (saved && this._supplierSelect.getValue() == null) {
+                this._supplierSelect.setValue(saved);
             }
 
-            await this._renderTable(receipts);
+            this._applyFilter();
         } catch (error) {
             alert("Erro ao carregar recebimentos");
+            this._dataTable.setLoading(false);
         }
     },
 
@@ -82,23 +131,17 @@ const Receipts = {
 
     // ── Ações Públicas ──
 
-    /** Navega para a tela de criação de novo recebimento. */
     newReceipt() {
         showScreen('receipt-details');
     },
 
-    /** Seleciona um recebimento e navega para a tela de detalhes. */
-    selectReceipt(receipt, tr) {
+    selectReceipt(receipt) {
         this.selectedReceipt = receipt;
         showScreen('receipt-details');
     },
 
-    /** Deleta um recebimento após confirmação do usuário. */
-    async deleteReceipt(event, id) {
-        event.stopPropagation();
-        
+    async deleteReceipt(id) {
         if (!confirm("Tem certeza que deseja deletar?")) return;
-
         try {
             await apiCall(API + `/receipts/${id}`, { method: "DELETE" });
             this.load();
@@ -107,68 +150,6 @@ const Receipts = {
         }
     },
 
-    // ── Renderização ──
-
-    /** Renderiza a tabela de recebimentos aplicando o filtro de fornecedor. */
-    async _renderTable(receipts) {
-        const sel = this._supplierSelect?.getValue();
-        const supplier = sel ? String(sel.value) : '';
-        const tbody = document.getElementById("receiptsTableBody");
-        tbody.innerHTML = "";
-
-        const filtered = receipts
-            .filter(receipt => !supplier || receipt.supplier === supplier);
-
-        for (const receipt of filtered) {
-            try {
-                const tr = await this._createTableRow(receipt);
-                tr.onclick = () => this.selectReceipt(receipt, tr);
-                tbody.appendChild(tr);
-            } catch (error) {
-                console.error(`Erro ao processar recebimento ${receipt.code}:`, error);
-            }
-        }
-
-        if (tbody.children.length === 0) {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `<td colspan="6" class="empty-state">Nenhum recebimento encontrado.</td>`;
-            tbody.appendChild(tr);
-        }
-    },
-
-    /** Cria uma linha <tr> com dados do recebimento. */
-    async _createTableRow(receipt) {
-        const tr = document.createElement("tr");
-        const receiptId = `${receipt.nature}${receipt.id}`;
-        const orderDisplay = receipt.order_id ? `#${receipt.order_id}` : "";
-        
-        let totalQty = 0;
-        try {
-            const receiptItems = await apiCall(API + `/receipts/items/${receipt.id}`);
-            totalQty = sumProperty(receiptItems, "weight");
-        } catch (error) {
-            console.error("Erro ao carregar itens do recebimento:", error);
-            totalQty = 0;
-        }
-
-        // Formata data de YYYY-MM-DD para DD/MM/YY
-        tr.innerHTML = `
-            <td class="receipts-col-code"><span class="code-badge">#${receiptId}</span></td>
-            <td class="receipts-col-date">${receipt.date ? receipt.date.split('-').reverse().join('/').replace(/^(\d{2}\/\d{2}\/)\d{2}(\d{2})$/, '$1$2') : ''}</td>
-            <td class="receipts-col-supplier">${receipt.supplier || ""}</td>
-            <td class="receipts-col-qty">${totalQty}</td>
-            <td class="receipts-col-order">${receipt.order_id ? `<span class="code-badge receipts-order-link" onclick="Receipts.openOrder(event,${receipt.order_id})">#${receipt.order_id}</span>` : ''}</td>
-            <td class="receipts-col-actions">
-                ${hasPermission('procurement', 'receipts', 'delete') ? `<button onclick="Receipts.deleteReceipt(event,'${receipt.id}')">
-                    <span class="material-symbols-outlined">delete</span>
-                </button>` : ''}
-            </td>
-        `;
-
-        return tr;
-    },
-
-    /** Navega para os detalhes do pedido vinculado. */
     async openOrder(event, orderId) {
         event.stopPropagation();
         try {
@@ -182,7 +163,21 @@ const Receipts = {
         }
     },
 
-    /** Injeta botões de ação no header da página. */
+    // ── Privado ──
+
+    _applyFilter() {
+        const supplier = this._supplierSelect?.getValue();
+        const filtered = supplier
+            ? this._allReceipts.filter(r => r.supplier === supplier)
+            : this._allReceipts;
+        this._dataTable?.setData(filtered);
+        if (supplier != null) {
+            localStorage.setItem('wcm.receipts.supplier', String(supplier));
+        } else {
+            localStorage.removeItem('wcm.receipts.supplier');
+        }
+    },
+
     _setHeaderOptions() {
         const headerOptions = document.getElementById("headerOptionsContent");
         headerOptions.innerHTML = hasPermission('procurement', 'receipts', 'create') ? `

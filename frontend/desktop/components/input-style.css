@@ -1,0 +1,90 @@
+/* ── Input ────────────────────────────────────────────────────────────────── */
+
+.wcm-input-wrapper {
+    position: relative;
+    display: inline-flex;
+    width: 100%;
+}
+
+.wcm-input-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 1;
+    color: #3b82f6;
+    font-size: 16px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+
+/* Material Symbols icon inside input */
+.wcm-input-icon .material-symbols-outlined {
+    font-size: 16px;
+}
+
+/* SVG icon inside input (14×14) */
+.wcm-input-icon svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+    color: #3b82f6;
+}
+
+.wcm-input {
+    width: 100%;
+    height: 2.25rem;
+    padding: 0 10px;
+    background-color: #ffffff;
+    border: 1px solid #dcdfe4;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #1a1a1a;
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+
+.wcm-input::placeholder {
+    color: #b0b8c5;
+}
+
+.wcm-input:hover:not(:disabled):not(:focus) {
+    border-color: #b0b8c5;
+}
+
+.wcm-input:focus {
+    border-color: #6b7280;
+}
+
+.wcm-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #f4f6f8;
+}
+
+.wcm-input:read-only {
+    background-color: #f4f6f8;
+    cursor: default;
+}
+
+/* Deslocamento quando há ícone */
+.wcm-input--with-icon {
+    padding-left: 32px;
+}
+
+/* Estado de erro */
+.wcm-input--error {
+    border-color: #f87171;
+}
+
+.wcm-input--error:hover:not(:disabled):not(:focus) {
+    border-color: #ef4444;
+}
+
+.wcm-input--error:focus {
+    border-color: #ef4444;
+}
