@@ -101,7 +101,9 @@ router.get("/", (req, res) => {
 router.get("/:id", (req, res) => {
     const id = req.params.id;
     db.get(
-        `SELECT pi.*, s.name AS supplier_name, s.cnpj, s.address, s.address_number, s.neighborhood, s.cep, s.city, s.uf, s.state_registration, s.phone
+        `SELECT pi.*, s.name AS supplier_name,
+                NULL AS cnpj, NULL AS address, NULL AS address_number, NULL AS neighborhood,
+                NULL AS cep, NULL AS city, NULL AS uf, NULL AS state_registration, NULL AS phone
          FROM purchase_invoices pi
          JOIN suppliers s ON pi.supplier_id = s.id
          WHERE pi.id = ?`,
@@ -230,8 +232,10 @@ router.delete("/:id", (req, res) => {
 router.get("/print/:id", (req, res) => {
     const id = req.params.id;
     db.get(
-        `SELECT pi.*, s.name AS supplier_name, s.cnpj, s.address, s.address_number,
-                s.neighborhood, s.cep, s.city, s.uf, s.state_registration, s.phone
+        `SELECT pi.*, s.name AS supplier_name,
+                NULL AS cnpj, NULL AS address, NULL AS address_number,
+                NULL AS neighborhood, NULL AS cep, NULL AS city, NULL AS uf,
+                NULL AS state_registration, NULL AS phone
          FROM purchase_invoices pi
          JOIN suppliers s ON pi.supplier_id = s.id
          WHERE pi.id = ?`,
