@@ -101,7 +101,11 @@ app.use((req, res, next) => {
     // Rotas de autenticação são públicas
     if (req.path.startsWith('/auth')) return next();
 
-    const token = req.headers['x-auth-token'];
+    // Tenta obter token do header (preferido) ou query parameter (fallback para impressão)
+    let token = req.headers['x-auth-token'];
+    if (!token && req.query.token) {
+        token = req.query.token;
+    }
     if (!token) {
         return res.status(401).json({ success: false, message: 'Não autenticado.' });
     }

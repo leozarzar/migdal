@@ -84,7 +84,8 @@ const PurchaseInvoices = {
 
     printInvoice(event, id) {
         event.stopPropagation();
-        window.open(API + `/purchase-invoices/print/${id}`, "_blank");
+        const token = localStorage.getItem('wcm.auth.token');
+        window.open(API + `/purchase-invoices/print/${id}?token=${encodeURIComponent(token)}`, "_blank");
     },
 
     // ── Fluxo de Criação em Passos ───────────────────────────────────────────
