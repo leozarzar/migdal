@@ -102,6 +102,7 @@ const MODULE_REGISTRY = {
         icon: 'admin_panel_settings',
         order: 99,
         screens: {
+            'admin-company':       { title: 'Empresarial',     module: AdminCompany,      icon: 'apartment',      actions: ['view', 'edit'] },
             'admin-roles':         { title: 'Papéis',         module: AdminRoles,        icon: 'shield_person',  actions: ['view', 'create', 'edit', 'delete'] },
             'admin-roles-details': { title: 'Detalhes',        module: AdminRolesDetails, parent: 'admin-roles', hidden: true },
             'admin-users':         { title: 'Usuários',        module: AdminUsers,        icon: 'group',          actions: ['view', 'create', 'edit', 'delete'] },

@@ -41,6 +41,7 @@ const rolesRoutes            = require("./routes/roles");            // Roles & 
 const settingsRoutes         = require("./routes/settings");         // App settings
 const stockMovementsRoutes   = require("./routes/stock-movements");   // Stock movements (simple mode)
 const locationsRoutes        = require("./routes/locations");         // Storage locations
+const companyRoutes          = require("./routes/company");           // Company information
 // ── Middleware ────────────────────────────────────────────────────────────
 
 const app = express();
@@ -182,6 +183,7 @@ app.use("/roles", rolesRoutes);
 app.use("/settings", settingsRoutes);
 app.use("/stock-movements", stockMovementsRoutes);
 app.use("/locations", withPermissions(locationsRoutes, 'registry', 'locations'));
+app.use("/company", withPermissions(companyRoutes, 'admin', 'admin-company'));
 
 // ── Cron: relatório semanal às segunda-feira 07:00 ────────────────────────
 

@@ -221,6 +221,28 @@ db.serialize(() => {
 
 	});
 
+	// ── Company Information ────────────────────────────────────────────────────
+
+	db.run(`CREATE TABLE IF NOT EXISTS company (
+		id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+		name                TEXT,
+		cnpj                TEXT,
+		ie                  TEXT,
+		address             TEXT,
+		neighborhood        TEXT,
+		city                TEXT,
+		state               TEXT,
+		cep                 TEXT,
+		phone               TEXT,
+		email               TEXT,
+		updated_at          TEXT DEFAULT (datetime('now'))
+	)`, (err) => {
+		if (err) {
+			console.error("Erro ao garantir tabela company:", err.message);
+			return;
+		}
+	});
+
 	// ── Legacy Data Migration ─────────────────────────────────────────────────
 	// Migrates rows from the deprecated "bags" table into "stock_units".
 
