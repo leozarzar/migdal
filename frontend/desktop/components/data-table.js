@@ -60,6 +60,7 @@ function createDataTable(config) {
 
     let _container = null;
     let _outsideClickHandler = null;
+    let _portalDropdown = null;
 
     // ══ Computed ════════════════════════════════════════════════════════════
 
@@ -183,7 +184,8 @@ function createDataTable(config) {
             }
 
             for (const col of _columns) {
-                html += `<td>${col.render(row)}</td>`;
+                const cell = col.render(row);
+                html += `<td>${cell !== '' && cell != null ? cell : '<span class="dt-cell-empty">—</span>'}</td>`;
             }
 
             if (_actions.length) {
@@ -202,9 +204,6 @@ function createDataTable(config) {
                         <button class="dt-action-trigger" aria-label="Ações">
                             <span class="material-symbols-outlined">more_horiz</span>
                         </button>
-                        <div class="dt-dropdown" hidden>
-                            ${itemsHTML}
-                        </div>
                     </div>
                 </td>`;
             }
@@ -215,7 +214,13 @@ function createDataTable(config) {
     }
 
     function _renderPagination(sorted) {
-        if (!_pageSize) return '';
+        const total = sorted.length;
+        if (!_pageSize) {
+            if (_loading || total === 0) return '';
+            return `<div class="dt-pagination">
+                <span class="dt-record-count">${total} ${total === 1 ? 'registro' : 'registros'}</span>
+            </div>`;
+        }
         const totalPages = _getTotalPages(sorted);
         if (totalPages <= 1) return '';
 
@@ -342,36 +347,26 @@ function createDataTable(config) {
             });
         }
 
-        // Menu de ações — botão trigger abre/fecha dropdown
+        // Menu de ações — botão trigger abre/fecha dropdown portal
         _container.querySelectorAll('.dt-action-trigger').forEach(btn => {
             btn.onclick = e => {
                 e.stopPropagation();
-                const dropdown = btn.parentElement.querySelector('.dt-dropdown');
-                const isOpen   = !dropdown.hidden;
+                const isOpen = _portalDropdown && !_portalDropdown.hidden;
+                const wasThisBtn = _portalDropdown?._trigger === btn;
                 _closeDropdowns();
-                if (!isOpen) dropdown.removeAttribute('hidden');
+                if (!isOpen || !wasThisBtn) {
+                    const tr  = btn.closest('tr.dt-row');
+                    const key = tr?.getAttribute('data-row-key');
+                    const row = _data.find(r => String(_getRowKey(r)) === key);
+                    if (!row) return;
+                    _openPortalDropdown(btn, row);
+                }
             };
         });
 
         // Célula de ações não propaga clique de linha
         _container.querySelectorAll('.dt-actions-cell').forEach(td => {
             td.onclick = e => e.stopPropagation();
-        });
-
-        // Itens do menu de ações
-        _container.querySelectorAll('.dt-menu-item').forEach(item => {
-            item.onclick = e => {
-                e.stopPropagation();
-                const tr  = item.closest('tr.dt-row');
-                if (!tr) return;
-                const key = tr.getAttribute('data-row-key');
-                const row = _data.find(r => String(_getRowKey(r)) === key);
-                if (!row) return;
-                const visibleActions = _actions.filter(a => !a.hidden?.(row));
-                const idx = parseInt(item.getAttribute('data-action-idx'), 10);
-                visibleActions[idx]?.onClick(row);
-                _closeDropdowns();
-            };
         });
 
         // Paginação
@@ -391,7 +386,45 @@ function createDataTable(config) {
     }
 
     function _closeDropdowns() {
-        _container?.querySelectorAll('.dt-dropdown').forEach(d => d.setAttribute('hidden', ''));
+        if (_portalDropdown) {
+            _portalDropdown.hidden = true;
+            _portalDropdown._trigger = null;
+        }
+    }
+
+    function _openPortalDropdown(trigger, row) {
+        if (!_portalDropdown) {
+            _portalDropdown = document.createElement('div');
+            _portalDropdown.className = 'dt-dropdown';
+            document.body.appendChild(_portalDropdown);
+        }
+
+        const visibleActions = _actions.filter(a => !a.hidden?.(row));
+        _portalDropdown.innerHTML = visibleActions.map((action, i) => {
+            const iconHTML = action.icon
+                ? `<span class="material-symbols-outlined dt-menu-item-icon">${action.icon}</span>`
+                : '';
+            return `<button class="dt-menu-item${action.variant === 'destructive' ? ' dt-menu-item--destructive' : ''}" data-action-idx="${i}">
+                ${iconHTML}${action.label}
+            </button>`;
+        }).join('');
+
+        _portalDropdown.querySelectorAll('.dt-menu-item').forEach(item => {
+            item.onclick = e => {
+                e.stopPropagation();
+                const idx = parseInt(item.getAttribute('data-action-idx'), 10);
+                visibleActions[idx]?.onClick(row);
+                _closeDropdowns();
+            };
+        });
+
+        const rect = trigger.getBoundingClientRect();
+        _portalDropdown.style.position = 'fixed';
+        _portalDropdown.style.top      = `${rect.bottom + 4}px`;
+        _portalDropdown.style.left     = 'auto';
+        _portalDropdown.style.right    = `${window.innerWidth - rect.right}px`;
+        _portalDropdown.hidden = false;
+        _portalDropdown._trigger = trigger;
     }
 
     // ══ API pública ══════════════════════════════════════════════════════════
@@ -415,7 +448,9 @@ function createDataTable(config) {
 
         if (_outsideClickHandler) document.removeEventListener('click', _outsideClickHandler);
         _outsideClickHandler = e => {
-            if (!_container?.contains(e.target)) _closeDropdowns();
+            if (!_container?.contains(e.target) && !_portalDropdown?.contains(e.target)) {
+                _closeDropdowns();
+            }
         };
         document.addEventListener('click', _outsideClickHandler);
 
@@ -466,6 +501,10 @@ function createDataTable(config) {
         if (_outsideClickHandler) {
             document.removeEventListener('click', _outsideClickHandler);
             _outsideClickHandler = null;
+        }
+        if (_portalDropdown) {
+            _portalDropdown.remove();
+            _portalDropdown = null;
         }
         _container = null;
     }

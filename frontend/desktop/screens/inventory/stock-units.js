@@ -1,4 +1,3 @@
-
 /**
  * stock-units.js
  * Tela de Lotes — listagem, edição, uso/devolução e exclusão de lotes.
@@ -7,11 +6,11 @@ const StockUnits = {
 
     // ── Estado ──
 
-    /** Bag selecionado atualmente */
     selectedBag: null,
     _filterStatus: '',
     _materialSelect: null,
     _supplierSelect: null,
+    _dataTable: null,
     _batchDialog: null,
     _detailDialog: null,
     _partialExitDialog: null,
@@ -26,20 +25,19 @@ const StockUnits = {
 
     // ── Ciclo de Vida ──
 
-    /** Retorna o template HTML da tela */
     render() {
-        // Destroi os dialogs e selects do ciclo anterior
-        this._batchDialog?.destroy();  this._batchDialog  = null;
-        this._detailDialog?.destroy(); this._detailDialog = null;
+        this._batchDialog?.destroy();       this._batchDialog       = null;
+        this._detailDialog?.destroy();      this._detailDialog      = null;
         this._partialExitDialog?.destroy(); this._partialExitDialog = null;
-        this._exitDialog?.destroy();   this._exitDialog   = null;
-        this._returnDialog?.destroy(); this._returnDialog = null;
-        this._deleteDialog?.destroy(); this._deleteDialog = null;
-        this._simpleExitDialog?.destroy(); this._simpleExitDialog = null;
+        this._exitDialog?.destroy();        this._exitDialog        = null;
+        this._returnDialog?.destroy();      this._returnDialog      = null;
+        this._deleteDialog?.destroy();      this._deleteDialog      = null;
+        this._simpleExitDialog?.destroy();  this._simpleExitDialog  = null;
         this._simpleExitData = null;
         this._exitBag = null;
         this._materialSelect?.destroy(); this._materialSelect = null;
         this._supplierSelect?.destroy(); this._supplierSelect = null;
+        this._dataTable?.destroy();      this._dataTable      = null;
         this._filterStatus = '';
         this._selectedIds = new Set();
         this._showOnlySelected = false;
@@ -53,60 +51,136 @@ const StockUnits = {
                 </button>
                 <button class="stock-units-batch-cancel" onclick="StockUnits._clearSelection()">Cancelar seleção</button>
             </div>
-            <div class="stock-units-card">
-                <div class="stock-units-filters">
-                    <div class="stock-units-filters-icon-wrap">
-                        <span class="material-symbols-outlined stock-units-filters-icon">filter_list</span>
-                    </div>
-                    <div class="stock-units-status-pills">
-                        <button class="stock-units-status-pill" data-value="" onclick="StockUnits._setStatus('')">Todos</button>
-                        <button class="stock-units-status-pill" data-value="IN_STOCK" onclick="StockUnits._setStatus('IN_STOCK')">Em estoque</button>
-                        <button class="stock-units-status-pill" data-value="OUT_STOCK" onclick="StockUnits._setStatus('OUT_STOCK')">Usado</button>
-                    </div>
-                    <div id="stockUnitsMaterialContainer" class="stock-units-filter-select-wrap"></div>
-                    <div id="stockUnitsSupplierContainer" class="stock-units-filter-select-wrap"></div>
-                    <input id="search" class="stock-units-search" placeholder="Pesquisar" oninput="StockUnits.load()">
-                    <button id="filterSelectedBtn" class="stock-units-filter-selected-btn" onclick="StockUnits._toggleShowSelected()" title="Mostrar apenas selecionados">
-                        <span class="material-symbols-outlined">checklist</span>
-                        Selecionados
-                    </button>
+            <div class="stock-units-filters">
+                <div class="stock-units-filters-icon-wrap">
+                    <span class="material-symbols-outlined stock-units-filters-icon">filter_list</span>
                 </div>
-                <div id="stockUnitsCount" class="stock-units-count"></div>
-                <div class="stock-units-table-container">
-                    <table class="stock-units-table">
-                        <thead>
-                            <tr>
-                                <th class="stock-units-col-check"><input type="checkbox" id="checkAll" onchange="StockUnits._onCheckAll(this)" title="Selecionar todos"></th>
-                                <th></th>
-                                <th>Código</th>
-                                <th>ID Antigo</th>
-                                <th>Material</th>
-                                <th class="stock-units-col-supplier">Fornecedor</th>
-                                <th class="stock-units-col-operator">Operador</th>
-                                <th class="stock-units-col-qty">Quantidade</th>
-                                <th class="stock-units-col-wait"><span class="material-symbols-outlined">schedule</span></th>
-                                <th>Obs</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="stockUnitsTableBody"></tbody>
-                    </table>
+                <div class="stock-units-status-pills">
+                    <button class="stock-units-status-pill" data-value="" onclick="StockUnits._setStatus('')">Todos</button>
+                    <button class="stock-units-status-pill" data-value="IN_STOCK" onclick="StockUnits._setStatus('IN_STOCK')">Em estoque</button>
+                    <button class="stock-units-status-pill" data-value="OUT_STOCK" onclick="StockUnits._setStatus('OUT_STOCK')">Usado</button>
                 </div>
+                <div id="stockUnitsMaterialContainer" class="stock-units-filter-select-wrap"></div>
+                <div id="stockUnitsSupplierContainer" class="stock-units-filter-select-wrap"></div>
+                <input id="search" class="stock-units-search" placeholder="Buscar" oninput="StockUnits.load()">
+                <button id="filterSelectedBtn" class="stock-units-filter-selected-btn" onclick="StockUnits._toggleShowSelected()" title="Mostrar apenas selecionados">
+                    <span class="material-symbols-outlined">checklist</span>
+                    Selecionados
+                </button>
             </div>
+            <div id="stockUnitsTableContainer"></div>
         </div>
         `;
     },
 
-    /** Carrega os dados e renderiza a tabela */
     async load() {
         this._resetForm();
 
-        // Cria os dialogs na primeira carga após render()
         if (!this._batchDialog)  this._batchDialog  = this._createBatchDialog();
         if (!this._detailDialog) this._detailDialog = this._createDetailDialog();
 
+        if (!this._dataTable) {
+            this._dataTable = createDataTable({
+                columns: [
+                    {
+                        key: '_check',
+                        header: `<input type="checkbox" id="checkAll" onchange="StockUnits._onCheckAll(this)" title="Selecionar todos">`,
+                        width: '36px',
+                        render: r => {
+                            if (r.tracking_mode === 'simple') return '';
+                            const isActive = r.status === 'IN_STOCK' || r.status === 'PARTIAL';
+                            if (!isActive || !hasPermission('inventory', 'stock-units', 'edit')) return '';
+                            const isChecked = StockUnits._selectedIds.has(String(r.id));
+                            return `<span onclick="event.stopPropagation()"><input type="checkbox" class="stock-units-row-check" data-id="${r.id}" onchange="StockUnits._onRowCheck(this,'${r.id}')" ${isChecked ? 'checked' : ''}></span>`;
+                        },
+                    },
+                    {
+                        key: '_status', header: '', width: '32px',
+                        render: r => {
+                            if (r.tracking_mode === 'simple') return '';
+                            if (r.status === 'PARTIAL') return '<span class="material-symbols-outlined stock-units-status-partial">timelapse</span>';
+                            if (r.status !== 'IN_STOCK') return '<span class="material-symbols-outlined stock-units-status-check">check_circle</span>';
+                            return '';
+                        },
+                    },
+                    {
+                        key: 'id', header: 'Código',
+                        render: r => r.tracking_mode === 'simple'
+                            ? `<span class="code-badge stock-units-badge-simple">Simples</span>`
+                            : `<span class="code-badge">${StockUnits._codeFor(r)}</span>`,
+                    },
+                    {
+                        key: 'old_id', header: 'ID Antigo', width: '130px',
+                        render: r => {
+                            if (r.tracking_mode === 'simple') return '';
+                            return r.old_id && r.old_id !== StockUnits._codeFor(r) ? r.old_id : '';
+                        },
+                    },
+                    { key: 'material', header: 'Material', render: r => r.material },
+                    { key: 'supplier', header: 'Fornecedor', render: r => r.supplier || '' },
+                    { key: 'operator', header: 'Operador', render: r => r.operator || '' },
+                    {
+                        key: 'weight', header: 'Quantidade',
+                        render: r => {
+                            if (r.tracking_mode === 'simple') return String(r.balance);
+                            if (r.status === 'PARTIAL') return `${r.remaining_weight} <span class="stock-units-remaining-label">/ ${r.weight}</span>`;
+                            return String(r.weight);
+                        },
+                    },
+                    {
+                        key: '_wait', header: '⏱', width: '60px',
+                        render: r => {
+                            if (r.tracking_mode === 'simple') return '—';
+                            return `${calculateDaysDifference(r.date_in, r.date_out)}d`;
+                        },
+                    },
+                    { key: 'notes', header: 'Obs', render: r => r.notes ?? '' },
+                ],
+                getRowKey: r => r.tracking_mode === 'simple' ? `simple-${r.material_id}` : String(r.id),
+                onRowClick: r => StockUnits.selectStockUnit(r),
+                actions: [
+                    {
+                        label: 'Saída parcial', icon: 'timelapse',
+                        hidden: r => r.tracking_mode === 'simple' || !r.allow_partial_exit
+                            || (r.status !== 'IN_STOCK' && r.status !== 'PARTIAL')
+                            || !hasPermission('inventory', 'stock-units', 'edit'),
+                        onClick: r => StockUnits.openPartialExit(null, r.id),
+                    },
+                    {
+                        label: 'Saída total', icon: 'output',
+                        hidden: r => r.tracking_mode === 'simple'
+                            || (r.status !== 'IN_STOCK' && r.status !== 'PARTIAL')
+                            || !hasPermission('inventory', 'stock-units', 'edit'),
+                        onClick: r => StockUnits.openExitDialog(null, r.id),
+                    },
+                    {
+                        label: 'Saída', icon: 'output',
+                        hidden: r => r.tracking_mode !== 'simple' || !(Number(r.balance || 0) > 0)
+                            || !hasPermission('inventory', 'stock-units', 'edit'),
+                        onClick: r => StockUnits.openSimpleExitDialog(null, r.material_id),
+                    },
+                    {
+                        label: 'Retornar ao estoque', icon: 'undo',
+                        hidden: r => r.tracking_mode === 'simple' || r.status === 'IN_STOCK'
+                            || !hasPermission('inventory', 'stock-units', 'edit'),
+                        onClick: r => StockUnits.openReturnDialog(null, r.id),
+                    },
+                    {
+                        label: 'Excluir', icon: 'delete', variant: 'destructive',
+                        hidden: () => !hasPermission('inventory', 'stock-units', 'delete'),
+                        onClick: r => StockUnits.deleteStockUnit(null, r.id),
+                    },
+                ],
+                emptyMessage: 'Nenhuma unidade de estoque encontrada.',
+                emptyIcon: 'inventory_2',
+            });
+            this._dataTable.mount(document.getElementById('stockUnitsTableContainer'));
+        }
+
+        this._dataTable.setLoading(true);
+
         try {
-            const stockUnits = await apiCall(API + "/stock-units") || [];
+            const stockUnits = await apiCall(API + '/stock-units') || [];
 
             const isFirstLoad = !this._materialSelect;
             this._populateFilters(stockUnits);
@@ -130,12 +204,15 @@ const StockUnits = {
             localStorage.setItem('wcm.stockUnits.search', document.getElementById('search')?.value || '');
             this._updateStatusPills();
 
-            this._renderTable(stockUnits);
+            const filters = this._getFilters();
+            const filtered = stockUnits.filter(bag => this._matchesFilters(bag, filters));
 
+            this._dataTable.setData(filtered);
             this._updateSelectedFilterBtn();
             this._updateBatchBar();
-        } catch (error) {
-            alert("Erro ao carregar estoque");
+        } catch {
+            alert('Erro ao carregar estoque');
+            this._dataTable.setLoading(false);
         }
     },
 
@@ -143,65 +220,60 @@ const StockUnits = {
 
     // ── Ações Públicas ──
 
-    /** Seleciona um bag e abre o dialog de detalhes */
-    selectStockUnit(bag, tr) {
+    selectStockUnit(bag) {
         clearTableSelection();
-        tr.classList.add("selected");
 
-        document.getElementById("code").value = this._codeFor(bag);
-        document.getElementById("old_id").value = bag.old_id || "";
-        document.getElementById("material").value = bag.material;
-        document.getElementById("supplier").value = bag.supplier || "";
-        document.getElementById("operator").value = bag.operator || "";
-        document.getElementById("weight").value = bag.weight;
-        document.getElementById("stockUnitsRemainingWeight").value = bag.remaining_weight != null ? bag.remaining_weight : bag.weight;
-        document.getElementById("date_in").value = bag.date_in;
-        document.getElementById("date_out").value = bag.date_out || "";
-        document.getElementById("notes").value = bag.notes ?? "";
-        document.getElementById("deduction_type").value = bag.deduction_type || "uso";
-        // Mostrar/ocultar campos conforme dados disponíveis
+        document.getElementById('code').value = this._codeFor(bag);
+        document.getElementById('old_id').value = bag.old_id || '';
+        document.getElementById('material').value = bag.material;
+        document.getElementById('supplier').value = bag.supplier || '';
+        document.getElementById('operator').value = bag.operator || '';
+        document.getElementById('weight').value = bag.weight;
+        document.getElementById('stockUnitsRemainingWeight').value = bag.remaining_weight != null ? bag.remaining_weight : bag.weight;
+        document.getElementById('date_in').value = bag.date_in;
+        document.getElementById('date_out').value = bag.date_out || '';
+        document.getElementById('notes').value = bag.notes ?? '';
+        document.getElementById('deduction_type').value = bag.deduction_type || 'uso';
+
         const _detailToggle = (id, show) => { const el = document.getElementById(id); if (el) el.style.display = show ? '' : 'none'; };
-        _detailToggle('stockUnitsFieldOldId',  !!(bag.old_id && bag.old_id !== this._codeFor(bag)));
-        _detailToggle('stockUnitsFieldSupplier', !!bag.supplier);
-        _detailToggle('stockUnitsFieldOperator', !!bag.operator);
-        _detailToggle('stockUnitsRemainingField', bag.status === 'PARTIAL');
-        _detailToggle('stockUnitsFieldDateOut', !!bag.date_out);
-        _detailToggle('deductionTypeField',    !!bag.date_out);
-        _detailToggle('stockUnitsFieldNotes',  !!bag.notes);
+        _detailToggle('stockUnitsFieldOldId',      !!(bag.old_id && bag.old_id !== this._codeFor(bag)));
+        _detailToggle('stockUnitsFieldSupplier',   !!bag.supplier);
+        _detailToggle('stockUnitsFieldOperator',   !!bag.operator);
+        _detailToggle('stockUnitsRemainingField',  bag.status === 'PARTIAL');
+        _detailToggle('stockUnitsFieldDateOut',    !!bag.date_out);
+        _detailToggle('deductionTypeField',        !!bag.date_out);
+        _detailToggle('stockUnitsFieldNotes',      !!bag.notes);
 
         this._detailDialog.setTitle(this._codeFor(bag));
         this._detailDialog.open();
         this.selectedBag = bag.id;
     },
 
-    /** Salva alterações do bag selecionado */
     async editStockUnit() {
-        const dateOut = document.getElementById("date_out").value;
+        const dateOut = document.getElementById('date_out').value;
         const data = {
             id: this.selectedBag,
             date_out: dateOut,
             status: getStatusFromDate(dateOut),
-            notes: document.getElementById("notes").value,
-            deduction_type: dateOut ? document.getElementById("deduction_type").value : null
+            notes: document.getElementById('notes').value,
+            deduction_type: dateOut ? document.getElementById('deduction_type').value : null
         };
 
         try {
-            await apiCall(API + "/stock-units/update", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
+            await apiCall(API + '/stock-units/update', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-
             this._clearAndReload();
-            alert("Salvo com sucesso");
-        } catch (error) {
-            alert("Erro ao salvar");
+            alert('Salvo com sucesso');
+        } catch {
+            alert('Erro ao salvar');
         }
     },
 
-    /** Abre dialog de saída total — pede data e tipo de baixa */
     openExitDialog(event, id) {
-        event.stopPropagation();
+        if (event) event.stopPropagation();
         apiCall(API + '/stock-units').then(stockUnits => {
             const bag = (stockUnits || []).find(b => String(b.id) === String(id));
             if (!bag) { alert('Unidade não encontrada'); return; }
@@ -259,9 +331,8 @@ const StockUnits = {
         }
     },
 
-    /** Abre dialog de retorno ao estoque — lista saídas e permite selecionar quais reverter */
     openReturnDialog(event, id) {
-        event.stopPropagation();
+        if (event) event.stopPropagation();
         Promise.all([
             apiCall(API + '/stock-units'),
             apiCall(`${API}/stock-movements?lot_id=${id}&type=exit`),
@@ -276,7 +347,7 @@ const StockUnits = {
             }
 
             this._returnDialog?.destroy();
-            const rowsHTML = exitRows.map((m, i) => {
+            const rowsHTML = exitRows.map((m) => {
                 const date = m.date ? new Date(m.date + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
                 const type = m.reason === 'adjustment' ? 'Ajuste' : 'Uso';
                 return `<label class="stock-units-return-row">
@@ -316,27 +387,23 @@ const StockUnits = {
         }
     },
 
-    /** Marca um bag como usado (saída) — mantido para retrocompatibilidade interna */
     async useStockUnit(event, id) {
-        event.stopPropagation();
+        if (event) event.stopPropagation();
         await this._updateStockUnitStatus(id, 'out');
     },
 
-    /** Devolve um bag ao estoque — mantido para retrocompatibilidade interna */
     async returnStockUnit(event, id) {
-        event.stopPropagation();
-        await this._updateStockUnitStatus(id, "in");
+        if (event) event.stopPropagation();
+        await this._updateStockUnitStatus(id, 'in');
     },
 
-    /** Remove um lote do sistema — abre dialog de confirmação com aviso sobre recebimento */
     async deleteStockUnit(event, id) {
-        event.stopPropagation();
+        if (event) event.stopPropagation();
 
-        const canDeleteLot     = hasPermission('inventory', 'stock-units', 'delete');
-        const canEditReceipts  = hasPermission('procurement', 'receipts', 'edit');
+        const canDeleteLot    = hasPermission('inventory', 'stock-units', 'delete');
+        const canEditReceipts = hasPermission('procurement', 'receipts', 'edit');
         if (!canDeleteLot) return;
 
-        // Buscar receipt_id do lote para o botão Editar Recebimento
         const stockUnits = await apiCall(API + '/stock-units').catch(() => []);
         const bag = (stockUnits || []).find(b => String(b.id) === String(id));
         const receiptId = bag?.receipt_id || null;
@@ -369,127 +436,12 @@ const StockUnits = {
         this._deleteDialog.open();
     },
 
-    /** Cancela edição e recarrega a tela */
     cancelEdit() {
         this._clearAndReload();
     },
 
-    // ── Renderização ──
+    // ── Filtros ──
 
-    /** Renderiza a tabela com os bags filtrados */
-    _renderTable(bags) {
-        const filters = this._getFilters();
-        const tbody = document.getElementById("stockUnitsTableBody");
-        tbody.innerHTML = "";
-
-        const filtered = bags
-            .filter(bag => this._matchesFilters(bag, filters));
-
-        const countEl = document.getElementById('stockUnitsCount');
-        if (countEl) countEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'item' : 'itens'}`;
-
-        if (filtered.length === 0) {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `<td colspan="10" class="empty-state">Nenhuma unidade de estoque encontrada.</td>`;
-            tbody.appendChild(tr);
-            return;
-        }
-
-        filtered.forEach(bag => {
-            const tr = this._createTableRow(bag);
-            tr.onclick = () => this.selectStockUnit(bag, tr);
-            tbody.appendChild(tr);
-        });
-    },
-
-    /** Cria uma linha da tabela para um bag */
-    _createTableRow(bag) {
-        const tr = document.createElement("tr");
-
-        // Itens de rastreio simples (agregado por material, sem lote)
-        if (bag.tracking_mode === 'simple') {
-            const hasBalance = Number(bag.balance || 0) > 0;
-            let actionsHTML = '';
-            if (hasBalance && hasPermission('inventory', 'stock-units', 'edit')) {
-                actionsHTML = `<button onclick="StockUnits.openSimpleExitDialog(event,${bag.material_id})" title="Registrar saída">
-                    <span class="material-symbols-outlined">output</span>
-                </button>`;
-            }
-            tr.innerHTML = `
-                <td class="stock-units-col-check"></td>
-                <td class="stock-units-col-status"></td>
-                <td class="stock-units-col-code"><span class="code-badge stock-units-badge-simple">Simples</span></td>
-                <td class="stock-units-col-old-id"></td>
-                <td class="stock-units-col-material">${bag.material}</td>
-                <td class="stock-units-col-supplier"></td>
-                <td class="stock-units-col-operator"></td>
-                <td class="stock-units-col-qty">${bag.balance}</td>
-                <td class="stock-units-col-wait">—</td>
-                <td class="stock-units-col-obs"></td>
-                <td class="stock-units-col-actions">${actionsHTML}</td>
-            `;
-            return tr;
-        }
-
-        const daysDiff = calculateDaysDifference(bag.date_in, bag.date_out);
-        const isInStock = bag.status === "IN_STOCK";
-        const isPartial = bag.status === "PARTIAL";
-        const isActive = isInStock || isPartial;
-        const isChecked = this._selectedIds.has(String(bag.id));
-
-        const statusIcon = isInStock ? ''
-            : isPartial ? '<span class="material-symbols-outlined stock-units-status-partial">timelapse</span>'
-            : '<span class="material-symbols-outlined">check_circle</span>';
-
-        const qtyDisplay = isPartial
-            ? `${bag.remaining_weight} <span class="stock-units-remaining-label">/ ${bag.weight}</span>`
-            : `${bag.weight}`;
-
-        let actionsHTML = '';
-        if (hasPermission('inventory', 'stock-units', 'edit')) {
-            if (isActive && bag.allow_partial_exit) {
-                actionsHTML += `<button onclick="StockUnits.openPartialExit(event,'${bag.id}')" title="Saída parcial">
-                    <span class="material-symbols-outlined">timelapse</span>
-                </button>`;
-            }
-            if (isActive) {
-                actionsHTML += `<button onclick="StockUnits.openExitDialog(event,'${bag.id}')" title="Saída total">
-                    <span class="material-symbols-outlined">output</span>
-                </button>`;
-            }
-            if (!isInStock) {
-                // Aparece tanto para PARTIAL quanto para OUT_STOCK
-                actionsHTML += `<button onclick="StockUnits.openReturnDialog(event,'${bag.id}')" title="Retornar ao estoque">
-                    <span class="material-symbols-outlined">undo</span>
-                </button>`;
-            }
-        }
-        if (hasPermission('inventory', 'stock-units', 'delete')) {
-            actionsHTML += `<button onclick="StockUnits.deleteStockUnit(event,'${bag.id}')">
-                <span class="material-symbols-outlined">delete</span>
-            </button>`;
-        }
-
-        tr.innerHTML = `
-            <td class="stock-units-col-check" onclick="event.stopPropagation()">
-                ${isActive && hasPermission('inventory', 'stock-units', 'edit') ? `<input type="checkbox" class="stock-units-row-check" data-id="${bag.id}" onchange="StockUnits._onRowCheck(this,'${bag.id}')" ${isChecked ? 'checked' : ''}>` : ''}
-            </td>
-            <td class="stock-units-col-status">${statusIcon}</td>
-            <td class="stock-units-col-code"><span class="code-badge">${this._codeFor(bag)}</span></td>
-            <td class="stock-units-col-old-id">${bag.old_id && bag.old_id !== this._codeFor(bag) ? bag.old_id : ""}</td>
-            <td class="stock-units-col-material">${bag.material}</td>
-            <td class="stock-units-col-supplier">${bag.supplier || ""}</td>
-            <td class="stock-units-col-operator">${bag.operator || ""}</td>
-            <td class="stock-units-col-qty">${qtyDisplay}</td>
-            <td class="stock-units-col-wait">${daysDiff}d</td>
-            <td class="stock-units-col-obs">${bag.notes ?? ""}</td>
-            <td class="stock-units-col-actions">${actionsHTML}</td>
-        `;
-
-        return tr;
-    },
-
-    /** Popula os SearchSelects de filtro de material e fornecedor */
     _populateFilters(bags) {
         const activeLoc = AppState.getLocationFilter();
         const visibleBags = activeLoc ? bags.filter(b => String(b.location_id) === String(activeLoc)) : bags;
@@ -530,9 +482,6 @@ const StockUnits = {
         this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
     },
 
-    // ── Utilitários Privados ──
-
-    /** Obtém os valores atuais dos filtros */
     _getFilters() {
         const materialSel = this._materialSelect?.getValue();
         const supplierSel = this._supplierSelect?.getValue();
@@ -540,16 +489,14 @@ const StockUnits = {
             status: this._filterStatus || null,
             material: materialSel ? String(materialSel.value) : null,
             supplier: supplierSel ? String(supplierSel.value) : null,
-            search: document.getElementById("search").value.toLowerCase() || null,
+            search: document.getElementById('search')?.value.toLowerCase() || null,
             onlySelected: this._showOnlySelected,
             location: AppState.getLocationFilter() || null,
         };
     },
 
-    /** Verifica se um bag corresponde aos filtros ativos */
     _matchesFilters(bag, filters) {
         if (filters.onlySelected && !this._selectedIds.has(String(bag.id))) return false;
-        // "Em estoque" inclui lotes parciais
         if (filters.status === 'IN_STOCK' && bag.status !== 'IN_STOCK' && bag.status !== 'PARTIAL') return false;
         if (filters.status && filters.status !== 'IN_STOCK' && bag.status !== filters.status) return false;
         if (filters.material && bag.material !== filters.material) return false;
@@ -559,51 +506,20 @@ const StockUnits = {
         if (filters.search) {
             const searchText = [
                 this._codeFor(bag),
-                bag.old_id ?? "",
-                bag.old_id ?? "",
-                bag.material ?? "",
-                bag.supplier ?? "",
-                bag.operator ?? "",
-                bag.notes ?? ""
-            ].join("-").toLowerCase();
-
+                bag.old_id ?? '',
+                bag.material ?? '',
+                bag.supplier ?? '',
+                bag.operator ?? '',
+                bag.notes ?? ''
+            ].join('-').toLowerCase();
             if (!searchText.includes(filters.search)) return false;
         }
 
         return true;
     },
 
-    /** Gera o código de exibição de um bag (ex: #C1-001) */
-    _codeFor(bag) {
-        const prefix = bag.nature?.charAt(0) ?? "";
-        const vol = String(bag.volume_id ?? "").padStart(3, "0");
-        return `#${prefix}${bag.receipt_id}-${vol}`;
-    },
+    // ── Seleção em lote ──
 
-    /** Reseta estado de seleção e fecha o dialog de detalhes */
-    _resetForm() {
-        this._detailDialog?.close();
-        const headerOptions = document.getElementById("headerOptionsContent");
-        if (headerOptions) headerOptions.innerHTML = "";
-    },
-
-    /** Limpa os campos do formulário de edição */
-    _clearForm() {
-        clearFormInputs(["code", "material", "supplier", "operator", "weight", "date_in", "date_out", "notes"]);
-        const deductionTypeField = document.getElementById("deductionTypeField");
-        if (deductionTypeField) deductionTypeField.style.display = "none";
-        const deductionTypeEl = document.getElementById("deduction_type");
-        if (deductionTypeEl) deductionTypeEl.value = "uso";
-        clearTableSelection();
-    },
-
-    /** Limpa o formulário e recarrega a tela */
-    _clearAndReload() {
-        this._clearForm();
-        this.load();
-    },
-
-    /** Checkbox "selecionar todos" */
     _onCheckAll(checkbox) {
         this._selectedIds = new Set();
         document.querySelectorAll('.stock-units-row-check').forEach(cb => {
@@ -613,7 +529,6 @@ const StockUnits = {
         this._updateBatchBar();
     },
 
-    /** Checkbox individual por linha */
     _onRowCheck(checkbox, id) {
         if (checkbox.checked) {
             this._selectedIds.add(String(id));
@@ -625,7 +540,6 @@ const StockUnits = {
         this._updateBatchBar();
     },
 
-    /** Exibe/oculta a barra de ações em lote */
     _updateBatchBar() {
         const bar = document.getElementById('stockUnitsBatchBar');
         const countEl = document.getElementById('stockUnitsBatchCount');
@@ -639,7 +553,6 @@ const StockUnits = {
         }
     },
 
-    /** Limpa todas as seleções e desativa o filtro de selecionados */
     _clearSelection() {
         this._selectedIds = new Set();
         this._showOnlySelected = false;
@@ -651,35 +564,30 @@ const StockUnits = {
         this.load();
     },
 
-    /** Define o filtro de status e recarrega a tabela */
     _setStatus(value) {
         this._filterStatus = value;
         localStorage.setItem('wcm.stockUnits.status', value);
         this.load();
     },
 
-    /** Atualiza o estado visual dos pills de status */
     _updateStatusPills() {
         document.querySelectorAll('.stock-units-status-pill').forEach(btn => {
             btn.classList.toggle('stock-units-status-pill--active', btn.dataset.value === (this._filterStatus || ''));
         });
     },
 
-    /** Liga/desliga o filtro "mostrar apenas selecionados" */
     _toggleShowSelected() {
         this._showOnlySelected = !this._showOnlySelected;
         this._updateSelectedFilterBtn();
         this.load();
     },
 
-    /** Atualiza o estado visual do botão de filtro de selecionados */
     _updateSelectedFilterBtn() {
         const btn = document.getElementById('filterSelectedBtn');
         if (!btn) return;
         btn.classList.toggle('stock-units-filter-selected-btn--active', this._showOnlySelected);
     },
 
-    /** Abre o dialog de saída em lote */
     openBatchOut() {
         if (!this._batchDialog) return;
         const n = this._selectedIds.size;
@@ -689,19 +597,14 @@ const StockUnits = {
         this._batchDialog.open();
     },
 
-    /** Fecha o dialog sem confirmar */
     closeBatchDialog() {
         this._batchDialog?.close();
     },
 
-    /** Confirma saída em lote */
     async confirmBatchOut() {
         const dateOut = document.getElementById('batchDateOut').value;
         const deductionType = document.getElementById('batchDeductionType').value;
-        if (!dateOut) {
-            alert('Informe a data de saída');
-            return;
-        }
+        if (!dateOut) { alert('Informe a data de saída'); return; }
         this.closeBatchDialog();
 
         const ids = [...this._selectedIds];
@@ -720,15 +623,50 @@ const StockUnits = {
         }
     },
 
-    /** Reage à mudança da data de saída — exibe/oculta tipo de baixa */
     _onDateOutChange() {
-        const dateOut = document.getElementById("date_out").value;
-        const field = document.getElementById("deductionTypeField");
-        field.style.display = dateOut ? "" : "none";
-        if (!dateOut) document.getElementById("deduction_type").value = "uso";
+        const dateOut = document.getElementById('date_out').value;
+        const field = document.getElementById('deductionTypeField');
+        field.style.display = dateOut ? '' : 'none';
+        if (!dateOut) document.getElementById('deduction_type').value = 'uso';
     },
 
-    /** Cria o dialog de saída em lote via utilitário */
+    // ── Utilitários Privados ──
+
+    _codeFor(bag) {
+        const prefix = bag.nature?.charAt(0) ?? '';
+        const vol = String(bag.volume_id ?? '').padStart(3, '0');
+        return `#${prefix}${bag.receipt_id}-${vol}`;
+    },
+
+    _resetForm() {
+        this._detailDialog?.close();
+        const headerOptions = document.getElementById('headerOptionsContent');
+        if (headerOptions) headerOptions.innerHTML = '';
+    },
+
+    _clearForm() {
+        clearFormInputs(['code', 'material', 'supplier', 'operator', 'weight', 'date_in', 'date_out', 'notes']);
+        const deductionTypeField = document.getElementById('deductionTypeField');
+        if (deductionTypeField) deductionTypeField.style.display = 'none';
+        const deductionTypeEl = document.getElementById('deduction_type');
+        if (deductionTypeEl) deductionTypeEl.value = 'uso';
+        clearTableSelection();
+    },
+
+    _clearAndReload() {
+        this._clearForm();
+        this.load();
+    },
+
+    async _updateStockUnitStatus(id, action) {
+        try {
+            await apiCall(`${API}/stock-units/${id}/${action}`, { method: 'PUT' });
+            this.load();
+        } catch {
+            alert(`Erro ao ${action === 'out' ? 'usar' : 'devolver'} unidade de estoque`);
+        }
+    },
+
     _createBatchDialog() {
         return createDialog({
             title: 'Saída em Lote',
@@ -753,7 +691,6 @@ const StockUnits = {
         });
     },
 
-    /** Cria o dialog de detalhes/edição de um bag via utilitário */
     _createDetailDialog() {
         return createDialog({
             title: '',
@@ -817,9 +754,8 @@ const StockUnits = {
         });
     },
 
-    /** Abre o dialog de saída parcial para um bag */
     openPartialExit(event, id) {
-        event.stopPropagation();
+        if (event) event.stopPropagation();
         apiCall(API + '/stock-units').then(async stockUnits => {
             const bag = (stockUnits || []).find(b => String(b.id) === String(id));
             if (!bag) { alert('Unidade não encontrada'); return; }
@@ -831,7 +767,6 @@ const StockUnits = {
         }).catch(() => alert('Erro ao carregar dados'));
     },
 
-    /** Exibe o dialog de saída parcial para o bag fornecido */
     _showPartialExitDialog(bag) {
         this._partialExitDialog?.destroy();
         this._partialExitBagLocationId = bag.location_id || null;
@@ -897,7 +832,6 @@ const StockUnits = {
         this._onPkgSelectChange();
     },
 
-    /** Alterna entre modo kg e modo embalagem */
     _onPartialModeChange() {
         const mode = document.getElementById('stockUnitsPartialMode')?.value;
         const qtyLabel = document.getElementById('stockUnitsPartialQtyLabel');
@@ -914,7 +848,6 @@ const StockUnits = {
         }
     },
 
-    /** Atualiza hint quando a embalagem selecionada muda */
     _onPkgSelectChange() {
         const sel = document.getElementById('stockUnitsPartialPkgSelect');
         if (!sel) return;
@@ -927,7 +860,6 @@ const StockUnits = {
         if (countEl) { countEl.max = max; countEl.value = ''; }
     },
 
-    /** Calcula o peso a partir da quantidade de embalagens */
     _onPkgCountChange() {
         const sel = document.getElementById('stockUnitsPartialPkgSelect');
         const pkgWeight = parseFloat(sel?.selectedOptions[0]?.dataset.qty) || 0;
@@ -936,7 +868,6 @@ const StockUnits = {
         if (qtyEl) qtyEl.value = Math.round(count * pkgWeight * 1000) / 1000;
     },
 
-    /** Envia a saída parcial para o backend */
     async _submitPartialExit(id) {
         const mode = document.getElementById('stockUnitsPartialMode')?.value || 'kg';
         let quantity;
@@ -965,16 +896,6 @@ const StockUnits = {
             this.load();
         } catch (e) {
             alert(e.message || 'Erro ao registrar saída parcial');
-        }
-    },
-
-    /** Atualiza o status de um bag via API (uso ou devolução) */
-    async _updateStockUnitStatus(id, action) {
-        try {
-            await apiCall(`${API}/stock-units/${id}/${action}`, { method: "PUT" });
-            this.load();
-        } catch (error) {
-            alert(`Erro ao ${action === 'out' ? 'usar' : 'devolver'} unidade de estoque`);
         }
     },
 };

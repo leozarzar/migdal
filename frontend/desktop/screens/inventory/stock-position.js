@@ -9,40 +9,28 @@ const StockPosition = {
     _data: [],
     _groupSelect: null,
     _exitDialog: null,
+    _dataTable: null,
     _search: '',
     _selectedGroup: '',
 
 // ── Ciclo de Vida ────────────────────────────────────────────────
     render() {
         this._groupSelect?.destroy(); this._groupSelect = null;
-        this._exitDialog?.destroy(); this._exitDialog = null;
+        this._exitDialog?.destroy();  this._exitDialog  = null;
+        this._dataTable?.destroy();   this._dataTable   = null;
         this._search = '';
         this._selectedGroup = '';
         return `
         <div class="stock-position-container">
-            <div class="stock-position-card">
-                <div class="stock-position-filters">
-                    <div class="stock-position-filters-icon-wrap">
-                        <span class="material-symbols-outlined stock-position-filters-icon">filter_list</span>
-                    </div>
-                    <div id="stockPositionGroupContainer" class="stock-position-filter-select-wrap"></div>
-                    <input id="stockPositionSearch" class="stock-position-search" placeholder="Pesquisar material..." oninput="StockPosition._onSearch(this.value)">
+            <div class="stock-position-filters">
+                <div class="stock-position-filters-icon-wrap">
+                    <span class="material-symbols-outlined stock-position-filters-icon">filter_list</span>
                 </div>
-                <div id="stockPositionSummary" class="stock-position-summary"></div>
-                <div class="stock-position-table-container">
-                    <table class="stock-position-table">
-                        <thead>
-                            <tr>
-                                <th>Material</th>
-                                <th class="stock-position-col-num">Saldo</th>
-                                <th class="stock-position-col-num">Lotes</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="stockPositionTableBody"></tbody>
-                    </table>
-                </div>
+                <div id="stockPositionGroupContainer" class="stock-position-filter-select-wrap"></div>
+                <input id="stockPositionSearch" class="stock-position-search" placeholder="Buscar" oninput="StockPosition._onSearch(this.value)">
             </div>
+            <div id="stockPositionSummary" class="stock-position-summary"></div>
+            <div id="stockPositionTableContainer"></div>
         </div>`;
     },
 
@@ -53,34 +41,67 @@ const StockPosition = {
         const searchEl = document.getElementById('stockPositionSearch');
         if (searchEl) searchEl.value = this._search;
 
+        if (!this._dataTable) {
+            this._dataTable = createDataTable({
+                columns: [
+                    {
+                        key: 'material', header: 'Material', sortable: true,
+                        render: r => `<span class="stock-position-material-name">${_esc(r.material)}</span>`,
+                    },
+                    {
+                        key: 'balance', header: 'Saldo', width: '130px', sortable: true,
+                        sortValue: r => r.balance,
+                        render: r => `<strong>${r.balance.toLocaleString('pt-BR')} ${r.unit || ''}</strong>`,
+                    },
+                    {
+                        key: 'lots_in_stock', header: 'Lotes', width: '80px', sortable: true,
+                        sortValue: r => r.lots_in_stock,
+                        render: r => r.tracking_mode === 'lots' ? String(r.lots_in_stock) : '—',
+                    },
+                ],
+                getRowKey: r => String(r.material_id),
+                onRowClick: r => {
+                    if (r.tracking_mode === 'lots' && r.balance > 0) StockPosition.goToMaterial(r.material);
+                },
+                actions: [
+                    {
+                        label: 'Registrar Saída', icon: 'output',
+                        hidden: r => r.tracking_mode !== 'simple' || r.balance <= 0,
+                        onClick: r => StockPosition.openExitDialog(null, r.material_id),
+                    },
+                ],
+                emptyMessage: 'Nenhum material encontrado.',
+                emptyIcon: 'inventory_2',
+            });
+            this._dataTable.mount(document.getElementById('stockPositionTableContainer'));
+        }
+
+        this._dataTable.setLoading(true);
+
         try {
             let url = API + '/stock-units/position';
             const locationId = AppState.getLocationFilter();
-            if (locationId) {
-                url += '?location_id=' + encodeURIComponent(locationId);
-            }
+            if (locationId) url += '?location_id=' + encodeURIComponent(locationId);
             this._data = await apiCall(url) || [];
-        } catch (e) { alert(e.message); return; }
+        } catch (e) {
+            alert(e.message);
+            this._dataTable.setLoading(false);
+            return;
+        }
 
-            await this._populateGroupFilter();
+        await this._populateGroupFilter();
         this._renderTable();
     },
 
+    async onTabFocus() { return this.load(); },
+
 // ── Ações Públicas ───────────────────────────────────────────────
 
-    /**
-     * Navega para a tela de estoque filtrada pelo material.
-     * @param {string} material - Nome do material
-     */
     goToMaterial(material) {
         StockUnits._presetMaterial = material;
         showScreen('stock-units');
     },
 
-    /**
-     * Abre diálogo de saída rápida (modo simples).
-     * @param {object} row - Dados do material (material_id, material, balance)
-     */
     openExitDialog(event, materialId) {
         if (event) event.stopPropagation();
         const row = this._data.find(r => r.material_id === materialId);
@@ -174,20 +195,14 @@ const StockPosition = {
         }
 
         let groups = [];
-        try {
-            groups = await apiCall(API + '/groups');
-        } catch (e) {
-            groups = [];
-        }
+        try { groups = await apiCall(API + '/groups'); } catch { groups = []; }
 
         const items = groups
             .map(g => ({ value: g.id, label: g.name }))
             .sort((a, b) => a.label.localeCompare(b.label));
         this._groupSelect.setItems('groups', items);
 
-        if (this._selectedGroup) {
-            this._groupSelect.select('groups', this._selectedGroup);
-        }
+        if (this._selectedGroup) this._groupSelect.select('groups', this._selectedGroup);
     },
 
     _getFilteredData() {
@@ -203,14 +218,10 @@ const StockPosition = {
     },
 
     _renderTable() {
-        const tbody = document.getElementById('stockPositionTableBody');
+        if (!this._dataTable) return;
         const summaryEl = document.getElementById('stockPositionSummary');
-        if (!tbody) return;
-
         const filtered = this._getFilteredData();
 
-        // Resumo
-        // Descobrir unidades de medida distintas
         const units = Array.from(new Set(filtered.map(r => r.unit).filter(Boolean)));
         const totalBalance = filtered.reduce((s, r) => s + r.balance, 0);
         const totalLots = filtered.reduce((s, r) => s + r.lots_in_stock, 0);
@@ -238,41 +249,6 @@ const StockPosition = {
             `;
         }
 
-        if (filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" class="stock-position-empty">Nenhum material encontrado.</td></tr>`;
-            return;
-        }
-
-        tbody.innerHTML = '';
-        for (const row of filtered) {
-            tbody.appendChild(this._createRow(row));
-        }
+        this._dataTable.setData(filtered);
     },
-
-    _createRow(row) {
-        const tr = document.createElement('tr');
-        const hasStock = row.balance > 0;
-        const isLot = row.tracking_mode === 'lots';
-        const clickable = isLot ? hasStock : true;
-        const cursorClass = clickable ? 'stock-position-row--clickable' : '';
-
-        tr.className = cursorClass;
-        if (isLot && hasStock) {
-            tr.onclick = () => StockPosition.goToMaterial(row.material);
-        }
-
-        tr.innerHTML = `
-            <td>
-                <span class="stock-position-material-name">${_esc(row.material)}</span>
-            </td>
-            <td class="stock-position-col-num"><strong>${row.balance.toLocaleString('pt-BR')} ${row.unit || ''}</strong></td>
-            <td class="stock-position-col-num">${isLot ? row.lots_in_stock : '—'}</td>
-            <td class="stock-position-col-action">
-                ${!isLot && hasStock ? `<button class="stock-position-exit-btn" onclick="StockPosition.openExitDialog(event, ${row.material_id})" title="Registrar saída">
-                    <span class="material-symbols-outlined">output</span>
-                </button>` : ''}
-            </td>
-        `;
-        return tr;
-    }
 };

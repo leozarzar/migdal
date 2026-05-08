@@ -10,6 +10,7 @@ const Receipts = {
     selectedReceipt: null,
     _supplierSelect: null,
     _dataTable: null,
+    _newBtn: null,
     _allReceipts: [],
 
     // ── Ciclo de Vida ──
@@ -18,24 +19,24 @@ const Receipts = {
         this.selectedReceipt = null;
         this._supplierSelect?.destroy(); this._supplierSelect = null;
         this._dataTable?.destroy(); this._dataTable = null;
+        this._newBtn?.destroy(); this._newBtn = null;
         this._allReceipts = [];
         return `
         <div class="receipts-container">
-            <div class="receipts-card">
-                <div class="receipts-filters">
-                    <div class="receipts-filters-icon-wrap">
-                        <span class="material-symbols-outlined receipts-filters-icon">filter_list</span>
-                    </div>
-                    <div id="receiptsSupplierContainer" class="receipts-filter-select-wrap"></div>
+            <div class="receipts-filters">
+                <div class="receipts-filters-icon-wrap">
+                    <span class="material-symbols-outlined receipts-filters-icon">filter_list</span>
                 </div>
-                <div id="receiptsTableContainer"></div>
+                <div id="receiptsSupplierContainer" class="receipts-filter-select-wrap"></div>
+                <div id="receiptsNewBtnContainer" class="receipts-filters-actions"></div>
             </div>
+            <div id="receiptsTableContainer"></div>
         </div>
         `;
     },
 
     async load() {
-        this._setHeaderOptions();
+        this._mountNewButton();
 
         if (!this._supplierSelect) {
             this._supplierSelect = createSelect({
@@ -178,13 +179,15 @@ const Receipts = {
         }
     },
 
-    _setHeaderOptions() {
-        const headerOptions = document.getElementById("headerOptionsContent");
-        headerOptions.innerHTML = hasPermission('procurement', 'receipts', 'create') ? `
-            <button class="btn-new" onclick="Receipts.newReceipt()">
-                <span class="material-symbols-outlined">add</span>
-                Novo Recebimento
-            </button>
-        ` : '';
+    _mountNewButton() {
+        document.getElementById('headerOptionsContent').innerHTML = '';
+        if (!hasPermission('procurement', 'receipts', 'create')) return;
+        this._newBtn = createButton({
+            label: 'Novo Recebimento',
+            variant: 'primary',
+            icon: 'add',
+            onClick: () => this.newReceipt(),
+        });
+        document.getElementById('receiptsNewBtnContainer').appendChild(this._newBtn.el);
     },
 };

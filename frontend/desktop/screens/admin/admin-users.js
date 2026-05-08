@@ -5,21 +5,28 @@
 
 const AdminUsers = {
     _users: [],
+    _allUsers: [],
     _roles: [],
     _locations: [],
     _userLocations: {},
     _table: null,
+    _searchQuery: '',
 
 // ── Ciclo de Vida ────────────────────────────────────────────────
 
     render() {
         this._table?.destroy();
         this._table = null;
+        this._searchQuery = '';
         return `
         <div class="admin-users-container">
-            <div class="admin-users-card">
-                <div id="adminUsersTableMount"></div>
+            <div class="admin-users-filters">
+                <div class="admin-users-filters-icon-wrap">
+                    <span class="material-symbols-outlined admin-users-filters-icon">filter_list</span>
+                </div>
+                <input type="text" id="adminUsersSearch" class="admin-users-search-input" placeholder="Buscar" oninput="AdminUsers._onSearch(this.value)">
             </div>
+            <div id="adminUsersTableMount"></div>
         </div>`;
     },
 
@@ -33,12 +40,13 @@ const AdminUsers = {
                 apiCall(API + '/roles'),
                 apiCall(API + '/locations')
             ]);
+            this._allUsers  = users;
             this._users     = users;
             this._roles     = roles;
             this._locations = locations || [];
 
             const locResults = await Promise.all(
-                this._users.map(u =>
+                this._allUsers.map(u =>
                     apiCall(API + '/locations/users/' + u.id + '/locations')
                         .then(locs => ({ userId: u.id, locs: (locs || []).map(l => l.id) }))
                         .catch(() => ({ userId: u.id, locs: [] }))
@@ -47,7 +55,7 @@ const AdminUsers = {
             this._userLocations = {};
             for (const r of locResults) this._userLocations[r.userId] = r.locs;
 
-            this._table.setData(this._users);
+            this._applyFilter();
         } catch (e) {
             this._table.setLoading(false);
             alert(e.message);
@@ -93,6 +101,20 @@ const AdminUsers = {
     },
 
 // ── Privado ──────────────────────────────────────────────────────
+
+    _onSearch(val) {
+        this._searchQuery = val;
+        this._applyFilter();
+    },
+
+    _applyFilter() {
+        const q = this._searchQuery.toLowerCase();
+        const filtered = q
+            ? this._allUsers.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+            : this._allUsers;
+        this._users = filtered;
+        this._table?.setData(filtered);
+    },
 
     _ensureTable() {
         if (this._table) return;

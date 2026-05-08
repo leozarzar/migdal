@@ -8,40 +8,63 @@ const Groups = {
     // ── Estado ──
 
     selectedGroup: null,
+    _dataTable: null,
+    _newBtn: null,
+    _allGroups: [],
+    _searchQuery: '',
 
     // ── Ciclo de Vida ──
 
-    /** Retorna o template HTML da tela. */
     render() {
+        this._dataTable?.destroy(); this._dataTable = null;
+        this._newBtn?.destroy();    this._newBtn = null;
+        this._allGroups = [];
+        this._searchQuery = '';
         return `
         <div class="groups-container">
-            <div class="groups-card">
-                <div class="groups-table-container">
-                    <table class="groups-table">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Materiais</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="groupsTableBody"></tbody>
-                    </table>
+            <div class="groups-filters">
+                <div class="groups-filters-icon-wrap">
+                    <span class="material-symbols-outlined groups-filters-icon">filter_list</span>
                 </div>
+                <input type="text" id="groupsSearch" class="groups-search-input" placeholder="Buscar" oninput="Groups._onSearch(this.value)">
+                <div id="groupsNewBtnContainer" class="groups-filters-actions"></div>
             </div>
+            <div id="groupsTableContainer"></div>
         </div>
         `;
     },
 
-    /** Inicializa a tela e carrega os grupos. */
     async load() {
-        this._setHeaderOptions();
+        this._mountNewButton();
+
+        if (!this._dataTable) {
+            this._dataTable = createDataTable({
+                columns: [
+                    { key: 'name', header: 'Nome', sortable: true, render: r => r.name },
+                    { key: 'material_count', header: 'Materiais', width: '100px', render: r => r.material_count ?? 0 },
+                ],
+                getRowKey: r => r.id,
+                onRowClick: r => this.selectGroup(r),
+                actions: [
+                    {
+                        label: 'Excluir', icon: 'delete', variant: 'destructive',
+                        hidden: () => !hasPermission('registry', 'groups', 'delete'),
+                        onClick: r => this.deleteGroup(r.id),
+                    },
+                ],
+                emptyMessage: 'Nenhum grupo cadastrado.',
+                emptyIcon: 'folder',
+            });
+            this._dataTable.mount(document.getElementById('groupsTableContainer'));
+        }
+
+        this._dataTable.setLoading(true);
 
         try {
-            const groups = await apiCall(API + "/groups") || [];
-            this._renderTable(groups);
-        } catch (error) {
-            this._renderTable([]);
+            this._allGroups = await apiCall(API + '/groups') || [];
+            this._applyFilter();
+        } catch {
+            this._dataTable.setLoading(false);
         }
     },
 
@@ -49,78 +72,49 @@ const Groups = {
 
     // ── Ações Públicas ──
 
-    /** Injeta o botão de navegação no header da página. */
-    _setHeaderOptions() {
-        const headerOptions = document.getElementById("headerOptionsContent");
-        if (headerOptions) {
-            headerOptions.innerHTML = hasPermission('registry', 'groups', 'create') ? `
-                <button class="btn-new" onclick="Groups.newGroup()">
-                    <span class="material-symbols-outlined">add</span>
-                    Novo Grupo
-                </button>
-            ` : '';
-        }
-    },
-
-    /** Navega para a tela de criação de novo grupo. */
     newGroup() {
         this.selectedGroup = null;
         showScreen('groups-details');
     },
 
-    /** Seleciona um grupo e navega para a tela de detalhes. */
     selectGroup(group) {
         this.selectedGroup = group;
         showScreen('groups-details');
     },
 
-    /** Deleta um grupo após confirmação do usuário. */
-    async deleteGroup(event, id) {
-        event.stopPropagation();
-
-        if (!confirm("Tem certeza que deseja deletar este grupo?")) return;
+    async deleteGroup(id) {
+        if (!confirm('Tem certeza que deseja deletar este grupo?')) return;
 
         try {
-            await apiCall(API + `/groups/${id}`, { method: "DELETE" });
+            await apiCall(API + `/groups/${id}`, { method: 'DELETE' });
             this.load();
         } catch (error) {
-            alert(error.message || "Erro ao deletar grupo");
+            alert(error.message || 'Erro ao deletar grupo');
         }
     },
 
-    // ── Renderização ──
+    // ── Privado ──
 
-    /** Renderiza a tabela de grupos ou mensagem de estado vazio. */
-    _renderTable(groups) {
-        const tbody = document.getElementById("groupsTableBody");
-        tbody.innerHTML = "";
+    _onSearch(val) {
+        this._searchQuery = val;
+        this._applyFilter();
+    },
 
-        if (!groups || groups.length === 0) {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `<td colspan="3" class="empty-state">Nenhum grupo cadastrado.</td>`;
-            tbody.appendChild(tr);
-            return;
-        }
+    _applyFilter() {
+        const q = this._searchQuery.toLowerCase();
+        const filtered = q ? this._allGroups.filter(r => r.name.toLowerCase().includes(q)) : this._allGroups;
+        this._dataTable?.setData(filtered);
+    },
 
-        groups.forEach(group => {
-            const tr = this._createTableRow(group);
-            tr.onclick = () => this.selectGroup(group);
-            tbody.appendChild(tr);
+    _mountNewButton() {
+        document.getElementById('headerOptionsContent').innerHTML = '';
+        if (!hasPermission('registry', 'groups', 'create')) return;
+        this._newBtn = createButton({
+            label: 'Novo Grupo',
+            variant: 'primary',
+            icon: 'add',
+            onClick: () => this.newGroup(),
         });
-    },
-
-    /** Cria uma linha <tr> para exibição de um grupo. */
-    _createTableRow(group) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>${group.name}</td>
-            <td>${group.material_count ?? 0}</td>
-            <td class="groups-col-actions">
-                ${hasPermission('registry', 'groups', 'delete') ? `<button onclick="Groups.deleteGroup(event, ${group.id})">
-                    <span class="material-symbols-outlined">delete</span>
-                </button>` : ''}
-            </td>
-        `;
-        return tr;
+        document.getElementById('groupsNewBtnContainer').appendChild(this._newBtn.el);
     },
 };

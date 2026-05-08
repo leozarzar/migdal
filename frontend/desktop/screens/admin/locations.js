@@ -15,7 +15,6 @@ const Locations = {
     render() {
         return `
         <div class="locations-container">
-            <div class="locations-card">
                 <div class="locations-form-wrapper">
                     <input id="locationName" class="locations-input" placeholder="Nome da localização">
                     <input id="locationDescription" class="locations-input locations-input--wide" placeholder="Descrição (opcional)">
@@ -34,7 +33,6 @@ const Locations = {
                         <tbody id="locationsTableBody"></tbody>
                     </table>
                 </div>
-            </div>
         </div>
         `;
     },

@@ -7,47 +7,83 @@ const Materials = {
 
     // ── Estado ──
 
-    /** Material selecionado para edição (lido pelo MaterialsDetails) */
     selectedMaterial: null,
-
-    /** Dialog de importação do catálogo global */
     _importDialog: null,
+    _dataTable: null,
+    _newBtn: null,
+    _importBtn: null,
+    _allMaterials: [],
+    _searchQuery: '',
 
     // ── Ciclo de Vida ──
 
-    /** Retorna o template HTML da tela. */
     render() {
         this._importDialog?.destroy(); this._importDialog = null;
+        this._dataTable?.destroy();    this._dataTable = null;
+        this._newBtn?.destroy();       this._newBtn = null;
+        this._importBtn?.destroy();    this._importBtn = null;
+        this._allMaterials = [];
+        this._searchQuery = '';
         return `
         <div class="materials-container">
-            <div class="materials-card">
-                <div class="materials-table-container">
-                    <table class="materials-table">
-                        <thead>
-                            <tr>
-                                <th></th>
-                                <th>Nome</th>
-                                <th>Unidade</th>
-                                <th>Rastreio</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="materialsTableBody"></tbody>
-                    </table>
+            <div class="materials-filters">
+                <div class="materials-filters-icon-wrap">
+                    <span class="material-symbols-outlined materials-filters-icon">filter_list</span>
                 </div>
+                <input type="text" id="materialsSearch" class="materials-search-input" placeholder="Buscar" oninput="Materials._onSearch(this.value)">
+                <div id="materialsActionsContainer" class="materials-filters-actions"></div>
             </div>
+            <div id="materialsTableContainer"></div>
         </div>
         `;
     },
 
-    /** Carrega a lista de materiais e configura o header. */
     async load() {
-        this._setHeaderOptions();
+        this._mountButtons();
+
+        if (!this._dataTable) {
+            this._dataTable = createDataTable({
+                columns: [
+                    {
+                        key: 'color', header: '', width: '32px',
+                        render: r => r.color
+                            ? `<span class="materials-color-swatch" style="background:${r.color}"></span>`
+                            : `<span class="materials-color-swatch materials-color-swatch--none"></span>`,
+                    },
+                    { key: 'name', header: 'Nome', sortable: true, render: r => r.name },
+                    { key: 'unit_of_measure', header: 'Unidade', width: '80px', render: r => r.unit_of_measure || 'kg' },
+                    {
+                        key: 'tracking_mode', header: 'Rastreio', width: '140px',
+                        render: r => r.tracking_mode === 'lots'
+                            ? '<span class="materials-tracking-badge materials-tracking-badge--lots">Lotes</span>'
+                                + (r.allow_partial_exit ? '<span class="materials-tracking-badge materials-tracking-badge--partial">Parcial</span>' : '')
+                            : '<span class="materials-tracking-badge materials-tracking-badge--simple">Simples</span>',
+                    },
+                ],
+                getRowKey: r => r.id,
+                onRowClick: r => this.selectMaterial(r),
+                actions: [
+                    {
+                        label: 'Excluir', icon: 'delete', variant: 'destructive',
+                        hidden: () => !hasPermission('registry', 'materials', 'delete'),
+                        onClick: r => this.deleteMaterial(r.id),
+                    },
+                ],
+                emptyMessage: 'Nenhum material cadastrado.',
+                emptyIcon: 'category',
+            });
+            this._dataTable.mount(document.getElementById('materialsTableContainer'));
+        }
+
+        this._dataTable.setLoading(true);
+
         try {
-            const materials = await apiCall(API + "/materials");
-            this._renderTable(materials);
-        } catch (error) {
-            alert("Erro ao carregar materiais");
+            const materials = await apiCall(API + '/materials');
+            this._allMaterials = materials || [];
+            this._applyFilter();
+        } catch {
+            alert('Erro ao carregar materiais');
+            this._dataTable.setLoading(false);
         }
     },
 
@@ -55,21 +91,17 @@ const Materials = {
 
     // ── Ações Públicas ──
 
-    /** Abre tela de detalhes para criar novo material. */
     newMaterial() {
         this.selectedMaterial = null;
         showScreen('material-details');
     },
 
-    /** Abre tela de detalhes para editar material existente. */
     selectMaterial(material) {
         this.selectedMaterial = material;
         showScreen('material-details');
     },
 
-    /** Desvincula o material da localização ativa (ou exclui do catálogo se admin sem localização). */
-    async deleteMaterial(event, id) {
-        event.stopPropagation();
+    async deleteMaterial(id) {
         const locationId = this._getActiveLocationId();
         const msg = locationId
             ? 'Desvincular este material da localização atual?\n\nAtenção: saldos em estoque permanecerão visíveis até que o item seja zerado.'
@@ -92,71 +124,47 @@ const Materials = {
         }
     },
 
-    // ── Renderização ──
+    // ── Privado ──
 
-    /** Renderiza a tabela de materiais ou mensagem de estado vazio. */
-    _renderTable(materials) {
-        const tbody = document.getElementById("materialsTableBody");
-        tbody.innerHTML = "";
+    _onSearch(val) {
+        this._searchQuery = val;
+        this._applyFilter();
+    },
 
-        if (!materials || materials.length === 0) {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `<td colspan="5" class="empty-state">Nenhum material cadastrado.</td>`;
-            tbody.appendChild(tr);
-            return;
-        }
+    _applyFilter() {
+        const q = this._searchQuery.toLowerCase();
+        const filtered = q ? this._allMaterials.filter(r => r.name.toLowerCase().includes(q)) : this._allMaterials;
+        this._dataTable?.setData(filtered);
+    },
 
-        materials.forEach(material => {
-            const tr = this._createTableRow(material);
-            tr.onclick = () => this.selectMaterial(material);
-            tbody.appendChild(tr);
+    _mountButtons() {
+        document.getElementById('headerOptionsContent').innerHTML = '';
+        const container = document.getElementById('materialsActionsContainer');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (!hasPermission('registry', 'materials', 'create')) return;
+
+        this._importBtn?.destroy();
+        this._importBtn = createButton({
+            label: 'Importar do catálogo',
+            variant: 'secondary',
+            onClick: () => this.importFromCatalog(),
         });
-    },
+        container.appendChild(this._importBtn.el);
 
-    /** Cria uma linha <tr> para exibição de um material. */
-    _createTableRow(material) {
-        const tr = document.createElement("tr");
-
-        const swatch = material.color
-            ? `<span class="materials-color-swatch" style="background:${material.color}"></span>`
-            : `<span class="materials-color-swatch materials-color-swatch--none"></span>`;
-
-        const trackingBadge = material.tracking_mode === 'lots'
-            ? '<span class="materials-tracking-badge materials-tracking-badge--lots">Lotes</span>'
-                + (material.allow_partial_exit ? '<span class="materials-tracking-badge materials-tracking-badge--partial">Parcial</span>' : '')
-            : '<span class="materials-tracking-badge materials-tracking-badge--simple">Simples</span>';
-
-        const uom = material.unit_of_measure || 'kg';
-
-        tr.innerHTML = `
-            <td class="materials-col-color">${swatch}</td>
-            <td class="materials-col-name">${material.name}</td>
-            <td class="materials-col-unit">${uom}</td>
-            <td class="materials-col-tracking">${trackingBadge}</td>
-            <td class="materials-col-actions">
-                ${hasPermission('registry', 'materials', 'delete') ? `<button onclick="Materials.deleteMaterial(event, ${material.id})">
-                    <span class="material-symbols-outlined">delete</span>
-                </button>` : ''}
-            </td>
-        `;
-
-        return tr;
-    },
-
-    /** Injeta botões de ação no header da página. */
-    _setHeaderOptions() {
-        const headerOptions = document.getElementById("headerOptionsContent");
-        if (!headerOptions) return;
-        const canCreate = hasPermission('registry', 'materials', 'create');
-        headerOptions.innerHTML = canCreate ? `
-            <button class="btn-secondary" onclick="Materials.importFromCatalog()">Importar do catálogo</button>
-            <button class="btn-primary" onclick="Materials.newMaterial()">Novo Material</button>
-        ` : '';
+        this._newBtn?.destroy();
+        this._newBtn = createButton({
+            label: 'Novo Material',
+            variant: 'primary',
+            icon: 'add',
+            onClick: () => this.newMaterial(),
+        });
+        container.appendChild(this._newBtn.el);
     },
 
     // ── Importação do Catálogo Global ──
 
-    /** Abre dialog para importar materiais do catálogo global. */
     async importFromCatalog() {
         const locationId = Materials._getActiveLocationId();
         if (!window.AppUser?.isAdmin && !locationId) {
@@ -206,7 +214,7 @@ const Materials = {
                     <input type="text" id="materialsImportSearch" class="md-form-control" placeholder="Filtrar materiais..." oninput="Materials._filterImportList()">
                 </div>
                 <div class="materials-import-table-container">
-                    <table class="materials-table">
+                    <table class="materials-import-table">
                         <thead>
                             <tr>
                                 <th></th>
@@ -224,7 +232,6 @@ const Materials = {
         this._importDialog.open();
     },
 
-    /** Vincula um material do catálogo global à localização ativa. */
     async _linkMaterial(materialId) {
         const locationId = Materials._getActiveLocationId();
         try {
@@ -233,18 +240,15 @@ const Materials = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ location_id: locationId })
             });
-            // Remove a linha do dialog
             const row = document.querySelector(`.materials-import-row[data-material-id="${materialId}"]`);
             if (row) row.remove();
-            // Recarrega a lista principal
             const materials = await apiCall(API + '/materials');
-            this._renderTable(materials);
+            this._dataTable?.setData(materials || []);
         } catch (e) {
             alert(e.message || 'Erro ao vincular material');
         }
     },
 
-    /** Filtra a lista de importação pelo campo de busca. */
     _filterImportList() {
         const search = (document.getElementById('materialsImportSearch')?.value || '').toLowerCase();
         const rows = document.querySelectorAll('.materials-import-row');
@@ -254,7 +258,6 @@ const Materials = {
         }
     },
 
-    /** Retorna o location_id ativo (do filtro da sidebar ou localização única do usuário). */
     _getActiveLocationId() {
         const filterId = AppState.getLocationFilter();
         if (filterId) return Number(filterId);

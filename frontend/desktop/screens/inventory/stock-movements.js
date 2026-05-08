@@ -45,7 +45,6 @@ const StockMovements = {
 
         return `
         <div class="stock-movements-container">
-            <div class="stock-movements-card">
                 <div class="stock-movements-toolbar">
                     <div class="stock-movements-filters">
                         <div class="stock-movements-filters-icon-wrap">
@@ -91,7 +90,6 @@ const StockMovements = {
                         <tbody id="stockMovementsTableBody"></tbody>
                     </table>
                 </div>
-            </div>
         </div>`;
     },
 

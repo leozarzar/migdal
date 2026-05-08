@@ -8,42 +8,65 @@ const StockPolicies = {
     // ── Estado ──
 
     selectedPolicy: null,
+    _dataTable: null,
+    _newBtn: null,
+    _allPolicies: [],
+    _searchQuery: '',
 
     // ── Ciclo de Vida ──
 
-    /** Retorna o template HTML da tela. */
     render() {
+        this._dataTable?.destroy(); this._dataTable = null;
+        this._newBtn?.destroy();    this._newBtn = null;
+        this._allPolicies = [];
+        this._searchQuery = '';
         return `
         <div class="stock-policies-container">
-            <div class="stock-policies-card">
-                <div class="stock-policies-table-container">
-                    <table class="stock-policies-table">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Revisão</th>
-                                <th>Nível de Serviço</th>
-                                <th>Itens</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="stockPoliciesTableBody"></tbody>
-                    </table>
+            <div class="stock-policies-filters">
+                <div class="stock-policies-filters-icon-wrap">
+                    <span class="material-symbols-outlined stock-policies-filters-icon">filter_list</span>
                 </div>
+                <input type="text" id="stockPoliciesSearch" class="stock-policies-search-input" placeholder="Buscar" oninput="StockPolicies._onSearch(this.value)">
+                <div id="stockPoliciesNewBtnContainer" class="stock-policies-filters-actions"></div>
             </div>
+            <div id="stockPoliciesTableContainer"></div>
         </div>
         `;
     },
 
-    /** Inicializa a tela e carrega as políticas. */
     async load() {
-        this._setHeaderOptions();
+        this._mountNewButton();
+
+        if (!this._dataTable) {
+            this._dataTable = createDataTable({
+                columns: [
+                    { key: 'name', header: 'Nome', sortable: true, render: r => r.name },
+                    { key: 'review_type', header: 'Revisão', render: r => this._reviewLabel(r) },
+                    { key: 'service_level', header: 'Nível de Serviço', width: '130px', render: r => `${r.service_level}%` },
+                    { key: 'item_count', header: 'Itens', width: '80px', render: r => r.item_count ?? '—' },
+                ],
+                getRowKey: r => r.id,
+                onRowClick: r => this.selectPolicy(r),
+                actions: [
+                    {
+                        label: 'Excluir', icon: 'delete', variant: 'destructive',
+                        hidden: () => !hasPermission('inventory', 'stock-policies', 'delete'),
+                        onClick: r => this.deletePolicy(r.id),
+                    },
+                ],
+                emptyMessage: 'Nenhuma política de estoque cadastrada.',
+                emptyIcon: 'inventory_2',
+            });
+            this._dataTable.mount(document.getElementById('stockPoliciesTableContainer'));
+        }
+
+        this._dataTable.setLoading(true);
 
         try {
-            const policies = await apiCall(API + "/stock-policies") || [];
-            this._renderTable(policies);
-        } catch (error) {
-            this._renderTable([]);
+            this._allPolicies = await apiCall(API + '/stock-policies') || [];
+            this._applyFilter();
+        } catch {
+            this._dataTable.setLoading(false);
         }
     },
 
@@ -51,86 +74,52 @@ const StockPolicies = {
 
     // ── Ações Públicas ──
 
-    /** Injeta o botão de navegação no header da página. */
-    _setHeaderOptions() {
-        const headerOptions = document.getElementById("headerOptionsContent");
-        if (headerOptions) {
-            headerOptions.innerHTML = hasPermission('inventory', 'stock-policies', 'create') ? `
-                <button class="btn-new" onclick="StockPolicies.newPolicy()">
-                    <span class="material-symbols-outlined">add</span>
-                    Nova Política
-                </button>
-            ` : '';
-        }
-    },
-
-    /** Navega para a tela de criação de nova política. */
     newPolicy() {
         this.selectedPolicy = null;
         showScreen('stock-policies-details');
     },
 
-    /** Seleciona uma política e navega para a tela de detalhes. */
     selectPolicy(policy) {
         this.selectedPolicy = policy;
         showScreen('stock-policies-details');
     },
 
-    /** Deleta uma política após confirmação do usuário. */
-    async deletePolicy(event, id) {
-        event.stopPropagation();
-
-        if (!confirm("Tem certeza que deseja deletar esta política?")) return;
+    async deletePolicy(id) {
+        if (!confirm('Tem certeza que deseja deletar esta política?')) return;
 
         try {
-            await apiCall(API + `/stock-policies/${id}`, { method: "DELETE" });
+            await apiCall(API + `/stock-policies/${id}`, { method: 'DELETE' });
             this.load();
-        } catch (error) {
-            alert("Erro ao deletar política de estoque");
+        } catch {
+            alert('Erro ao deletar política de estoque');
         }
     },
 
-    // ── Renderização ──
+    // ── Privado ──
 
-    /** Renderiza a tabela de políticas ou mensagem de estado vazio. */
-    _renderTable(policies) {
-        const tbody = document.getElementById("stockPoliciesTableBody");
-        tbody.innerHTML = "";
+    _onSearch(val) {
+        this._searchQuery = val;
+        this._applyFilter();
+    },
 
-        if (!policies || policies.length === 0) {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `<td colspan="5" class="empty-state">Nenhuma política de estoque cadastrada.</td>`;
-            tbody.appendChild(tr);
-            return;
-        }
+    _applyFilter() {
+        const q = this._searchQuery.toLowerCase();
+        const filtered = q ? this._allPolicies.filter(r => r.name.toLowerCase().includes(q)) : this._allPolicies;
+        this._dataTable?.setData(filtered);
+    },
 
-        policies.forEach(policy => {
-            const tr = this._createTableRow(policy);
-            tr.onclick = () => this.selectPolicy(policy);
-            tbody.appendChild(tr);
+    _mountNewButton() {
+        document.getElementById('headerOptionsContent').innerHTML = '';
+        if (!hasPermission('inventory', 'stock-policies', 'create')) return;
+        this._newBtn = createButton({
+            label: 'Nova Política',
+            variant: 'primary',
+            icon: 'add',
+            onClick: () => this.newPolicy(),
         });
+        document.getElementById('stockPoliciesNewBtnContainer').appendChild(this._newBtn.el);
     },
 
-    /** Cria uma linha <tr> para exibição de uma política. */
-    _createTableRow(policy) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>${policy.name}</td>
-            <td>${this._reviewLabel(policy)}</td>
-            <td>${policy.service_level}%</td>
-            <td>${policy.item_count ?? '—'}</td>
-            <td class="stock-policies-col-actions">
-                ${hasPermission('inventory', 'stock-policies', 'delete') ? `<button onclick="StockPolicies.deletePolicy(event, ${policy.id})">
-                    <span class="material-symbols-outlined">delete</span>
-                </button>` : ''}
-            </td>
-        `;
-        return tr;
-    },
-
-    // ── Utilitários Privados ──
-
-    /** Retorna o label formatado do tipo de revisão da política. */
     _reviewLabel(policy) {
         if (policy.review_type === 'continuous') return 'Contínua';
         const periodMap = { daily: 'Diária', weekly: 'Semanal', monthly: 'Mensal', custom: `${policy.review_period_days}d` };

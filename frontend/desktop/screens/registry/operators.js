@@ -15,7 +15,6 @@ const Operators = {
     render() {
         return `
         <div class="operators-container">
-            <div class="operators-card">
                 <div class="operators-form-wrapper">
                     <input id="operatorName" class="operators-input" placeholder="Nome do operador">
                     <button class="operators-btn-save" id="operatorSaveBtn" onclick="Operators.saveOperator()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
@@ -32,7 +31,6 @@ const Operators = {
                         <tbody id="operatorsTableBody"></tbody>
                     </table>
                 </div>
-            </div>
         </div>
         `;
     },

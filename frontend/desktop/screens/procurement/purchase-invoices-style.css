@@ -1,115 +1,46 @@
 /* purchase-invoices-style.css */
 
 .pi-container {
-    padding: 16px;
-    height: 100%;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
+    width: 100%;
+    padding: 24px;
 }
 
-.pi-card {
-    background: white;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    overflow: hidden;
-}
+/* Toolbar / filter bar */
 
-.pi-toolbar {
-    padding: 10px 14px;
-    border-bottom: 1px solid #e2e8f0;
+.pi-filters {
     display: flex;
     align-items: center;
     gap: 8px;
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border-components);
 }
 
-.pi-btn-new {
+.pi-filters-icon-wrap {
     display: flex;
     align-items: center;
-    gap: 4px;
-    height: 32px;
-    padding: 0 14px;
-    background: #1e40af;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.15s;
-    font-family: inherit;
+    color: var(--placeholder);
+    padding-right: 10px;
+    border-right: 1px solid var(--border-components);
+    margin-right: 2px;
+    flex-shrink: 0;
 }
 
-.pi-btn-new:hover { background: #1d3a9a; }
-.pi-btn-new .material-symbols-outlined { font-size: 17px; }
-
-/* Table */
-
-.pi-table-container {
-    overflow: auto;
-    flex: 1;
+.pi-filters-icon {
+    font-size: 18px;
 }
 
-.pi-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    font-size: 13px;
+.pi-filter-select-wrap {
+    width: 200px;
 }
 
-.pi-table thead th {
-    padding: 8px 14px;
-    text-align: left;
-    font-weight: 600;
-    background: linear-gradient(#f3f4f6, #e9ebef);
-    border-bottom: 1px solid #dcdfe4;
-    position: sticky;
-    top: 0;
-    z-index: 5;
+.pi-filters-actions {
+    margin-left: auto;
 }
 
-.pi-table thead th.right,
-.pi-table tbody td.right { text-align: right; }
-
-.pi-table tbody td {
-    padding: 6px 14px;
-    border-bottom: 1px solid #eceef2;
+@media (max-width: 768px) {
+    .pi-container { padding: 16px; }
 }
-
-.pi-table tbody tr:last-child td { border-bottom: none; }
-.pi-table tbody tr:hover { background: #f8fafc; }
-
-.pi-col-actions {
-    width: 80px;
-    text-align: right;
-}
-
-.pi-col-actions button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
-    background: white;
-    color: #64748b;
-    cursor: pointer;
-    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
-    opacity: 0;
-    pointer-events: none;
-}
-
-.pi-table tbody tr:hover .pi-col-actions button {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.pi-col-actions button:hover { background: #fff0f0; border-color: #f44336; color: #d32f2f; }
-.pi-col-actions button .material-symbols-outlined { font-size: 16px; }
 
 /* Dialog Steps */
 

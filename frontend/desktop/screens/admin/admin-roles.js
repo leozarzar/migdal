@@ -3,73 +3,96 @@
  * Tela de listagem de papéis (roles) do sistema.
  * Permite visualizar, criar e excluir papéis.
  */
-
-// ── Estado ──────────────────────────────────────────────────────
 const AdminRoles = {
+
+    // ── Estado ──
+
     _roles: [],
     selectedRoleId: null,
+    _dataTable: null,
+    _newBtn: null,
+    _searchQuery: '',
 
-// ── Ciclo de Vida ────────────────────────────────────────────────
+    // ── Ciclo de Vida ──
+
     render() {
+        this._dataTable?.destroy(); this._dataTable = null;
+        this._newBtn?.destroy();    this._newBtn = null;
+        this._searchQuery = '';
         return `
         <div class="admin-roles-container">
-            <div class="admin-roles-card">
-                <div class="admin-roles-table-container">
-                    <table class="admin-roles-table">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Descrição</th>
-                                <th>Tipo</th>
-                                <th>Usuários</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="adminRolesTableBody"></tbody>
-                    </table>
+            <div class="admin-roles-filters">
+                <div class="admin-roles-filters-icon-wrap">
+                    <span class="material-symbols-outlined admin-roles-filters-icon">filter_list</span>
                 </div>
+                <input type="text" id="adminRolesSearch" class="admin-roles-search-input" placeholder="Buscar" oninput="AdminRoles._onSearch(this.value)">
+                <div id="adminRolesNewBtnContainer" class="admin-roles-filters-actions"></div>
             </div>
+            <div id="adminRolesTableContainer"></div>
         </div>`;
     },
 
     async load() {
-        const headerOptions = document.getElementById('headerOptionsContent');
-        if (headerOptions) {
-            headerOptions.innerHTML = hasPermission('admin', 'admin-roles', 'create') ? `
-                <button class="btn-new" onclick="AdminRoles.createRole()">
-                    <span class="material-symbols-outlined">add</span>
-                    Novo Papel
-                </button>` : '';
+        this._mountNewButton();
+
+        if (!this._dataTable) {
+            this._dataTable = createDataTable({
+                columns: [
+                    { key: 'name', header: 'Nome', sortable: true, render: r => `<strong>${_esc(r.name)}</strong>` },
+                    { key: 'description', header: 'Descrição', render: r => _esc(r.description || '—') },
+                    {
+                        key: 'is_admin', header: 'Tipo', width: '130px',
+                        render: r => r.is_admin
+                            ? '<span class="admin-roles-badge admin-roles-badge--admin">Administrador</span>'
+                            : '<span class="admin-roles-badge admin-roles-badge--custom">Personalizado</span>',
+                    },
+                    { key: 'user_count', header: 'Usuários', width: '80px', render: r => r.user_count || 0 },
+                ],
+                getRowKey: r => r.id,
+                actions: [
+                    {
+                        label: 'Editar', icon: 'edit',
+                        hidden: r => r.is_admin || !hasPermission('admin', 'admin-roles', 'edit'),
+                        onClick: r => this.editRole(r.id),
+                    },
+                    {
+                        label: 'Excluir', icon: 'delete', variant: 'destructive',
+                        hidden: r => r.is_admin || !hasPermission('admin', 'admin-roles', 'delete'),
+                        onClick: r => this.deleteRole(r.id),
+                    },
+                ],
+                emptyMessage: 'Nenhum papel cadastrado.',
+                emptyIcon: 'manage_accounts',
+            });
+            this._dataTable.mount(document.getElementById('adminRolesTableContainer'));
         }
+
+        this._dataTable.setLoading(true);
 
         try {
             this._roles = await apiCall(API + '/roles');
-            this._renderTable();
-        } catch (e) { alert(e.message); }
+            this._applyFilter();
+        } catch (e) {
+            alert(e.message);
+            this._dataTable.setLoading(false);
+        }
     },
 
-// ── Ações Públicas ───────────────────────────────────────────────
+    async onTabFocus() { return this.load(); },
 
-    /**
-     * Navega direto para a tela de detalhes em modo criação.
-     */
+    // ── Ações Públicas ──
+
     createRole() {
         this.selectedRoleId = null;
         showScreen('admin-roles-details');
     },
 
-    /**
-     * Navega para detalhes do papel para edição de permissões.
-     */
-    editRole(event, id) {
+    editRole(id) {
         this.selectedRoleId = id;
         showScreen('admin-roles-details');
     },
 
-    /**
-     * Exclui um papel.
-     */
-    async deleteRole(event, id) {
+    async deleteRole(id) {
         if (!confirm('Confirma exclusão deste papel?')) return;
         try {
             await apiCall(API + '/roles/' + id, { method: 'DELETE' });
@@ -77,39 +100,30 @@ const AdminRoles = {
         } catch (e) { alert(e.message); }
     },
 
-// ── Renderização ─────────────────────────────────────────────────
-    _renderTable() {
-        const tbody = document.getElementById('adminRolesTableBody');
-        if (!tbody) return;
+    // ── Privado ──
 
-        if (this._roles.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">Nenhum papel cadastrado.</td></tr>';
-            return;
-        }
+    _onSearch(val) {
+        this._searchQuery = val;
+        this._applyFilter();
+    },
 
-        tbody.innerHTML = this._roles.map(role => {
-            const badge = role.is_admin
-                ? '<span class="admin-roles-badge admin-roles-badge--admin">Administrador</span>'
-                : '<span class="admin-roles-badge admin-roles-badge--custom">Personalizado</span>';
+    _applyFilter() {
+        const q = this._searchQuery.toLowerCase();
+        const filtered = q
+            ? this._roles.filter(r => r.name.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q))
+            : this._roles;
+        this._dataTable?.setData(filtered);
+    },
 
-            const actions = role.is_admin
-                ? '<span style="color:#94a3b8;font-size:12px">—</span>'
-                : `<div class="admin-roles-actions">
-                        ${hasPermission('admin', 'admin-roles', 'edit') ? `<button onclick="AdminRoles.editRole(event, ${role.id})" title="Editar permissões">
-                            <span class="material-symbols-outlined">edit</span>
-                        </button>` : ''}
-                        ${hasPermission('admin', 'admin-roles', 'delete') ? `<button class="btn-danger" onclick="AdminRoles.deleteRole(event, ${role.id})" title="Excluir">
-                            <span class="material-symbols-outlined">delete</span>
-                        </button>` : ''}
-                   </div>`;
-
-            return `<tr>
-                <td><strong>${_esc(role.name)}</strong></td>
-                <td>${_esc(role.description || '—')}</td>
-                <td>${badge}</td>
-                <td>${role.user_count || 0}</td>
-                <td>${actions}</td>
-            </tr>`;
-        }).join('');
-    }
+    _mountNewButton() {
+        document.getElementById('headerOptionsContent').innerHTML = '';
+        if (!hasPermission('admin', 'admin-roles', 'create')) return;
+        this._newBtn = createButton({
+            label: 'Novo Papel',
+            variant: 'primary',
+            icon: 'add',
+            onClick: () => this.createRole(),
+        });
+        document.getElementById('adminRolesNewBtnContainer').appendChild(this._newBtn.el);
+    },
 };

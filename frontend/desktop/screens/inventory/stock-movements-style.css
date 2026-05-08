@@ -4,16 +4,7 @@
 
 .stock-movements-container {
     width: 100%;
-    padding: 10px;
-}
-
-.stock-movements-card {
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
-    padding: 16px;
-    overflow: hidden;
+    padding: 24px;
 }
 
 /* ── Toolbar ── */
@@ -23,7 +14,9 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 12px;
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border-components);
     flex-wrap: wrap;
 }
 

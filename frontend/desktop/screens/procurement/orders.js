@@ -9,77 +9,145 @@ const Orders = {
 
     selectedOrder: null,
     _supplierSelect: null,
+    _dataTable: null,
+    _newBtn: null,
+    _allOrders: [],
 
     // ── Ciclo de Vida ──
 
-    /** Retorna o template HTML da tela e reseta a seleção. */
     render() {
         this.selectedOrder = null;
-        this._supplierSelect = null;
+        this._supplierSelect?.destroy(); this._supplierSelect = null;
+        this._dataTable?.destroy(); this._dataTable = null;
+        this._newBtn?.destroy(); this._newBtn = null;
+        this._allOrders = [];
         return `
         <div class="orders-container">
-            <div class="orders-card">
-                <div class="orders-filters">
-                    <div class="orders-filters-icon-wrap">
-                        <span class="material-symbols-outlined orders-filters-icon">filter_list</span>
-                    </div>
-                    <div id="ordersSupplierContainer" class="orders-filter-select-wrap"></div>
+            <div class="orders-filters">
+                <div class="orders-filters-icon-wrap">
+                    <span class="material-symbols-outlined orders-filters-icon">filter_list</span>
                 </div>
-                <div class="orders-table-container">
-                    <table class="orders-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Data</th>
-                                <th>Fornecedor</th>
-                                <th class="header-qty">Quantidade</th>
-                                <th>Prazo</th>
-                                <th>Previsão</th>
-                                <th class="header-qtyr">Qtd. R.</th>
-                                <th class="header-wait"><span class="material-symbols-outlined">schedule</span></th>
-                                <th>Dif %</th>
-                                <th>Status</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="ordersTableBody"></tbody>
-                    </table>
-                </div>
+                <div id="ordersSupplierContainer" class="orders-filter-select-wrap"></div>
+                <div id="ordersNewBtnContainer" class="orders-filters-actions"></div>
             </div>
+            <div id="ordersTableContainer"></div>
         </div>
         `;
     },
 
-    /** Inicializa a tela: configura header, carrega e renderiza pedidos. */
     async load() {
-        this._setHeaderOptions();
-        try {
-            const orders = await apiCall(API + "/orders");
-            const suppliers = [...new Set(orders.map(o => o.supplier).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+        this._mountNewButton();
 
-            if (!this._supplierSelect) {
-                this._supplierSelect = createSearchSelect({
-                    id: 'ordersSupplier',
-                    placeholder: 'Fornecedor',
-                    searchable: true,
-                    multiple: false,
-                    sections: [{ key: 'supplier', items: [] }],
-                    onChange: ({ value }) => {
-                        localStorage.setItem('wcm.orders.supplier', value != null ? String(value) : '');
-                        Orders.load();
-                    }
-                });
-                this._supplierSelect.mount(document.getElementById('ordersSupplierContainer'));
-                this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
-                const saved = localStorage.getItem('wcm.orders.supplier');
-                if (saved) this._supplierSelect.select('supplier', saved);
-            } else {
-                this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
+        if (!this._supplierSelect) {
+            this._supplierSelect = createSelect({
+                placeholder: 'Fornecedor',
+                searchable: true,
+                clearable: true,
+                sections: [{ key: 'supplier', items: [] }],
+                onChange: () => this._applyFilter(),
+            });
+            this._supplierSelect.mount(document.getElementById('ordersSupplierContainer'));
+        }
+
+        if (!this._dataTable) {
+            this._dataTable = createDataTable({
+                columns: [
+                    {
+                        key: 'id', header: 'ID', width: '80px',
+                        render: r => `<span class="code-badge">#${r.id}</span>`,
+                    },
+                    {
+                        key: 'date', header: 'Data', sortable: true,
+                        sortValue: r => r.date || '',
+                        render: r => r.date
+                            ? r.date.split('-').reverse().join('/').replace(/^(\d{2}\/\d{2}\/)\d{2}(\d{2})$/, '$1$2')
+                            : '',
+                    },
+                    {
+                        key: 'supplier', header: 'Fornecedor', sortable: true,
+                        render: r => r.supplier || '',
+                    },
+                    {
+                        key: 'total_qty', header: 'Quantidade', sortable: true,
+                        sortValue: r => r.total_qty || 0,
+                        render: r => r.total_qty != null ? String(r.total_qty) : '',
+                    },
+                    {
+                        key: 'due_date', header: 'Prazo',
+                        render: r => r.due_date
+                            ? r.due_date.split('-').reverse().join('/').replace(/^(\d{2}\/\d{2}\/)\d{2}(\d{2})$/, '$1$2')
+                            : '',
+                    },
+                    {
+                        key: 'expected_date', header: 'Previsão',
+                        render: r => r.expected_date
+                            ? r.expected_date.split('-').reverse().join('/').replace(/^(\d{2}\/\d{2}\/)\d{2}(\d{2})$/, '$1$2')
+                            : '',
+                    },
+                    {
+                        key: 'received_qty', header: 'Qtd. R.', sortable: true,
+                        sortValue: r => r.received_qty || 0,
+                        render: r => r.received_qty > 0 ? String(r.received_qty) : '',
+                    },
+                    {
+                        key: 'lead_time', header: 'Lead time',
+                        render: r => r.lead_time !== '' && r.lead_time != null ? `${r.lead_time}d` : '',
+                    },
+                    {
+                        key: 'diff_pct', header: 'Dif %',
+                        render: r => {
+                            if (!r.received_qty || !r.total_qty) return '';
+                            const sign = r.diff_pct >= 0 ? '+' : '';
+                            const color = r.diff_pct >= 0 ? '#2e7d32' : '#c62828';
+                            return `<span style="color:${color};font-weight:600">${sign}${r.diff_pct}%</span>`;
+                        },
+                    },
+                    {
+                        key: 'status', header: 'Status',
+                        render: r => this._statusBadge(r),
+                    },
+                ],
+                getRowKey: r => r.id,
+                actions: [
+                    {
+                        label: 'Excluir',
+                        icon: 'delete',
+                        variant: 'destructive',
+                        hidden: () => !hasPermission('procurement', 'orders', 'delete'),
+                        onClick: r => this.deleteOrder(r.id),
+                    },
+                ],
+                onRowClick: r => this.selectOrder(r),
+                emptyMessage: 'Nenhum pedido encontrado.',
+                emptyIcon: 'shopping_cart',
+            });
+            this._dataTable.mount(document.getElementById('ordersTableContainer'));
+        }
+
+        this._dataTable.setLoading(true);
+
+        try {
+            const [orders, receipts] = await Promise.all([
+                apiCall(API + '/orders'),
+                apiCall(API + '/receipts'),
+            ]);
+
+            const enriched = await Promise.all(orders.map(o => this._enrichOrder(o, receipts)));
+            this._allOrders = enriched;
+
+            const suppliers = [...new Set(orders.map(o => o.supplier).filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b));
+            this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
+
+            const saved = localStorage.getItem('wcm.orders.supplier');
+            if (saved && this._supplierSelect.getValue() == null) {
+                this._supplierSelect.setValue(saved);
             }
 
-            await this._renderTable(orders);
+            this._applyFilter();
         } catch (error) {
-            alert("Erro ao carregar pedidos");
+            alert('Erro ao carregar pedidos');
+            this._dataTable.setLoading(false);
         }
     },
 
@@ -87,81 +155,43 @@ const Orders = {
 
     // ── Ações Públicas ──
 
-    /** Navega para a tela de criação de novo pedido. */
     newOrder() {
         showScreen('order-details');
     },
 
-    /** Seleciona um pedido e navega para a tela de detalhes. */
-    selectOrder(order, tr) {
+    selectOrder(order) {
         this.selectedOrder = order;
         showScreen('order-details');
     },
 
-    /** Deleta um pedido após confirmação do usuário. */
-    async deleteOrder(event, id) {
-        event.stopPropagation();
-        
-        if (!confirm("Tem certeza que deseja deletar?")) return;
-
+    async deleteOrder(id) {
+        if (!confirm('Tem certeza que deseja deletar?')) return;
         try {
-            await apiCall(API + `/orders/${id}`, { method: "DELETE" });
+            await apiCall(API + `/orders/${id}`, { method: 'DELETE' });
             this.load();
         } catch (error) {
-            alert("Erro ao deletar pedido");
+            alert('Erro ao deletar pedido');
         }
     },
 
-    // ── Renderização ──
+    // ── Privado ──
 
-    /** Renderiza a tabela de pedidos aplicando o filtro de fornecedor. */
-    async _renderTable(orders) {
-        const sel = this._supplierSelect?.getValue();
-        const supplier = sel ? String(sel.value) : '';
-        const tbody = document.getElementById("ordersTableBody");
-        tbody.innerHTML = "";
-
-        const filtered = orders
-            .filter(order => !supplier || order.supplier === supplier);
-
-        const receipts = await apiCall(API + "/receipts");
-
-        for (const order of filtered) {
-            try {
-                const tr = await this._createTableRow(order, receipts);
-                tr.onclick = () => this.selectOrder(order, tr);
-                tbody.appendChild(tr);
-            } catch (error) {
-                console.error(`Erro ao processar pedido ${order.id}:`, error);
-            }
-        }
-
-        if (tbody.children.length === 0) {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `<td colspan="11" class="empty-state">Nenhum pedido encontrado.</td>`;
-            tbody.appendChild(tr);
-        }
-    },
-
-    /** Cria uma linha <tr> com dados calculados do pedido. */
-    async _createTableRow(order, receipts) {
-        const tr = document.createElement("tr");
-        
-        const orderItems = await apiCall(API + `/orders/items/${order.id}`);
-        const orderBags = await apiCall(API + `/orders/${order.id}/stock-units`);
+    async _enrichOrder(order, receipts) {
+        const [orderItems, orderBags] = await Promise.all([
+            apiCall(API + `/orders/items/${order.id}`),
+            apiCall(API + `/orders/${order.id}/stock-units`),
+        ]);
 
         const totalQty = orderItems.reduce((sum, item) =>
             sum + parseInt((item.group_id != null ? item.group_quantity : item.quantity) || 0, 10), 0);
-        const receivedQty = sumProperty(orderBags, "weight");
-        const differencePercent = totalQty > 0 ? Math.round(((receivedQty / totalQty) - 1) * 100) : 0;
+        const receivedQty = sumProperty(orderBags, 'weight');
+        const diffPct = totalQty > 0 ? Math.round(((receivedQty / totalQty) - 1) * 100) : 0;
 
-        // Cálculo do lead time ponderado por quantidade recebida
         const startDate = order.date ? new Date(order.date) : null;
         let leadTime = '';
         if (startDate) {
             const linkedReceipts = receipts.filter(r => String(r.order_id) === String(order.id));
             if (linkedReceipts.length > 0) {
-                // Agrupa peso por recebimento para cálculo da média ponderada
                 const qtyByReceipt = {};
                 for (const bag of orderBags) {
                     const rid = String(bag.receipt_id);
@@ -179,44 +209,38 @@ const Orders = {
                     ? (weightedSum / totalQtyReceipts).toFixed(1).replace('.0', '')
                     : Math.round((new Date(linkedReceipts[0].date) - startDate) / (1000 * 60 * 60 * 24));
             } else {
-                // Sem recebimentos: dias desde a data do pedido até hoje
                 leadTime = Math.round((new Date() - startDate) / (1000 * 60 * 60 * 24));
             }
         }
 
-        // Formata datas de YYYY-MM-DD para DD/MM/YY
-        tr.innerHTML = `
-            <td class="orders-col-code"><span class="code-badge">#${order.id}</span></td>
-            <td class="orders-col-date">${order.date ? order.date.split('-').reverse().join('/').replace(/^(\d{2}\/\d{2}\/)\d{2}(\d{2})$/, '$1$2') : ''}</td>
-            <td class="orders-col-supplier">${order.supplier}</td>
-            <td class="orders-col-qty">${totalQty}</td>
-            <td class="orders-col-due">${order.due_date ? order.due_date.split('-').reverse().join('/').replace(/^(\d{2}\/\d{2}\/)\d{2}(\d{2})$/, '$1$2') : ''}</td>
-            <td class="orders-col-expected">${order.expected_date ? order.expected_date.split('-').reverse().join('/').replace(/^(\d{2}\/\d{2}\/)\d{2}(\d{2})$/, '$1$2') : ''}</td>
-            <td class="orders-col-qtyr">${receivedQty > 0 ? receivedQty : ''}</td>
-            <td class="orders-col-lt">${leadTime !== '' ? leadTime + 'd' : ''}</td>
-            <td class="orders-col-dif">${(() => {
-                if (!receivedQty || receivedQty === 0 || !totalQty) return '';
-                const sign = differencePercent >= 0 ? '+' : '';
-                const color = differencePercent >= 0 ? '#2e7d32' : '#c62828';
-                return `<span style="color:${color};font-weight:600">${sign}${differencePercent}%</span>`;
-            })()}</td>
-            <td class="orders-col-status">${this._statusBadge(order)}</td>
-            <td class="orders-col-actions">
-                ${hasPermission('procurement', 'orders', 'delete') ? `<button onclick="Orders.deleteOrder(event,${order.id})">
-                    <span class="material-symbols-outlined">delete</span>
-                </button>` : ''}
-            </td>
-        `;
-
-        return tr;
+        return { ...order, total_qty: totalQty, received_qty: receivedQty, diff_pct: diffPct, lead_time: leadTime };
     },
 
-    /**
-     * Retorna o HTML do badge de status de um pedido.
-     * Pedidos OPEN são classificados em: a tempo, vencendo (≤2 dias) ou atrasado.
-     * @param {Object} order - Objeto do pedido com status e due_date.
-     * @returns {string} HTML do badge.
-     */
+    _applyFilter() {
+        const supplier = this._supplierSelect?.getValue();
+        const filtered = supplier
+            ? this._allOrders.filter(o => o.supplier === supplier)
+            : this._allOrders;
+        this._dataTable?.setData(filtered);
+        if (supplier != null) {
+            localStorage.setItem('wcm.orders.supplier', String(supplier));
+        } else {
+            localStorage.removeItem('wcm.orders.supplier');
+        }
+    },
+
+    _mountNewButton() {
+        document.getElementById('headerOptionsContent').innerHTML = '';
+        if (!hasPermission('procurement', 'orders', 'create')) return;
+        this._newBtn = createButton({
+            label: 'Novo Pedido',
+            variant: 'primary',
+            icon: 'add',
+            onClick: () => this.newOrder(),
+        });
+        document.getElementById('ordersNewBtnContainer').appendChild(this._newBtn.el);
+    },
+
     _statusBadge(order) {
         if (order.status === 'CLOSED') {
             return `<span class="orders-badge orders-badge--closed">Fechado</span>`;
@@ -224,34 +248,15 @@ const Orders = {
         if (order.status !== 'OPEN') {
             return `<span class="orders-badge">${order.status}</span>`;
         }
-
         if (!order.due_date) {
             return `<span class="orders-badge orders-badge--open">Aberto</span>`;
         }
-
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const due = new Date(order.due_date + 'T00:00:00');
         const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
-
-        if (diffDays < 0) {
-            const days = Math.abs(diffDays);
-            return `<span class="orders-badge orders-badge--overdue">Atrasado</span>`;
-        }
-        if (diffDays <= 2) {
-            return `<span class="orders-badge orders-badge--due-soon">Vencendo</span>`;
-        }
+        if (diffDays < 0) return `<span class="orders-badge orders-badge--overdue">Atrasado</span>`;
+        if (diffDays <= 2) return `<span class="orders-badge orders-badge--due-soon">Vencendo</span>`;
         return `<span class="orders-badge orders-badge--open">Aberto</span>`;
-    },
-
-    /** Injeta botões de ação no header da página. */
-    _setHeaderOptions() {
-        const headerOptions = document.getElementById("headerOptionsContent");
-        headerOptions.innerHTML = hasPermission('procurement', 'orders', 'create') ? `
-            <button class="btn-new" onclick="Orders.newOrder()">
-                <span class="material-symbols-outlined">add</span>
-                Novo Pedido
-            </button>
-        ` : '';
     },
 };

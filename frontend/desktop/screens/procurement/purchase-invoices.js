@@ -10,54 +10,124 @@ const PurchaseInvoices = {
 
     _dialog: null,
     _supplierSelect: null,
+    _filterSupplierSelect: null,
+    _dataTable: null,
+    _newBtn: null,
     _step: 1,
     _selectedSupplier: null,
     _availableReceipts: [],
     _selectedReceiptIds: [],
     _items: [],
     _supplierId: null,
+    _allInvoices: [],
 
     // ── Ciclo de Vida ────────────────────────────────────────────────────────
 
     render() {
-        this._dialog?.destroy(); this._dialog = null;
-        this._supplierSelect?.destroy(); this._supplierSelect = null;
+        this._dialog?.destroy();               this._dialog = null;
+        this._supplierSelect?.destroy();       this._supplierSelect = null;
+        this._filterSupplierSelect?.destroy(); this._filterSupplierSelect = null;
+        this._dataTable?.destroy();            this._dataTable = null;
+        this._newBtn?.destroy();               this._newBtn = null;
+        this._allInvoices = [];
         return `
         <div class="pi-container">
-            <div class="pi-card">
-                <div class="pi-toolbar">
-                    <button class="pi-btn-new" onclick="PurchaseInvoices.openNew()">
-                        <span class="material-symbols-outlined">add</span>Nova Fatura
-                    </button>
+            <div class="pi-filters">
+                <div class="pi-filters-icon-wrap">
+                    <span class="material-symbols-outlined pi-filters-icon">filter_list</span>
                 </div>
-                <div class="pi-table-container">
-                    <table class="pi-table">
-                        <thead>
-                            <tr>
-                                <th>Tipo</th>
-                                <th>Número</th>
-                                <th>Data Emissão</th>
-                                <th>Fornecedor</th>
-                                <th class="right">Total R$</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="piTableBody"></tbody>
-                    </table>
-                </div>
+                <div id="piFilterSupplierContainer" class="pi-filter-select-wrap"></div>
+                <div id="piNewBtnContainer" class="pi-filters-actions"></div>
             </div>
+            <div id="piTableContainer"></div>
         </div>
         `;
     },
 
     async load() {
+        this._mountNewButton();
+
+        if (!this._filterSupplierSelect) {
+            this._filterSupplierSelect = createSelect({
+                placeholder: 'Fornecedor',
+                searchable: true,
+                clearable: true,
+                sections: [{ key: 'supplier', items: [] }],
+                onChange: () => this._applyFilter(),
+            });
+            this._filterSupplierSelect.mount(document.getElementById('piFilterSupplierContainer'));
+        }
+
+        if (!this._dataTable) {
+            this._dataTable = createDataTable({
+                columns: [
+                    {
+                        key: 'document_type', header: 'Tipo', width: '80px',
+                        render: r => r.document_type || '',
+                    },
+                    {
+                        key: 'number', header: 'Número',
+                        render: r => r.number || '',
+                    },
+                    {
+                        key: 'date_emission', header: 'Data Emissão', sortable: true,
+                        sortValue: r => r.date_emission || '',
+                        render: r => r.date_emission
+                            ? new Date(r.date_emission + 'T00:00:00').toLocaleDateString('pt-BR')
+                            : '',
+                    },
+                    {
+                        key: 'supplier_name', header: 'Fornecedor', sortable: true,
+                        render: r => r.supplier_name || '',
+                    },
+                    {
+                        key: 'total_amount', header: 'Total R$', sortable: true,
+                        sortValue: r => r.total_amount || 0,
+                        render: r => Number(r.total_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+                    },
+                ],
+                getRowKey: r => r.id,
+                actions: [
+                    {
+                        label: 'Imprimir',
+                        icon: 'print',
+                        onClick: r => this.printInvoice(r.id),
+                    },
+                    {
+                        label: 'Excluir',
+                        icon: 'delete',
+                        variant: 'destructive',
+                        hidden: () => !hasPermission('procurement', 'purchase-invoices', 'delete'),
+                        onClick: r => this.deleteInvoice(r.id),
+                    },
+                ],
+                emptyMessage: 'Nenhuma fatura cadastrada.',
+                emptyIcon: 'receipt_long',
+            });
+            this._dataTable.mount(document.getElementById('piTableContainer'));
+        }
+
+        this._dataTable.setLoading(true);
+
         try {
-            const invoices = await apiCall(API + "/purchase-invoices");
-            this._renderTable(invoices);
-        } catch (e) {
-            alert("Erro ao carregar faturas");
+            const invoices = await apiCall(API + '/purchase-invoices');
+            this._allInvoices = invoices || [];
+
+            const suppliers = [...new Set(this._allInvoices.map(r => r.supplier_name).filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b));
+            this._filterSupplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
+
+            const saved = localStorage.getItem('wcm.purchase-invoices.supplier');
+            if (saved && this._filterSupplierSelect.getValue() == null) this._filterSupplierSelect.setValue(saved);
+
+            this._applyFilter();
+        } catch {
+            alert('Erro ao carregar faturas');
+            this._dataTable.setLoading(false);
         }
     },
+
+    async onTabFocus() { return this.load(); },
 
     // ── Ações Públicas ───────────────────────────────────────────────────────
 
@@ -71,21 +141,40 @@ const PurchaseInvoices = {
         this._openStepDialog();
     },
 
-    async deleteInvoice(event, id) {
-        event.stopPropagation();
-        if (!confirm("Excluir esta fatura?")) return;
+    async deleteInvoice(id) {
+        if (!confirm('Excluir esta fatura?')) return;
         try {
-            await apiCall(API + `/purchase-invoices/${id}`, { method: "DELETE" });
+            await apiCall(API + `/purchase-invoices/${id}`, { method: 'DELETE' });
             this.load();
         } catch (e) {
-            alert(e.message || "Erro ao excluir fatura");
+            alert(e.message || 'Erro ao excluir fatura');
         }
     },
 
-    printInvoice(event, id) {
-        event.stopPropagation();
+    printInvoice(id) {
         const token = localStorage.getItem('wcm.auth.token');
-        window.open(API + `/purchase-invoices/print/${id}?token=${encodeURIComponent(token)}`, "_blank");
+        window.open(API + `/purchase-invoices/print/${id}?token=${encodeURIComponent(token)}`, '_blank');
+    },
+
+    // ── Privado ──────────────────────────────────────────────────────────────
+
+    _applyFilter() {
+        const val = this._filterSupplierSelect?.getValue();
+        const filtered = val ? this._allInvoices.filter(r => r.supplier_name === val) : this._allInvoices;
+        this._dataTable?.setData(filtered);
+        if (val != null) localStorage.setItem('wcm.purchase-invoices.supplier', String(val));
+        else localStorage.removeItem('wcm.purchase-invoices.supplier');
+    },
+
+    _mountNewButton() {
+        document.getElementById('headerOptionsContent').innerHTML = '';
+        this._newBtn = createButton({
+            label: 'Nova Fatura',
+            variant: 'primary',
+            icon: 'add',
+            onClick: () => this.openNew(),
+        });
+        document.getElementById('piNewBtnContainer').appendChild(this._newBtn.el);
     },
 
     // ── Fluxo de Criação em Passos ───────────────────────────────────────────
@@ -93,12 +182,12 @@ const PurchaseInvoices = {
     _openStepDialog() {
         this._dialog?.destroy();
         this._dialog = createDialog({
-            title: "Nova Fatura de Compras",
+            title: 'Nova Fatura de Compras',
             wide: true,
             bodyHTML: `<div id="piStepBody" class="pi-step-body"></div>`,
             actions: [
-                { label: "Próximo", className: "btn-primary", id: "piNextBtn", onClick: () => this._nextStep() },
-                { label: "Cancelar", className: "btn-secondary", onClick: () => this._dialog.close() }
+                { label: 'Próximo', className: 'btn-primary', id: 'piNextBtn', onClick: () => this._nextStep() },
+                { label: 'Cancelar', className: 'btn-secondary', onClick: () => this._dialog.close() }
             ]
         });
         this._dialog.open();
@@ -108,7 +197,7 @@ const PurchaseInvoices = {
     async _nextStep() {
         if (this._step === 1) {
             const supVal = this._supplierSelect?.getValue();
-            if (!supVal) { alert("Selecione um fornecedor"); return; }
+            if (!supVal) { alert('Selecione um fornecedor'); return; }
             this._selectedSupplier = supVal.label;
             this._supplierId = Number(supVal.value);
             this._step = 2;
@@ -116,7 +205,7 @@ const PurchaseInvoices = {
         } else if (this._step === 2) {
             const checkboxes = document.querySelectorAll('.pi-receipt-cb:checked');
             this._selectedReceiptIds = Array.from(checkboxes).map(cb => Number(cb.value));
-            if (this._selectedReceiptIds.length === 0) { alert("Selecione ao menos um recebimento"); return; }
+            if (this._selectedReceiptIds.length === 0) { alert('Selecione ao menos um recebimento'); return; }
             await this._buildItemsFromReceipts();
             this._step = 3;
             this._renderStep();
@@ -129,12 +218,12 @@ const PurchaseInvoices = {
     },
 
     async _renderStep() {
-        const body = document.getElementById("piStepBody");
+        const body = document.getElementById('piStepBody');
         if (!body) return;
-        const nextBtn = document.getElementById("piNextBtn");
+        const nextBtn = document.getElementById('piNextBtn');
 
         if (this._step === 1) {
-            if (nextBtn) nextBtn.textContent = "Próximo";
+            if (nextBtn) nextBtn.textContent = 'Próximo';
             body.innerHTML = `
             <div class="pi-step-section">
                 <p class="pi-step-label">Passo 1 de 4 — Selecione o fornecedor</p>
@@ -150,16 +239,16 @@ const PurchaseInvoices = {
             });
             this._supplierSelect.mount(document.getElementById('piSupplierContainer'));
             try {
-                const suppliers = await apiCall(API + "/suppliers");
+                const suppliers = await apiCall(API + '/suppliers');
                 this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: String(s.id), label: s.name })));
-            } catch (e) {}
+            } catch {}
 
         } else if (this._step === 2) {
-            if (nextBtn) nextBtn.textContent = "Próximo";
+            if (nextBtn) nextBtn.textContent = 'Próximo';
             body.innerHTML = `<p class="pi-step-label">Passo 2 de 4 — Selecione os recebimentos</p><div id="piReceiptsListWrapper"></div>`;
             try {
                 this._availableReceipts = await apiCall(API + `/purchase-invoices/available-receipts/${this._supplierId}`);
-                const wrapper = document.getElementById("piReceiptsListWrapper");
+                const wrapper = document.getElementById('piReceiptsListWrapper');
                 if (!this._availableReceipts.length) {
                     wrapper.innerHTML = `<p class="pi-empty">Nenhum recebimento disponível para este fornecedor.</p>`;
                     return;
@@ -174,14 +263,13 @@ const PurchaseInvoices = {
                         <td>${r.nature || ''}</td>
                     </tr>`).join('')}</tbody>
                 </table>`;
-            } catch (e) {
+            } catch {
                 body.innerHTML += `<p class="pi-empty">Erro ao carregar recebimentos.</p>`;
             }
 
         } else if (this._step === 3) {
-            if (nextBtn) nextBtn.textContent = "Próximo";
+            if (nextBtn) nextBtn.textContent = 'Próximo';
             body.innerHTML = `<p class="pi-step-label">Passo 3 de 4 — Revise e ajuste os itens</p>${this._buildItemsTable()}`;
-            // Bind price inputs
             document.querySelectorAll('.pi-price-input').forEach((inp, i) => {
                 inp.addEventListener('input', () => {
                     this._items[i].unit_price = parseFloat(inp.value) || 0;
@@ -191,7 +279,7 @@ const PurchaseInvoices = {
             });
 
         } else if (this._step === 4) {
-            if (nextBtn) nextBtn.textContent = "Salvar Fatura";
+            if (nextBtn) nextBtn.textContent = 'Salvar Fatura';
             const today = new Date().toISOString().slice(0, 10);
             body.innerHTML = `
             <p class="pi-step-label">Passo 4 de 4 — Dados da fatura</p>
@@ -237,11 +325,11 @@ const PurchaseInvoices = {
     },
 
     _calcDueDate() {
-        const emission = document.getElementById("piDateEmission")?.value;
-        const days = parseInt(document.getElementById("piPaymentDays")?.value);
-        const dueDateEl = document.getElementById("piDueDate");
+        const emission = document.getElementById('piDateEmission')?.value;
+        const days = parseInt(document.getElementById('piPaymentDays')?.value);
+        const dueDateEl = document.getElementById('piDueDate');
         if (!dueDateEl) return;
-        if (!emission || isNaN(days)) { dueDateEl.value = ""; return; }
+        if (!emission || isNaN(days)) { dueDateEl.value = ''; return; }
         const d = new Date(emission);
         d.setDate(d.getDate() + days);
         dueDateEl.value = d.toISOString().slice(0, 10);
@@ -252,11 +340,9 @@ const PurchaseInvoices = {
             this._selectedReceiptIds.map(id => apiCall(API + `/receipts/items/${id}`).catch(() => []))
         );
 
-        // Busca preços do fornecedor para pré-preencher
         let prices = [];
-        try { prices = await apiCall(API + `/suppliers/${this._supplierId}/prices`); } catch (e) {}
+        try { prices = await apiCall(API + `/suppliers/${this._supplierId}/prices`); } catch {}
 
-        // Agrega por material (soma quantidades) e separa serviços fixos individualmente
         const materialMap = {};
         const serviceItems = [];
 
@@ -290,8 +376,8 @@ const PurchaseInvoices = {
     },
 
     _buildItemsTable() {
-        const esc = v => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const fmtQty = v => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+        const esc = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const fmtQty = v => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         const rows = this._items.map((item, i) => `
         <tr>
             <td>${item.item_number}</td>
@@ -313,34 +399,33 @@ const PurchaseInvoices = {
 
     _updateItemsTotal() {
         const total = this._items.reduce((s, item) => s + (item.total_value || 0), 0);
-        const el = document.getElementById("piItemsTotal");
-        if (el) el.textContent = total.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
-        // Also update individual total cells
-        document.querySelectorAll('.pi-total-cell').forEach((cell) => {
+        const el = document.getElementById('piItemsTotal');
+        if (el) el.textContent = total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        document.querySelectorAll('.pi-total-cell').forEach(cell => {
             const idx = Number(cell.dataset.idx);
             if (!isNaN(idx) && this._items[idx]) {
-                cell.textContent = this._items[idx].total_value.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+                cell.textContent = this._items[idx].total_value.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             }
         });
     },
 
     async _saveInvoice() {
-        const number = document.getElementById("piNumber")?.value.trim();
-        const date_emission = document.getElementById("piDateEmission")?.value;
-        const date_receipt = document.getElementById("piDateReceipt")?.value;
-        const payment_days = parseInt(document.getElementById("piPaymentDays")?.value) || 0;
-        const due_date = document.getElementById("piDueDate")?.value || null;
-        const transporter_name = document.getElementById("piTransporter")?.value.trim() || null;
-        const driver_name = document.getElementById("piDriver")?.value.trim() || null;
-        const plate = document.getElementById("piPlate")?.value.trim() || null;
+        const number = document.getElementById('piNumber')?.value.trim();
+        const date_emission = document.getElementById('piDateEmission')?.value;
+        const date_receipt = document.getElementById('piDateReceipt')?.value;
+        const payment_days = parseInt(document.getElementById('piPaymentDays')?.value) || 0;
+        const due_date = document.getElementById('piDueDate')?.value || null;
+        const transporter_name = document.getElementById('piTransporter')?.value.trim() || null;
+        const driver_name = document.getElementById('piDriver')?.value.trim() || null;
+        const plate = document.getElementById('piPlate')?.value.trim() || null;
 
-        if (!number) { alert("Informe o número do documento"); return; }
-        if (!date_emission) { alert("Informe a data de emissão"); return; }
+        if (!number) { alert('Informe o número do documento'); return; }
+        if (!date_emission) { alert('Informe a data de emissão'); return; }
 
         const total_amount = this._items.reduce((s, i) => s + i.total_value, 0);
 
         const payload = {
-            document_type: "NCI",
+            document_type: 'NCI',
             number,
             date_emission,
             date_receipt,
@@ -356,58 +441,20 @@ const PurchaseInvoices = {
                 ({ item_number, description, unit_measure, quantity, unit_price, total_value }))
         };
 
-        // Verifica se algum preço foi alterado vs. o cadastro do fornecedor
-        const changedPrices = this._items.filter(item => {
-            if (!item._priceId) return false;
-            // Simplificação: se o usuário editou o campo, unit_price já foi atualizado em _items
-            return true;
-        });
-
         try {
-            const saved = await apiCall(API + "/purchase-invoices", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
+            const saved = await apiCall(API + '/purchase-invoices', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
             this._dialog.close();
             this.load();
 
-            if (saved?.id && confirm("Fatura salva! Deseja imprimir agora?")) {
-                window.open(API + `/purchase-invoices/print/${saved.id}`, "_blank");
+            if (saved?.id && confirm('Fatura salva! Deseja imprimir agora?')) {
+                this.printInvoice(saved.id);
             }
         } catch (e) {
-            alert(e.message || "Erro ao salvar fatura");
+            alert(e.message || 'Erro ao salvar fatura');
         }
     },
-
-    // ── Renderização ─────────────────────────────────────────────────────────
-
-    _renderTable(invoices) {
-        const tbody = document.getElementById("piTableBody");
-        if (!tbody) return;
-        const esc = v => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const fmtDate = v => v ? new Date(v + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
-        const fmtMoney = v => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-
-        if (!invoices || invoices.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Nenhuma fatura cadastrada.</td></tr>`;
-            return;
-        }
-        tbody.innerHTML = invoices.map(inv => `
-        <tr>
-            <td>${esc(inv.document_type)}</td>
-            <td>${esc(inv.number)}</td>
-            <td>${fmtDate(inv.date_emission)}</td>
-            <td>${esc(inv.supplier_name)}</td>
-            <td class="right">${fmtMoney(inv.total_amount)}</td>
-            <td class="pi-col-actions">
-                <button onclick="PurchaseInvoices.printInvoice(event, ${inv.id})" title="Imprimir NCI">
-                    <span class="material-symbols-outlined">print</span>
-                </button>
-                <button onclick="PurchaseInvoices.deleteInvoice(event, ${inv.id})" title="Excluir">
-                    <span class="material-symbols-outlined">delete</span>
-                </button>
-            </td>
-        </tr>`).join('');
-    }
 };

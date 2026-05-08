@@ -25,11 +25,16 @@
 /* Cabeçalho */
 
 .dt-table thead th {
+    height: 35px;
     text-align: left;
+    font-size: 11px;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--placeholder);
     padding: 8px 16px;
-    background: transparent;
-    border-bottom: 1px solid #dcdfe4;
+    background: var(--background);
+    border-bottom: 1px solid var(--border-components);
     position: sticky;
     top: 0;
     z-index: 5;
@@ -42,7 +47,7 @@
 }
 
 .dt-th-sortable:hover {
-    color: blue;
+    color: var(--interactive);
 }
 
 .dt-th-inner {
@@ -57,18 +62,18 @@
 }
 
 .dt-sort-icon--neutral {
-    color: #adb5bd;
+    color: var(--border-components-darker);
 }
 
 .dt-sort-icon--active {
-    color: #3b82f6;
+    color: var(--interactive);
 }
 
 /* Linhas */
 
 .dt-table tbody td {
     padding: 6px 16px;
-    border-bottom: 1px solid #eceef2;
+    border-bottom: 1px solid var(--border-components);
     vertical-align: middle;
 }
 
@@ -77,11 +82,11 @@
 }
 
 .dt-row:hover {
-    background-color: #f4f6f8;
+    background-color: var(--row-hover);
 }
 
 .dt-row--selected {
-    background-color: #eff6ff !important;
+    background-color: var(--selected) !important;
 }
 
 /* Coluna de checkbox */
@@ -95,7 +100,7 @@
     cursor: pointer;
     width: 15px;
     height: 15px;
-    accent-color: #3b82f6;
+    accent-color: var(--interactive);
 }
 
 /* Coluna de ações */
@@ -118,25 +123,22 @@
     justify-content: center;
     width: 28px;
     height: 28px;
-    border: 1px solid #e0e0e0;
+    border: none;
     border-radius: 4px;
-    background: white;
-    color: #555;
+    background: transparent;
+    color: var(--border-components-darker);
     cursor: pointer;
-    transition: background-color 0.15s, border-color 0.15s;
     padding: 0;
-    opacity: 0;
-    pointer-events: none;
+    transition: color 0.15s;
 }
 
 .dt-row:hover .dt-action-trigger {
-    opacity: 1;
-    pointer-events: auto;
+    color: var(--secondary-text);
 }
 
 .dt-action-trigger:hover {
-    background-color: #f0f0f0;
-    border-color: #bbb;
+    background: transparent;
+    color: var(--foreground);
 }
 
 .dt-action-trigger .material-symbols-outlined {
@@ -146,14 +148,12 @@
 /* Dropdown do menu de ações */
 
 .dt-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    right: 0;
-    z-index: 100;
+    position: fixed;
+    z-index: 9999;
     min-width: 160px;
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
+    background: var(--background);
+    border: 1px solid var(--border-components);
+    border-radius: var(--radius-md);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
     padding: 4px;
     display: flex;
@@ -172,25 +172,25 @@
     padding: 7px 10px;
     background: none;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     font-size: 13px;
     font-family: inherit;
-    color: #1a1a1a;
+    color: var(--foreground);
     cursor: pointer;
     text-align: left;
     transition: background-color 0.12s;
 }
 
 .dt-menu-item:hover {
-    background-color: #f4f6f8;
+    background-color: var(--muted);
 }
 
 .dt-menu-item--destructive {
-    color: #dc2626;
+    color: var(--destructive);
 }
 
 .dt-menu-item--destructive:hover {
-    background-color: #fff0f0;
+    background-color: rgba(226, 75, 74, 0.08);
 }
 
 .dt-menu-item-icon {
@@ -210,8 +210,8 @@
 .dt-spinner {
     width: 28px;
     height: 28px;
-    border: 3px solid #e0e0e0;
-    border-top-color: #3b82f6;
+    border: 3px solid var(--border-components);
+    border-top-color: var(--interactive);
     border-radius: 50%;
     animation: dt-spin 0.7s linear infinite;
 }
@@ -228,7 +228,7 @@
     align-items: center;
     gap: 8px;
     padding: 40px 16px;
-    color: #9e9e9e;
+    color: var(--muted-foreground);
     font-size: 13px;
     text-align: center;
 }
@@ -239,7 +239,7 @@
 
 .dt-empty-icon {
     font-size: 36px !important;
-    color: #ccc;
+    color: var(--border-components-darker);
 }
 
 /* Paginação */
@@ -250,13 +250,13 @@
     justify-content: space-between;
     padding: 10px 4px 2px;
     font-size: 13px;
-    color: #555;
+    color: var(--secondary-text);
     flex-wrap: wrap;
     gap: 8px;
 }
 
 .dt-pagination-info {
-    color: #777;
+    color: var(--muted-foreground);
     font-size: 12px;
 }
 
@@ -272,19 +272,19 @@
     gap: 4px;
     padding: 4px 10px;
     height: 28px;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    background: var(--background);
+    border: 1px solid var(--border-components);
+    border-radius: var(--radius-sm);
     font-size: 12px;
     font-family: inherit;
-    color: #333;
+    color: var(--foreground);
     cursor: pointer;
     transition: background-color 0.12s, border-color 0.12s;
 }
 
 .dt-page-btn:hover:not(:disabled) {
-    background-color: #f0f0f0;
-    border-color: #bbb;
+    background-color: var(--muted);
+    border-color: var(--border-components-darker);
 }
 
 .dt-page-btn:disabled {
@@ -299,15 +299,15 @@
 }
 
 .dt-page-btn--active {
-    background-color: #3b82f6;
-    border-color: #3b82f6;
+    background-color: var(--interactive);
+    border-color: var(--interactive);
     color: white;
     font-weight: 600;
 }
 
 .dt-page-btn--active:hover:not(:disabled) {
-    background-color: #2563eb;
-    border-color: #2563eb;
+    background-color: var(--interactive-hover);
+    border-color: var(--interactive-hover);
 }
 
 .dt-page-btn--nav .material-symbols-outlined {
@@ -319,4 +319,18 @@
     color: #999;
     font-size: 13px;
     user-select: none;
+}
+
+/* Célula vazia */
+
+.dt-cell-empty {
+    color: var(--placeholder);
+    font-size: 12px;
+}
+
+/* Contador de registros (sem paginação) */
+
+.dt-record-count {
+    font-size: 12px;
+    color: var(--muted-foreground);
 }

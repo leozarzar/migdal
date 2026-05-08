@@ -9,16 +9,16 @@
 .ninput-wrap {
     display: inline-flex;
     align-items: center;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border: 1px solid var(--border-components);
+    border-radius: var(--radius-md);
     overflow: hidden;
     height: 32px;
-    background: #ffffff;
+    background: var(--background);
     transition: border-color 0.2s;
 }
 
 .ninput-wrap:focus-within {
-    border-color: #94a3b8;
+    border-color: var(--border-components-darker);
 }
 
 /* ── Input interno (sem borda própria) ──────────────────────────── */
@@ -30,7 +30,7 @@
     height: 100%;
     padding: 0 8px;
     font-size: 13px;
-    color: #0f172a;
+    color: var(--foreground);
     background: transparent;
     width: 72px;
     -moz-appearance: textfield;
@@ -47,9 +47,9 @@
 .ninput-unit {
     padding: 0 10px;
     font-size: 12px;
-    color: #64748b;
-    background: #f8fafc;
-    border-left: 1px solid #e2e8f0;
+    color: var(--border-components-darkest);
+    background: var(--muted);
+    border-left: 1px solid var(--border-components);
     height: 100%;
     display: flex;
     align-items: center;

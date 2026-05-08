@@ -19,7 +19,6 @@ const Suppliers = {
         this._importDialog?.destroy(); this._importDialog = null;
         return `
         <div class="suppliers-container">
-            <div class="suppliers-card">
                 <div class="suppliers-form-wrapper">
                     <input id="supplierName" class="suppliers-input" placeholder="Nome do fornecedor">
                     <button class="suppliers-btn-save" id="supplierSaveBtn" onclick="Suppliers.saveSupplier()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
@@ -36,7 +35,6 @@ const Suppliers = {
                         <tbody id="suppliersTableBody"></tbody>
                     </table>
                 </div>
-            </div>
         </div>
         `;
     },

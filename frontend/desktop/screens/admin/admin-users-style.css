@@ -4,17 +4,50 @@
 
 .admin-users-container {
     width: 100%;
-    padding: 10px;
+    padding: 24px;
 }
 
-.admin-users-card {
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
-    padding: 16px;
-    overflow: hidden;
+/* ── Filters bar ── */
+
+.admin-users-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border-components);
 }
+
+.admin-users-filters-icon-wrap {
+    display: flex;
+    align-items: center;
+    color: var(--placeholder);
+    padding-right: 10px;
+    border-right: 1px solid var(--border-components);
+    margin-right: 2px;
+    flex-shrink: 0;
+}
+
+.admin-users-filters-icon {
+    font-size: 18px;
+}
+
+.admin-users-search-input {
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--border-components);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    color: #334155;
+    background: white;
+    outline: none;
+    width: 220px;
+    transition: border-color 0.15s;
+}
+
+.admin-users-search-input:focus { border-color: #94a3b8; }
+.admin-users-search-input::placeholder { color: var(--placeholder); }
 
 /* Select de papel */
 
