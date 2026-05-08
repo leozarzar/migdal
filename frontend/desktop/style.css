@@ -9,6 +9,8 @@
     --foreground:               #2C2C2A;
     --muted:                    #F9F9F8;
     --muted-foreground:         #888780;
+    --background-selected:      #f1f5f9;
+    --background-selected-hover: #e2e8f0;
     --background:               #ffffff;
     --border:                   #D3D1C7;
     --border-components:        #e2e8f0;

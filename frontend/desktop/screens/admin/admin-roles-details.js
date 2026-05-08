@@ -19,17 +19,19 @@ const AdminRolesDetails = {
     _permissions: {},   // { "moduleId::screenId": Set<action> }
     _isDirty: false,
     _locationSelect: null,
+    _nameInput: null,
 
 // ── Ciclo de Vida ────────────────────────────────────────────────
     render() {
         this._locationSelect?.destroy(); this._locationSelect = null;
+        this._nameInput?.destroy(); this._nameInput = null;
         return `
         <div class="admin-roles-details-container">
             <div class="admin-roles-details-card">
                 <div class="admin-roles-details-form">
                     <div class="admin-roles-details-field admin-roles-details-field--name">
                         <label for="adminRolesDetailsName">Nome *</label>
-                        <input type="text" id="adminRolesDetailsName" placeholder="Ex: Almoxarife" oninput="AdminRolesDetails._markDirty()">
+                        <div id="adminRolesDetailsNameContainer"></div>
                     </div>
                     <div class="admin-roles-details-field admin-roles-details-field--desc">
                         <label for="adminRolesDetailsDesc">Descrição</label>
@@ -58,10 +60,18 @@ const AdminRolesDetails = {
     async load() {
         const roleId = AdminRoles.selectedRoleId;
 
-        // Criar SearchSelect de localizações (sempre, mesmo no modo criação)
-        this._locationSelect = createSearchSelect({
+        this._nameInput = createInput({
+            id: 'adminRolesDetailsName',
+            placeholder: 'Ex: Almoxarife',
+            onInput: () => AdminRolesDetails._markDirty(),
+        });
+        document.getElementById('adminRolesDetailsNameContainer').appendChild(this._nameInput.el);
+
+        // Criar Select de localizações (sempre, mesmo no modo criação)
+        this._locationSelect = createSelect({
             placeholder: 'Selecionar localizações...',
             multiple: true,
+            searchable: true,
             sections: [{ key: 'locations', items: [] }]
         });
         this._locationSelect.mount(document.getElementById('adminRolesDetailsLocationSelect'));
@@ -91,7 +101,7 @@ const AdminRolesDetails = {
 
         // Pré-selecionar localizações do papel
         if (this._role.location_ids && this._role.location_ids.length > 0) {
-            this._locationSelect.setSelectedValues('locations', this._role.location_ids);
+            this._locationSelect.setValues(this._role.location_ids);
         }
 
         // Converter permissões em mapa
@@ -153,8 +163,7 @@ const AdminRolesDetails = {
             });
 
             // Salvar localizações do papel
-            const selectedLocs = this._locationSelect ? this._locationSelect.getValues() : [];
-            const location_ids = selectedLocs.map(item => item.value);
+            const location_ids = this._locationSelect ? this._locationSelect.getValue() : [];
             await apiCall(API + '/roles/' + roleId + '/locations', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },

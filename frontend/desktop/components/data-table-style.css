@@ -73,6 +73,7 @@
 
 .dt-table tbody td {
     padding: 6px 16px;
+    height: 44px;
     border-bottom: 1px solid var(--border-components);
     vertical-align: middle;
 }
@@ -299,15 +300,15 @@
 }
 
 .dt-page-btn--active {
-    background-color: var(--interactive);
-    border-color: var(--interactive);
+    background-color: var(--primary);
+    border-color: var(--primary);
     color: white;
     font-weight: 600;
 }
 
 .dt-page-btn--active:hover:not(:disabled) {
-    background-color: var(--interactive-hover);
-    border-color: var(--interactive-hover);
+    background-color: var(--primary-darker);
+    border-color: var(--primary-darker);
 }
 
 .dt-page-btn--nav .material-symbols-outlined {
@@ -333,4 +334,24 @@
 .dt-record-count {
     font-size: 12px;
     color: var(--muted-foreground);
+}
+
+.qty-fraction {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+}
+
+.qty-received {
+    font-weight: 500;
+    color: var(--text-primary, #1a1a1a);
+}
+
+.qty-sep {
+    color: var(--text-tertiary, #bdbdbd);
+    margin: 0 1px;
+}
+
+.qty-total {
+    color: var(--text-tertiary, #bdbdbd);
 }

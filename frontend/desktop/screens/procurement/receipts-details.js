@@ -209,18 +209,15 @@ const ReceiptsDetails = {
         this._setHeaderOptions();
 
         // Criar e montar SearchSelects
-        this._supplierSelect = createSearchSelect({
-            id: 'receiptSupplier',
+        this._supplierSelect = createSelect({
             placeholder: 'Selecione um fornecedor',
             searchable: true,
-            searchPlaceholder: 'Buscar...',
             sections: [{ key: 'supplier', items: [] }],
             onChange: () => { ReceiptsDetails.onSupplierChange(); ReceiptsDetails._markDirty(); }
         });
         this._supplierSelect.mount(document.getElementById('receiptSupplierContainer'));
 
-        this._orderSelect = createSearchSelect({
-            id: 'receiptOrder',
+        this._orderSelect = createSelect({
             placeholder: 'Pedido',
             searchable: false,
             sections: [{ key: 'order', items: [] }],
@@ -231,11 +228,9 @@ const ReceiptsDetails = {
         this._materialSelect = null;
         this._operatorSelect = null;
 
-        this._locationSelect = createSearchSelect({
-            id: 'receiptLocation',
+        this._locationSelect = createSelect({
             placeholder: 'Selecione uma localização',
             searchable: true,
-            searchPlaceholder: 'Buscar...',
             sections: [{ key: 'location', items: [] }],
             onChange: () => ReceiptsDetails._markDirty()
         });
@@ -263,10 +258,10 @@ const ReceiptsDetails = {
 
             const dateId = nature === "P" ? "receiptDateProduction" : "receiptDate";
             document.getElementById(dateId).value = Receipts.selectedReceipt.date;
-            if (Receipts.selectedReceipt.supplier) this._supplierSelect.select('supplier', Receipts.selectedReceipt.supplier);
+            if (Receipts.selectedReceipt.supplier) this._supplierSelect.setValue(Receipts.selectedReceipt.supplier);
             await this.onSupplierChange();
-            if (Receipts.selectedReceipt.order_id) this._orderSelect.select('order', Receipts.selectedReceipt.order_id);
-            if (Receipts.selectedReceipt.location_id) this._locationSelect?.select('location', Receipts.selectedReceipt.location_id);
+            if (Receipts.selectedReceipt.order_id) this._orderSelect.setValue(Receipts.selectedReceipt.order_id);
+            if (Receipts.selectedReceipt.location_id) this._locationSelect?.setValue(Receipts.selectedReceipt.location_id);
         } else {
             const saveBtn = document.getElementById("saveBtn");
             if (saveBtn) {
@@ -282,8 +277,9 @@ const ReceiptsDetails = {
         if (this._isReadOnly()) {
             document.querySelectorAll('#content input, #content select, #content textarea')
                 .forEach(el => el.disabled = true);
-            document.querySelectorAll('#content .sselect-wrap')
-                .forEach(el => el.classList.add('sselect-disabled'));
+            this._supplierSelect?.setDisabled(true);
+            this._orderSelect?.setDisabled(true);
+            this._locationSelect?.setDisabled(true);
             const addWrapper = document.getElementById('receiptsDetailsAddWrapper');
             if (addWrapper) addWrapper.style.display = 'none';
         } else {
@@ -310,7 +306,7 @@ const ReceiptsDetails = {
                 this._locationSelect.setItems('location', filtered.map(l => ({ value: l.id, label: l.name })));
                 // Auto-selecionar quando há apenas uma localização disponível
                 if (filtered.length === 1 && !this._locationSelect.getValue()) {
-                    this._locationSelect.select('location', filtered[0].id);
+                    this._locationSelect.setValue(filtered[0].id);
                 }
             }
         } catch (e) { /* falha silenciosa em background */ }
@@ -468,8 +464,7 @@ const ReceiptsDetails = {
             bodyHTML: `
                 <div class="receipts-details-dialog-form">
                     <label id="rdItemCodeLabel" style="display:none">Código
-                        <input id="rdItemCode" type="number" min="0" class="dialog-input" placeholder="Código"
-                               oninput="ReceiptsDetails.validateItemCode(this)">
+                        <div id="rdItemCodeMount"></div>
                     </label>
                     <div class="receipts-details-dialog-field">Material <span class="required">*</span>
                         <div class="select-with-btn">
@@ -497,33 +492,58 @@ const ReceiptsDetails = {
                         </label>
                     </div>
                     <label id="rdItemQtyLabel">Quantidade <span class="required">*</span>
-                        <input id="rdItemQty" type="number" step="any" min="0.01" class="dialog-input" placeholder="0,00">
+                        <div id="rdItemQtyMount"></div>
                     </label>
                     <div id="rdItemPkgFields" style="display:none">
                         <label>Embalagem
                             <select id="rdItemPkgSelect" class="dialog-input" onchange="ReceiptsDetails._onDlgPkgSelectChange()"></select>
                         </label>
                         <label>Qtd. Embalagens <span class="required">*</span>
-                            <input id="rdItemPkgCount" type="number" step="1" min="1" class="dialog-input" placeholder="0"
-                                   oninput="ReceiptsDetails._onDlgPkgCountChange()">
+                            <div id="rdItemPkgCountMount"></div>
                             <span id="rdItemPkgHint" class="receipts-details-pkg-hint"></span>
                         </label>
                     </div>
                 </div>
             `,
             actions: [
-                { label: isEdit ? 'Salvar' : 'Adicionar', className: 'btn-primary', icon: isEdit ? 'check' : 'playlist_add', onClick: () => this._confirmItemDialog() },
-                { label: 'Cancelar', className: 'btn-secondary', onClick: () => this._itemDialog.close() },
+                { label: isEdit ? 'Salvar' : 'Adicionar', variant: 'primary', icon: isEdit ? 'check' : 'playlist_add', onClick: () => this._confirmItemDialog() },
+                { label: 'Cancelar', variant: 'secondary', onClick: () => this._itemDialog.close() },
             ],
         });
         this._itemDialog.open();
 
+        // Mount custom inputs inside dialog
+        const codeInput = createInput({
+            id: 'rdItemCode',
+            type: 'number',
+            placeholder: 'Código',
+            onInput: (_v, e) => ReceiptsDetails.validateItemCode(e.target),
+        });
+        document.getElementById('rdItemCodeMount').appendChild(codeInput.el);
+
+        const qtyInput = createInput({
+            id: 'rdItemQty',
+            type: 'number',
+            placeholder: '0,00',
+        });
+        qtyInput.input.step = 'any';
+        qtyInput.input.min = '0.01';
+        document.getElementById('rdItemQtyMount').appendChild(qtyInput.el);
+
+        const pkgCountInput = createInput({
+            id: 'rdItemPkgCount',
+            type: 'number',
+            placeholder: '0',
+            onInput: () => ReceiptsDetails._onDlgPkgCountChange(),
+        });
+        pkgCountInput.input.step = '1';
+        pkgCountInput.input.min = '1';
+        document.getElementById('rdItemPkgCountMount').appendChild(pkgCountInput.el);
+
         // Mount material SearchSelect inside dialog
-        this._dlgMaterialSelect = createSearchSelect({
-            id: 'rdItemMaterial',
+        this._dlgMaterialSelect = createSelect({
             placeholder: 'Selecione um material',
             searchable: true,
-            searchPlaceholder: 'Buscar...',
             sections: [{ key: 'material', items: [] }],
             onChange: () => this._onDlgMaterialChange(),
         });
@@ -532,23 +552,21 @@ const ReceiptsDetails = {
 
         // Mount operator SearchSelect if production
         if (showOperator) {
-            this._dlgOperatorSelect = createSearchSelect({
-                id: 'rdItemOperator',
+            this._dlgOperatorSelect = createSelect({
                 placeholder: 'Selecione um operador',
                 searchable: true,
-                searchPlaceholder: 'Buscar...',
                 sections: [{ key: 'operator', items: [] }],
             });
             this._dlgOperatorSelect.mount(document.getElementById('rdItemOperatorContainer'));
             apiCall(API + "/operators").then(ops => {
                 this._dlgOperatorSelect?.setItems('operator', (ops || []).map(o => ({ value: o.name, label: o.name })));
-                if (editItem?.operator) this._dlgOperatorSelect.select('operator', editItem.operator);
+                if (editItem?.operator) this._dlgOperatorSelect.setValue(editItem.operator);
             }).catch(() => {});
         }
 
         // Pre-fill for edit mode
         if (editItem) {
-            this._dlgMaterialSelect.select('material', editItem.material);
+            this._dlgMaterialSelect.setValue(editItem.material);
             document.getElementById('rdItemQty').value = editItem.quantity;
             if (isLotEdit) {
                 const codeLabel = document.getElementById('rdItemCodeLabel');
@@ -562,9 +580,9 @@ const ReceiptsDetails = {
 
     /** Confirma o dialog de item — adiciona ou edita o item */
     _confirmItemDialog() {
-        const material = this._dlgMaterialSelect?.getValue()?.value || '';
+        const material = this._dlgMaterialSelect?.getValue() || '';
         const nature = document.getElementById("receiptNature").value;
-        const itemOperator = this._dlgOperatorSelect?.getValue()?.value || '';
+        const itemOperator = this._dlgOperatorSelect?.getValue() || '';
         const isLot = this._getMaterialTrackingMode(material) === 'lots';
         const code = document.getElementById("rdItemCode")?.value?.trim() || '';
 
@@ -659,7 +677,7 @@ const ReceiptsDetails = {
         const selected = this._dlgMaterialSelect?.getValue();
         if (!selected) return;
 
-        const mode = this._getMaterialTrackingMode(selected.value);
+        const mode = this._getMaterialTrackingMode(selected);
         const codeLabel = document.getElementById('rdItemCodeLabel');
         if (codeLabel) {
             codeLabel.style.display = mode === 'lots' ? '' : 'none';
@@ -670,7 +688,7 @@ const ReceiptsDetails = {
         }
 
         // Fetch packagings for the selected material
-        const mat = this._materialsCache.find(m => m.name === selected.value);
+        const mat = this._materialsCache.find(m => m.name === selected);
         this._dlgPackagings = [];
         if (mat) {
             try {
@@ -898,11 +916,10 @@ const ReceiptsDetails = {
             if (metaOrder) metaOrder.style.display = "";
             if (metaProduction) metaProduction.style.display = "none";
 
-            const supplierSel = this._supplierSelect?.getValue();
-            const supplierName = supplierSel?.label ?? "-";
+            const supplierName = this._supplierSelect?.getValue() ?? "-";
             document.getElementById("receiptSupplierName").textContent = supplierName;
 
-            const orderId = this._orderSelect?.getValue()?.value;
+            const orderId = this._orderSelect?.getValue();
             document.getElementById("receiptOrderNumber").textContent = orderId ? `#${orderId}` : "-";
         } else {
             if (metaSupplier) metaSupplier.style.display = "none";
@@ -1005,7 +1022,7 @@ const ReceiptsDetails = {
 
     /** Filtra pedidos ao selecionar fornecedor */
     async onSupplierChange() {
-        const selectedSupplier = this._supplierSelect?.getValue()?.value || '';
+        const selectedSupplier = this._supplierSelect?.getValue() || '';
 
         if (!selectedSupplier) {
             this._orderSelect?.setItems('order', []);
@@ -1069,8 +1086,8 @@ const ReceiptsDetails = {
                 bodyHTML,
                 closeOnBackdrop: false,
                 actions: [
-                    { label: 'Cancelar',           className: 'btn-secondary', onClick: () => { dlg.close(); done(false); } },
-                    { label: 'Confirmar e Salvar', className: 'btn-primary',   onClick: () => { dlg.close(); done(true);  } },
+                    { label: 'Cancelar',           variant: 'secondary', onClick: () => { dlg.close(); done(false); } },
+                    { label: 'Confirmar e Salvar', variant: 'primary',   onClick: () => { dlg.close(); done(true);  } },
                 ],
                 onClose: () => done(false),
             });
@@ -1094,16 +1111,16 @@ const ReceiptsDetails = {
                 ...baseData,
                 supplier: null,
                 order_id: null,
-                location_id: this._locationSelect?.getValue()?.value || null,
+                location_id: this._locationSelect?.getValue() || null,
             };
         } else {
             // Compra ou Retorno de Serviço
-            const orderVal = this._orderSelect?.getValue()?.value;
+            const orderVal = this._orderSelect?.getValue();
             return {
                 ...baseData,
-                supplier: this._supplierSelect?.getValue()?.value || null,
+                supplier: this._supplierSelect?.getValue() || null,
                 order_id: orderVal ? parseInt(orderVal) : null,
-                location_id: this._locationSelect?.getValue()?.value || null,
+                location_id: this._locationSelect?.getValue() || null,
             };
         }
     },
@@ -1114,7 +1131,7 @@ const ReceiptsDetails = {
         for (const item of itemList) {
             // Operador só é relevante para natureza Produção
             const operator = nature === "P" ? (item.operator || null) : null;
-            const locationVal = this._locationSelect?.getValue()?.value || null;
+            const locationVal = this._locationSelect?.getValue() || null;
 
             if (item.tracking_mode === 'simple') {
                 // Simples: cria apenas movimentação de entrada (sem stock_unit)

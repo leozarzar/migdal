@@ -53,10 +53,15 @@ const MobApp = {
             });
             if (!res.ok) throw new Error();
             const data = await res.json();
-            if (data.name) localStorage.setItem('wcm.auth.name', data.name);
+            if (data.name)  localStorage.setItem('wcm.auth.name',  data.name);
+            if (data.email) localStorage.setItem('wcm.auth.email', data.email);
 
             // Armazena usuário e permissões (mesma estrutura do desktop)
             window.AppUser = data.user || null;
+            if (window.AppUser) {
+                if (!window.AppUser.email && data.email) window.AppUser.email = data.email;
+                if (!window.AppUser.name  && data.name)  window.AppUser.name  = data.name;
+            }
             window.AppPermissions = data.permissions || [];
         } catch {
             localStorage.removeItem('wcm.auth.token');
@@ -114,13 +119,92 @@ const MobApp = {
     },
 
     /**
-     * Oculta atalhos do home que o usuário não tem permissão de ver.
+     * Oculta atalhos / itens do bottom nav que o usuário não tem permissão de ver.
      */
     _applyMobilePermissions() {
-        const receiptsBtn = document.getElementById('mobShortcutReceipts');
-        const stockBtn    = document.getElementById('mobShortcutStock');
-        if (receiptsBtn) receiptsBtn.style.display = hasScreenAccess('procurement', 'receipts') ? '' : 'none';
-        if (stockBtn)    stockBtn.style.display    = hasScreenAccess('inventory', 'stock-units') ? '' : 'none';
+        const receiptsNav = document.getElementById('mobBottomNavReceipts');
+        const stockNav    = document.getElementById('mobBottomNavStock');
+        if (receiptsNav) receiptsNav.style.display = hasScreenAccess('procurement', 'receipts') ? '' : 'none';
+        if (stockNav)    stockNav.style.display    = hasScreenAccess('inventory', 'stock-units') ? '' : 'none';
+    },
+
+    /**
+     * Alterna entre tema claro e escuro, persistindo a escolha.
+     */
+    toggleTheme() {
+        const root = document.documentElement;
+        const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        root.setAttribute('data-theme', next);
+        try { localStorage.setItem('wcm.mobile.theme', next); } catch { /* ignora */ }
+        this._updateThemeChrome();
+        // Redesenha o gráfico para atualizar cores que dependem das CSS vars
+        if (this.HomeScreen && this.HomeScreen._policyFull) {
+            this.HomeScreen.refresh();
+        }
+    },
+
+    /**
+     * Atualiza estado ativo dos itens do bottom nav.
+     */
+    _syncBottomNav(screen) {
+        const map = {
+            'home': 'home',
+            'profile': 'home',
+            'list': 'list', 'form': 'list',
+            'stock-list': 'stock-list', 'stock-details': 'stock-list',
+            'orders': 'orders',
+            'more': 'more',
+        };
+        const target = map[screen] || 'home';
+        document.querySelectorAll('.mob-bottom-nav-item').forEach(el => {
+            el.classList.toggle('mob-bottom-nav-item--active', el.dataset.screen === target);
+        });
+    },
+
+    /** Telas top-level — exibem o bottom nav. */
+    _toplevelScreens: new Set(['home', 'list', 'stock-list', 'orders', 'more', 'profile']),
+
+    /** Telas com layout temático (escondem o header legado). */
+    _themedScreens: new Set(['home', 'profile', 'orders', 'more']),
+
+    /**
+     * Renderiza/atualiza o avatar e os campos do perfil a partir do AppUser.
+     */
+    _renderUserChrome() {
+        const user  = window.AppUser || null;
+        const name  = (user && user.name)  || localStorage.getItem('wcm.auth.name')  || '';
+        const email = (user && user.email) || localStorage.getItem('wcm.auth.email') || '';
+
+        const initials = (() => {
+            const trimmed = (name || '').trim();
+            if (!trimmed) return '·';
+            const parts = trimmed.split(/\s+/);
+            if (parts.length === 1) return parts[0].slice(0, 2);
+            return (parts[0][0] + parts[parts.length - 1][0]);
+        })();
+
+        const homeAvatar = document.getElementById('mobHomeAvatarInitials');
+        if (homeAvatar) homeAvatar.textContent = initials;
+
+        const profileInit  = document.getElementById('mobProfileInitials');
+        const profileName  = document.getElementById('mobProfileName');
+        const profileEmail = document.getElementById('mobProfileEmail');
+        if (profileInit)  profileInit.textContent  = initials;
+        if (profileName)  profileName.textContent  = name  || 'Usuário';
+        if (profileEmail) profileEmail.textContent = email || '—';
+
+        this._updateThemeChrome();
+    },
+
+    /** Atualiza textos/estado relacionados ao tema (label e badge no perfil). */
+    _updateThemeChrome() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const title  = document.getElementById('mobProfileThemeTitle');
+        const sub    = document.getElementById('mobProfileThemeSub');
+        const state  = document.getElementById('mobProfileThemeState');
+        if (title) title.textContent = isDark ? 'Modo claro' : 'Modo escuro';
+        if (sub)   sub.textContent   = 'Toque para alternar';
+        if (state) state.textContent = isDark ? 'escuro' : 'claro';
     },
 
     showScreen(screen) {
@@ -131,18 +215,38 @@ const MobApp = {
             return;
         }
 
-        document.getElementById('screenHome').style.display         = screen === 'home'          ? '' : 'none';
-        document.getElementById('screenList').style.display         = screen === 'list'          ? '' : 'none';
-        document.getElementById('screenForm').style.display         = screen === 'form'          ? '' : 'none';
-        document.getElementById('screenStockList').style.display    = screen === 'stock-list'    ? '' : 'none';
-        document.getElementById('screenStockDetails').style.display = screen === 'stock-details' ? '' : 'none';
+        const screensById = {
+            'home':          'screenHome',
+            'list':          'screenList',
+            'form':          'screenForm',
+            'stock-list':    'screenStockList',
+            'stock-details': 'screenStockDetails',
+            'profile':       'screenProfile',
+            'orders':        'screenOrders',
+            'more':          'screenMore',
+        };
+        Object.entries(screensById).forEach(([key, id]) => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = (screen === key) ? '' : 'none';
+        });
+
+        document.body.classList.toggle('mob-on-toplevel', this._toplevelScreens.has(screen));
+        document.body.classList.toggle('mob-on-themed',   this._themedScreens.has(screen));
+        this._syncBottomNav(screen);
 
         const backBtn = document.getElementById('mobBackBtn');
-        backBtn.style.display = screen === 'home' ? 'none' : '';
+        if (backBtn) backBtn.style.display = screen === 'home' ? 'none' : '';
 
         if (screen === 'home') {
             document.getElementById('mobHeaderSubtitle').textContent = '';
+            this._renderUserChrome();
             this.HomeScreen.load();
+        } else if (screen === 'profile') {
+            this._renderUserChrome();
+        } else if (screen === 'more') {
+            this.MoreScreen.load();
+        } else if (screen === 'orders') {
+            /* placeholder — sem load */
         } else if (screen === 'list') {
             this._editingReceipt = null;
             this._previousScreen = 'home';

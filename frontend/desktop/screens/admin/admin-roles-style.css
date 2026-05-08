@@ -32,22 +32,9 @@
     font-size: 18px;
 }
 
-.admin-roles-search-input {
-    height: 34px;
-    padding: 0 10px;
-    border: 1px solid var(--border-components);
-    border-radius: 6px;
-    font-family: inherit;
-    font-size: 13px;
-    color: #334155;
-    background: white;
-    outline: none;
+.admin-roles-search-container {
     width: 220px;
-    transition: border-color 0.15s;
 }
-
-.admin-roles-search-input:focus { border-color: #94a3b8; }
-.admin-roles-search-input::placeholder { color: var(--placeholder); }
 
 .admin-roles-filters-actions {
     margin-left: auto;
@@ -57,7 +44,7 @@
 
 .admin-roles-badge {
     display: inline-block;
-    padding: 2px 8px;
+    padding: 4px 12px;
     border-radius: 10px;
     font-size: 11px;
     font-weight: 600;

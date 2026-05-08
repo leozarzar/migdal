@@ -64,40 +64,6 @@
     visibility: hidden;
 }
 
-/* ── Select e inputs ────────────────────────────── */
-
-.kpid-select {
-    height: 32px;
-    padding: 0 10px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    background: #ffffff;
-    color: #0f172a;
-    font-size: 13px;
-    cursor: pointer;
-    outline: none;
-    min-width: 200px;
-}
-
-.kpid-select:focus {
-    border-color: #94a3b8;
-}
-
-.kpid-date-input {
-    height: 32px;
-    padding: 0 10px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    background: #ffffff;
-    color: #0f172a;
-    font-size: 13px;
-    cursor: pointer;
-    outline: none;
-}
-
-.kpid-date-input:focus {
-    border-color: #94a3b8;
-}
 
 /* ── Checkbox considerar ajustes ────────────────────────── */
 

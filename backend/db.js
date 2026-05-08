@@ -315,7 +315,7 @@ function migrateStockUnitsToMovements() {
 
 				// Step 2: Insert entry movements for ALL stock_units
 				db.run(`
-					INSERT INTO stock_movements (type, material_id, quantity, date, receipt_id, lot_id, operator, reason, notes)
+					INSERT INTO stock_movements (type, material_id, quantity, date, receipt_id, lot_id, location_id, operator, reason, notes)
 					SELECT
 						'entry',
 						COALESCE(su.material_id, 0),
@@ -323,6 +323,7 @@ function migrateStockUnitsToMovements() {
 						su.date_in,
 						su.receipt_id,
 						su.id,
+						COALESCE(su.location_id, r.location_id),
 						su.operator,
 						CASE COALESCE(r.nature, '')
 							WHEN 'C' THEN 'purchase'
@@ -342,7 +343,7 @@ function migrateStockUnitsToMovements() {
 
 					// Step 3: Insert exit movements for OUT_STOCK units
 					db.run(`
-						INSERT INTO stock_movements (type, material_id, quantity, date, receipt_id, lot_id, operator, reason, notes)
+						INSERT INTO stock_movements (type, material_id, quantity, date, receipt_id, lot_id, location_id, operator, reason, notes)
 						SELECT
 							'exit',
 							COALESCE(su.material_id, 0),
@@ -350,6 +351,7 @@ function migrateStockUnitsToMovements() {
 							su.date_out,
 							su.receipt_id,
 							su.id,
+							su.location_id,
 							su.operator,
 							CASE COALESCE(su.deduction_type, 'uso')
 								WHEN 'uso' THEN 'consumption'

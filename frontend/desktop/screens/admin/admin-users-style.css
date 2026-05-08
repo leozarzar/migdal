@@ -34,16 +34,7 @@
 
 .admin-users-search-input {
     height: 36px;
-    padding: 0 10px;
-    border: 1px solid var(--border-components);
-    border-radius: 6px;
-    font-family: inherit;
-    font-size: 13px;
-    color: #334155;
-    background: white;
-    outline: none;
     width: 220px;
-    transition: border-color 0.15s;
 }
 
 .admin-users-search-input:focus { border-color: #94a3b8; }

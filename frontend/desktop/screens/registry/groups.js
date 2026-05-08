@@ -18,6 +18,7 @@ const Groups = {
     render() {
         this._dataTable?.destroy(); this._dataTable = null;
         this._newBtn?.destroy();    this._newBtn = null;
+        this._searchInput?.destroy(); this._searchInput = null;
         this._allGroups = [];
         this._searchQuery = '';
         return `
@@ -26,7 +27,7 @@ const Groups = {
                 <div class="groups-filters-icon-wrap">
                     <span class="material-symbols-outlined groups-filters-icon">filter_list</span>
                 </div>
-                <input type="text" id="groupsSearch" class="groups-search-input" placeholder="Buscar" oninput="Groups._onSearch(this.value)">
+                <div id="groupsSearchMount"></div>
                 <div id="groupsNewBtnContainer" class="groups-filters-actions"></div>
             </div>
             <div id="groupsTableContainer"></div>
@@ -36,6 +37,18 @@ const Groups = {
 
     async load() {
         this._mountNewButton();
+        if (!this._searchInput) {
+            const mount = document.getElementById('groupsSearchMount');
+            if (mount) {
+                this._searchInput = createInput({
+                    id: 'groupsSearch',
+                    placeholder: 'Buscar',
+                    icon: 'Search',
+                    onInput: v => Groups._onSearch(v),
+                });
+                mount.appendChild(this._searchInput.el);
+            }
+        }
 
         if (!this._dataTable) {
             this._dataTable = createDataTable({

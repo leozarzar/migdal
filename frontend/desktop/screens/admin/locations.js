@@ -7,50 +7,85 @@ const Locations = {
 
     // ── Estado ──
 
-    selectedLocation: null,
+    _dataTable: null,
+    _dialog: null,
+    _newBtn: null,
+    _searchInput: null,
+    _editingId: null,
+    _nameInput: null,
+    _descInput: null,
+    _allLocations: [],
 
     // ── Ciclo de Vida ──
 
-    /** Retorna o template HTML da tela. */
     render() {
-        return `
-        <div class="locations-container">
-                <div class="locations-form-wrapper">
-                    <input id="locationName" class="locations-input" placeholder="Nome da localização">
-                    <input id="locationDescription" class="locations-input locations-input--wide" placeholder="Descrição (opcional)">
-                    <button class="locations-btn-save" id="locationSaveBtn" onclick="Locations.saveLocation()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
-                    <button class="locations-btn-cancel" id="locationsCancelBtn" style="display:none" onclick="Locations.cancelEdit()">Cancelar</button>
+        this._dataTable?.destroy();  this._dataTable  = null;
+        this._dialog?.destroy();     this._dialog     = null;
+        this._newBtn?.destroy();     this._newBtn     = null;
+        this._searchInput?.destroy(); this._searchInput = null;
+        this._nameInput  = null;
+        this._descInput  = null;
+        this._editingId  = null;
+        this._allLocations = [];
+        return `<div class="locations-container">
+            <div class="locations-filters">
+                <div class="locations-filters-icon-wrap">
+                    <span class="material-symbols-outlined locations-filters-icon">filter_list</span>
                 </div>
-                <div class="locations-table-container">
-                    <table class="locations-table">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Descrição</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="locationsTableBody"></tbody>
-                    </table>
-                </div>
-        </div>
-        `;
+                <div id="locationsSearchContainer"></div>
+                <div id="locationsNewBtnContainer" class="locations-filters-actions"></div>
+            </div>
+            <div id="locationsTableContainer"></div>
+        </div>`;
     },
 
-    /** Inicializa a tela: reseta formulário e carrega localizações. */
     async load() {
-        this._resetForm();
-        const headerOptions = document.getElementById("headerOptionsContent");
-        if (headerOptions) headerOptions.innerHTML = "";
+        this._mountNewButton();
 
-        const formWrapper = document.querySelector('.locations-form-wrapper');
-        if (formWrapper) formWrapper.style.display = hasPermission('registry', 'locations', 'create') ? '' : 'none';
+        if (!this._searchInput) {
+            this._searchInput = createInput({
+                placeholder: 'Buscar',
+                icon: 'Search',
+                onInput: () => this._applyFilter(),
+            });
+            document.getElementById('locationsSearchContainer').appendChild(this._searchInput.el);
+        }
+
+        if (!this._dialog) this._dialog = this._createDialog();
+
+        if (!this._dataTable) {
+            this._dataTable = createDataTable({
+                columns: [
+                    { key: 'name', header: 'Nome', sortable: true, render: r => `<strong>${_esc(r.name)}</strong>` },
+                    { key: 'description', header: 'Descrição', render: r => _esc(r.description || '—') },
+                ],
+                getRowKey: r => r.id,
+                actions: [
+                    {
+                        label: 'Editar', icon: 'edit',
+                        hidden: () => !hasPermission('registry', 'locations', 'edit'),
+                        onClick: r => this.openDialog(r),
+                    },
+                    {
+                        label: 'Excluir', icon: 'delete', variant: 'destructive',
+                        hidden: () => !hasPermission('registry', 'locations', 'delete'),
+                        onClick: r => this.deleteLocation(r.id),
+                    },
+                ],
+                emptyMessage: 'Nenhuma localização cadastrada.',
+                emptyIcon: 'location_on',
+            });
+            this._dataTable.mount(document.getElementById('locationsTableContainer'));
+        }
+
+        this._dataTable.setLoading(true);
 
         try {
-            const locations = await apiCall(API + "/locations");
-            this._renderTable(locations);
+            this._allLocations = await apiCall(API + '/locations');
+            this._applyFilter();
         } catch (error) {
-            alert("Erro ao carregar localizações");
+            this._dataTable.setData([]);
+            alert('Erro ao carregar localizações');
         }
     },
 
@@ -58,126 +93,106 @@ const Locations = {
 
     // ── Ações Públicas ──
 
-    /** Salva uma nova localização ou atualiza a selecionada. */
-    async saveLocation() {
-        const action = this.selectedLocation ? 'edit' : 'create';
-        if (!hasPermission('registry', 'locations', action)) return;
+    openDialog(location = null) {
+        this._editingId = location?.id ?? null;
+        this._dialog.setTitle(location ? 'Editar Localização' : 'Nova Localização');
+        if (this._nameInput) this._nameInput.setValue(location?.name ?? '');
+        if (this._descInput) this._descInput.setValue(location?.description ?? '');
+        this._dialog.open();
+        setTimeout(() => this._nameInput?.input.focus(), 50);
+    },
 
-        const name = document.getElementById("locationName").value.trim();
-        const description = document.getElementById("locationDescription").value.trim();
+    async saveLocation() {
+        const name = this._nameInput?.getValue().trim();
+        const description = this._descInput?.getValue().trim();
 
         if (!name) {
-            alert("Digite o nome da localização");
+            alert('Digite o nome da localização');
             return;
         }
 
         try {
-            if (this.selectedLocation) {
-                await apiCall(API + `/locations/${this.selectedLocation}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name, description })
+            if (this._editingId) {
+                await apiCall(API + `/locations/${this._editingId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description }),
                 });
-                alert("Localização atualizada com sucesso");
             } else {
-                await apiCall(API + "/locations", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name, description })
+                await apiCall(API + '/locations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description }),
                 });
-                alert("Localização criada com sucesso");
             }
+            this._dialog.close();
             this.load();
         } catch (error) {
-            alert(error.message || "Erro ao salvar localização");
+            alert(error.message || 'Erro ao salvar localização');
         }
     },
 
-    /** Seleciona uma localização e preenche o formulário para edição. */
-    selectLocation(location, tr) {
-        clearTableSelection();
-        tr.classList.add("selected");
-        document.getElementById("locationName").value = location.name;
-        document.getElementById("locationDescription").value = location.description || '';
-        this.selectedLocation = location.id;
-        const cancelBtn = document.getElementById("locationsCancelBtn");
-        if (cancelBtn) cancelBtn.style.display = "";
-        const saveBtn = document.getElementById("locationSaveBtn");
-        if (saveBtn) saveBtn.innerHTML = 'Salvar';
-    },
-
-    /** Cancela a edição e reseta o formulário. */
-    cancelEdit() {
-        this._resetForm();
-    },
-
-    /** Deleta uma localização após confirmação do usuário. */
-    async deleteLocation(event, id) {
-        event.stopPropagation();
-
-        if (!confirm("Tem certeza que deseja deletar esta localização?")) return;
-
+    async deleteLocation(id) {
+        if (!confirm('Tem certeza que deseja deletar esta localização?')) return;
         try {
-            await apiCall(API + `/locations/${id}`, { method: "DELETE" });
+            await apiCall(API + `/locations/${id}`, { method: 'DELETE' });
             this.load();
         } catch (error) {
-            alert(error.message || "Erro ao deletar localização");
+            alert(error.message || 'Erro ao deletar localização');
         }
     },
 
-    // ── Renderização ──
+    // ── Privado ──
 
-    /** Renderiza a tabela de localizações ou mensagem de estado vazio. */
-    _renderTable(locations) {
-        const tbody = document.getElementById("locationsTableBody");
-        tbody.innerHTML = "";
+    _applyFilter() {
+        const q = this._searchInput?.getValue().toLowerCase() ?? '';
+        const filtered = q
+            ? this._allLocations.filter(r =>
+                r.name.toLowerCase().includes(q) ||
+                (r.description || '').toLowerCase().includes(q))
+            : this._allLocations;
+        this._dataTable?.setData(filtered);
+    },
 
-        if (!locations || locations.length === 0) {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `<td colspan="3" class="empty-state">Nenhuma localização cadastrada.</td>`;
-            tbody.appendChild(tr);
-            return;
-        }
-
-        const canEdit = hasPermission('registry', 'locations', 'edit');
-        locations.forEach(location => {
-            const tr = this._createTableRow(location);
-            if (canEdit) {
-                tr.onclick = () => this.selectLocation(location, tr);
-            } else {
-                tr.style.cursor = 'default';
-            }
-            tbody.appendChild(tr);
+    _createDialog() {
+        const dlg = createDialog({
+            title: '',
+            closeOnBackdrop: true,
+            bodyHTML: `
+                <div class="dialog-field">
+                    <label>Nome <span class="required">*</span></label>
+                    <div id="locationNameMount"></div>
+                </div>
+                <div class="dialog-field">
+                    <label>Descrição</label>
+                    <div id="locationDescMount"></div>
+                </div>
+            `,
+            actions: [
+                { label: 'Salvar', variant: 'primary', icon: 'save', onClick: () => Locations.saveLocation() },
+                { label: 'Cancelar', variant: 'cancel', onClick: () => dlg.close() },
+            ],
         });
+
+        this._nameInput = createInput({ id: 'locationName', placeholder: 'Nome da localização' });
+        this._descInput = createTextarea({ id: 'locationDescription', placeholder: 'Descrição (opcional)', rows: 3 });
+
+        document.getElementById('locationNameMount').appendChild(this._nameInput.el);
+        document.getElementById('locationDescMount').appendChild(this._descInput.el);
+
+        return dlg;
     },
 
-    /** Cria uma linha <tr> para exibição de uma localização. */
-    _createTableRow(location) {
-        const tr = document.createElement("tr");
-
-        tr.innerHTML = `
-            <td class="locations-col-name">${_esc(location.name)}</td>
-            <td class="locations-col-desc">${_esc(location.description || '—')}</td>
-            <td class="locations-col-actions">
-                ${hasPermission('registry', 'locations', 'delete') ? `<button onclick="Locations.deleteLocation(event, ${location.id})">
-                    <span class="material-symbols-outlined">delete</span>
-                </button>` : ''}
-            </td>
-        `;
-
-        return tr;
-    },
-
-    // ── Utilitários Privados ──
-
-    /** Reseta o formulário para o estado inicial (novo registro). */
-    _resetForm() {
-        clearFormInputs(["locationName", "locationDescription"]);
-        clearTableSelection();
-        this.selectedLocation = null;
-        const cancelBtn = document.getElementById("locationsCancelBtn");
-        if (cancelBtn) cancelBtn.style.display = "none";
-        const saveBtn = document.getElementById("locationSaveBtn");
-        if (saveBtn) saveBtn.innerHTML = '<span class="material-symbols-outlined">playlist_add</span>Adicionar';
+    _mountNewButton() {
+        const headerOptions = document.getElementById('headerOptionsContent');
+        if (headerOptions) headerOptions.innerHTML = '';
+        if (!hasPermission('registry', 'locations', 'create')) return;
+        this._newBtn = createButton({
+            label: 'Nova Localização',
+            variant: 'primary',
+            icon: 'add',
+            onClick: () => this.openDialog(),
+        });
+        document.getElementById('locationsNewBtnContainer').appendChild(this._newBtn.el);
     },
 };

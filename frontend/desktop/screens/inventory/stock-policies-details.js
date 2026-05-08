@@ -12,6 +12,9 @@ const StockPoliciesDetails = {
     materials: [],       // [{ id, name, lead_time, forecast_model, forecast_param, ... }]
     _leadTimeCache: {},  // { materialName: days|null }
     _itemSelect: null,
+    _lastItemSelection: null,
+    _materialsCache: [],
+    _groupsCache: [],
     _isDirty: false,     // indica se há alterações não salvas
 
     /** Retorna true se a tela está em modo somente leitura (sem permissão de edição) */
@@ -44,7 +47,7 @@ const StockPoliciesDetails = {
                     <div class="card-content">
                         <div class="form-group">
                             <label for="spdName">Nome da Política <span class="required">*</span></label>
-                            <input type="text" id="spdName" class="form-control" placeholder="Nome da política de estoque">
+                            <div id="spdNameMount"></div>
                         </div>
                         <div class="form-group">
                             <label for="spdDescription">Descrição</label>
@@ -83,7 +86,7 @@ const StockPoliciesDetails = {
                             <div id="spdCustomPeriodicDaysGroup" class="form-group" style="display:none">
                                 <label for="spdCustomPeriodicDays">Período Personalizado</label>
                                 <div class="spd-input-unit-wrap">
-                                    <input type="number" id="spdCustomPeriodicDays" class="form-control spd-input-number" min="1" placeholder="0">
+                                    <div id="spdCustomPeriodicDaysMount"></div>
                                     <span class="spd-input-unit">dias</span>
                                 </div>
                             </div>
@@ -93,7 +96,7 @@ const StockPoliciesDetails = {
                         <div class="form-group">
                             <label for="spdServiceLevel">Nível de Serviço</label>
                             <div class="spd-input-unit-wrap">
-                                <input type="number" id="spdServiceLevel" class="form-control spd-input-number" min="0" max="100" value="95">
+                                <div id="spdServiceLevelMount"></div>
                                 <span class="spd-input-unit">%</span>
                             </div>
                         </div>
@@ -109,7 +112,7 @@ const StockPoliciesDetails = {
                         <div id="spdLeadTimeDaysGroup" class="form-group" style="display:none">
                             <label for="spdLeadTimeDays">Valor do Lead Time</label>
                             <div class="spd-input-unit-wrap">
-                                <input type="number" id="spdLeadTimeDays" class="form-control spd-input-number" min="1" placeholder="0">
+                                <div id="spdLeadTimeDaysMount"></div>
                                 <span class="spd-input-unit">dias</span>
                             </div>
                         </div>
@@ -125,7 +128,7 @@ const StockPoliciesDetails = {
                         <div id="spdCoverageDaysGroup" class="form-group" style="display:none">
                             <label for="spdCoverageDays">Cobertura Alvo</label>
                             <div class="spd-input-unit-wrap">
-                                <input type="number" id="spdCoverageDays" class="form-control spd-input-number" min="1" placeholder="0">
+                                <div id="spdCoverageDaysMount"></div>
                                 <span class="spd-input-unit">dias</span>
                             </div>
                         </div>
@@ -164,7 +167,7 @@ const StockPoliciesDetails = {
                             <div id="spdParamMovingAvg" class="form-group">
                                 <label for="spdMovingAvgPeriod">Período da Média</label>
                                 <div class="spd-input-unit-wrap">
-                                    <input type="number" id="spdMovingAvgPeriod" class="form-control spd-input-number" value="7" min="2" max="365">
+                                    <div id="spdMovingAvgPeriodMount"></div>
                                     <span class="spd-input-unit">dias</span>
                                 </div>
                             </div>
@@ -173,7 +176,7 @@ const StockPoliciesDetails = {
                             <div id="spdParamExpSmoothing" class="form-group" style="display:none">
                                 <label for="spdExpAlpha">Alfa (α)</label>
                                 <div class="spd-input-unit-wrap">
-                                    <input type="number" id="spdExpAlpha" class="form-control spd-input-number" value="0.30" min="0.01" max="0.99" step="0.01">
+                                    <div id="spdExpAlphaMount"></div>
                                     <span class="spd-input-unit">0–1</span>
                                 </div>
                             </div>
@@ -182,7 +185,7 @@ const StockPoliciesDetails = {
                             <div id="spdParamLinearReg" class="form-group" style="display:none">
                                 <label for="spdLinearRegPeriod">Período da Regressão</label>
                                 <div class="spd-input-unit-wrap">
-                                    <input type="number" id="spdLinearRegPeriod" class="form-control spd-input-number" value="30" min="3" max="365">
+                                    <div id="spdLinearRegPeriodMount"></div>
                                     <span class="spd-input-unit">períodos</span>
                                 </div>
                             </div>
@@ -224,23 +227,56 @@ const StockPoliciesDetails = {
         return confirm('Você tem alterações não salvas. Deseja sair sem salvar?');
     },
 
+    _mountInputs() {
+        const mk = (mountId, opts, attrs = {}) => {
+            const m = document.getElementById(mountId);
+            if (!m) return null;
+            m.innerHTML = '';
+            const cmp = createInput(opts);
+            for (const [k, v] of Object.entries(attrs)) cmp.input[k] = v;
+            m.appendChild(cmp.el);
+            return cmp;
+        };
+        mk('spdNameMount',                 { id: 'spdName', placeholder: 'Nome da política de estoque' });
+        mk('spdCustomPeriodicDaysMount',   { id: 'spdCustomPeriodicDays', type: 'number', placeholder: '0', className: 'spd-input-number' }, { min: '1' });
+        mk('spdServiceLevelMount',         { id: 'spdServiceLevel',       type: 'number', value: '95', className: 'spd-input-number' }, { min: '0', max: '100' });
+        mk('spdLeadTimeDaysMount',         { id: 'spdLeadTimeDays',       type: 'number', placeholder: '0', className: 'spd-input-number' }, { min: '1' });
+        mk('spdCoverageDaysMount',         { id: 'spdCoverageDays',       type: 'number', placeholder: '0', className: 'spd-input-number' }, { min: '1' });
+        mk('spdMovingAvgPeriodMount',      { id: 'spdMovingAvgPeriod',    type: 'number', value: '7', className: 'spd-input-number' }, { min: '2', max: '365' });
+        mk('spdExpAlphaMount',             { id: 'spdExpAlpha',           type: 'number', value: '0.30', className: 'spd-input-number' }, { min: '0.01', max: '0.99', step: '0.01' });
+        mk('spdLinearRegPeriodMount',      { id: 'spdLinearRegPeriod',    type: 'number', value: '30', className: 'spd-input-number' }, { min: '3', max: '365' });
+    },
+
     /** Inicializa a tela, carrega selects e preenche formulário se editando */
     async load() {
         this._isDirty = false;
         this.materials = [];
         this._leadTimeCache = {};
         this._setHeaderOptions();
+        this._mountInputs();
         this._renderMaterialsTable();
 
         if (this._itemSelect) this._itemSelect.destroy();
-        this._itemSelect = createSearchSelect({
-            id: 'spdItem',
+        this._itemSelect = createSelect({
             placeholder: 'Selecione material ou grupo',
             searchable: true,
             sections: [
                 { key: 'material', label: 'Materiais', items: [] },
                 { key: 'group',    label: 'Grupos',    items: [] }
-            ]
+            ],
+            onChange: (value) => {
+                if (value == null) { this._lastItemSelection = null; return; }
+                const material = this._materialsCache.find(m => m.id === value);
+                if (material) {
+                    this._lastItemSelection = { key: 'material', value: value, label: material.name };
+                    return;
+                }
+                const group = this._groupsCache.find(g => g.id === value);
+                if (group) {
+                    this._lastItemSelection = { key: 'group', value: value, label: group.name };
+                    return;
+                }
+            }
         });
         this._itemSelect.mount(document.getElementById('spdItemSelectContainer'));
 
@@ -262,8 +298,7 @@ const StockPoliciesDetails = {
         if (this._isReadOnly()) {
             document.querySelectorAll('#content input, #content select, #content textarea')
                 .forEach(el => el.disabled = true);
-            document.querySelectorAll('#content .sselect-wrap')
-                .forEach(el => el.classList.add('sselect-disabled'));
+            this._itemSelect?.setDisabled(true);
             const addRow = document.querySelector('.spd-material-add-row');
             if (addRow) addRow.style.display = 'none';
         }
@@ -426,6 +461,8 @@ const StockPoliciesDetails = {
                 apiCall(API + '/materials').catch(() => []),
                 apiCall(API + '/groups').catch(() => [])
             ]);
+            this._materialsCache = materials || [];
+            this._groupsCache = groups || [];
             this._itemSelect.setItems('material', (materials || []).map(m => ({ value: m.id, label: m.name })));
             this._itemSelect.setItems('group', (groups || []).map(g => ({ value: g.id, label: g.name })));
         } catch (e) { /* falha silenciosa em background */ }
@@ -439,7 +476,7 @@ const StockPoliciesDetails = {
 
     /** Adiciona um material ou grupo à lista da política e calcula KPIs */
     async addItem() {
-        const selected = this._itemSelect && this._itemSelect.getValue();
+        const selected = this._lastItemSelection;
         if (!selected) return;
 
         const id   = String(selected.value);

@@ -133,8 +133,7 @@ const Dashboard = {
             this.selectedMaterials = [];
             this._assignMaterialColors();
             if (this._policySelect) this._policySelect.destroy();
-            this._policySelect = createSearchSelect({
-                id: 'dashboardPolicy',
+            this._policySelect = createSelect({
                 placeholder: 'Selecione uma política...',
                 searchable: false,
                 multiple: false,
@@ -622,7 +621,7 @@ const Dashboard = {
         }
         this._policySelect.setItems('policy', this.policies.map(p => ({ value: p.id, label: p.name })));
         if (this._selectedPolicyId) {
-            this._policySelect.select('policy', this._selectedPolicyId);
+            this._policySelect.setValue(this._selectedPolicyId);
         }
     },
 
@@ -630,7 +629,7 @@ const Dashboard = {
     async _onPolicyChange() {
         if (!this._policySelect) return;
         const selected = this._policySelect.getValue();
-        const policyId = selected ? String(selected.value) : '';
+        const policyId = selected != null ? String(selected) : '';
         this._selectedPolicyId = policyId || null;
         localStorage.setItem('wcm.dashboard.policyId', this._selectedPolicyId || '');
 

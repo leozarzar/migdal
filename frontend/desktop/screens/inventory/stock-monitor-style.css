@@ -75,21 +75,6 @@
     flex-direction: column;
 }
 
-.stock-monitor-date-input {
-    height: 32px;
-    padding: 0 10px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    background: #ffffff;
-    color: #0f172a;
-    font-size: 13px;
-    cursor: pointer;
-    outline: none;
-}
-
-.stock-monitor-date-input:focus {
-    border-color: #94a3b8;
-}
 
 /* Multiselect */
 .stock-monitor-multiselect {

@@ -22,8 +22,9 @@
  * @param {string}   [config.subtitle]             — Texto secundário abaixo do título.
  * @param {string}   [config.bodyHTML='']          — HTML arbitrário do corpo.
  * @param {Array}    [config.actions=[]]           — Botões de ação.
- *   Cada item: { label, className?, icon?, onClick? }
- *   - `icon` é o nome de um Material Symbol (texto dentro de <span>).
+ *   Cada item: { label, variant?, icon?, id?, onClick? }
+ *   - `variant` é repassado para createButton: 'primary', 'secondary', 'cancel', 'ghost' (padrão: 'secondary').
+ *   - `icon` é o nome de um Material Symbol.
  * @param {boolean}  [config.wide=false]           — Painel mais largo (600 px).
  * @param {boolean}  [config.overflowVisible=false] — Permite overflow visível (para dropdowns).
  * @param {boolean}  [config.closeOnBackdrop=true] — Fecha ao clicar fora.
@@ -44,14 +45,6 @@ function createDialog(config) {
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
     }
-
-    // ── Constrói HTML dos botões de ação ───────────────────────────────────
-    const actionsHTML = (config.actions || []).map((a, i) => {
-        const icon = a.icon
-            ? `<span class="material-symbols-outlined">${_esc(a.icon)}</span>`
-            : '';
-        return `<button class="${_esc(a.className || '')}" data-dialog-action="${i}">${icon}${_esc(a.label)}</button>`;
-    }).join('');
 
     // ── Monta DOM ──────────────────────────────────────────────────────────
     const backdrop = document.createElement('div');
@@ -74,11 +67,21 @@ function createDialog(config) {
         <div class="dialog-body">
             ${config.bodyHTML || ''}
         </div>
-        ${actionsHTML ? `<div class="dialog-actions">${actionsHTML}</div>` : ''}
+        ${(config.actions || []).length ? '<div class="dialog-actions"></div>' : ''}
     `;
 
     backdrop.appendChild(panel);
     document.body.appendChild(backdrop);
+
+    // ── Renderiza botões de ação com createButton ──────────────────────────
+    const actionsEl = panel.querySelector('.dialog-actions');
+    const _actionBtns = (config.actions || []).map(action => {
+        const variant = action.variant || 'secondary';
+        const btn = createButton({ label: action.label, variant, icon: action.icon, onClick: action.onClick });
+        if (action.id) btn.el.id = action.id;
+        actionsEl?.appendChild(btn.el);
+        return btn;
+    });
 
     // ── Eventos ────────────────────────────────────────────────────────────
     panel.querySelector('.dialog-close').onclick = close;
@@ -88,11 +91,6 @@ function createDialog(config) {
             if (e.target === backdrop) close();
         });
     }
-
-    (config.actions || []).forEach((action, i) => {
-        const btn = panel.querySelector(`[data-dialog-action="${i}"]`);
-        if (btn && action.onClick) btn.onclick = action.onClick;
-    });
 
     // ── API pública ────────────────────────────────────────────────────────
 
@@ -110,6 +108,7 @@ function createDialog(config) {
 
     /** Remove o dialog do DOM definitivamente. */
     function destroy() {
+        _actionBtns.forEach(b => b.destroy());
         backdrop.remove();
     }
 

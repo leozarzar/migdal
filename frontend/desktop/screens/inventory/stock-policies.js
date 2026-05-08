@@ -18,6 +18,7 @@ const StockPolicies = {
     render() {
         this._dataTable?.destroy(); this._dataTable = null;
         this._newBtn?.destroy();    this._newBtn = null;
+        this._searchInput?.destroy(); this._searchInput = null;
         this._allPolicies = [];
         this._searchQuery = '';
         return `
@@ -26,7 +27,7 @@ const StockPolicies = {
                 <div class="stock-policies-filters-icon-wrap">
                     <span class="material-symbols-outlined stock-policies-filters-icon">filter_list</span>
                 </div>
-                <input type="text" id="stockPoliciesSearch" class="stock-policies-search-input" placeholder="Buscar" oninput="StockPolicies._onSearch(this.value)">
+                <div id="stockPoliciesSearchMount"></div>
                 <div id="stockPoliciesNewBtnContainer" class="stock-policies-filters-actions"></div>
             </div>
             <div id="stockPoliciesTableContainer"></div>
@@ -36,6 +37,7 @@ const StockPolicies = {
 
     async load() {
         this._mountNewButton();
+        this._mountSearchInput();
 
         if (!this._dataTable) {
             this._dataTable = createDataTable({
@@ -106,6 +108,19 @@ const StockPolicies = {
         const q = this._searchQuery.toLowerCase();
         const filtered = q ? this._allPolicies.filter(r => r.name.toLowerCase().includes(q)) : this._allPolicies;
         this._dataTable?.setData(filtered);
+    },
+
+    _mountSearchInput() {
+        if (this._searchInput) return;
+        const mount = document.getElementById('stockPoliciesSearchMount');
+        if (!mount) return;
+        this._searchInput = createInput({
+            id: 'stockPoliciesSearch',
+            placeholder: 'Buscar',
+            icon: 'Search',
+            onInput: v => StockPolicies._onSearch(v),
+        });
+        mount.appendChild(this._searchInput.el);
     },
 
     _mountNewButton() {

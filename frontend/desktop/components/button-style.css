@@ -95,7 +95,6 @@
 }
 
 .wcm-btn--secondary:hover:not(:disabled) {
-    background-color: var(--border-components);
     border-color: var(--border-components-darker);
     color: var(--foreground);
 }

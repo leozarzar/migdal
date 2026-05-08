@@ -1,3 +1,62 @@
+/* ── Design tokens ─────────────────────────────────────────── */
+
+:root,
+[data-theme="light"] {
+    --wcm-bg: #fafaf7;
+    --wcm-bg-2: #f4f3ee;
+    --wcm-surface: #ffffff;
+    --wcm-surface-2: #f4f3ee;
+    --wcm-surface-elev: #ffffff;
+    --wcm-border: #e7e5e0;
+    --wcm-border-strong: #d9d6cf;
+    --wcm-ink: #0c0d10;
+    --wcm-ink-2: #3f3f46;
+    --wcm-muted: #6b7280;
+    --wcm-accent: #ea580c;
+    --wcm-accent-strong: #c2410c;
+    --wcm-accent-soft: rgba(234, 88, 12, 0.10);
+    --wcm-accent-ink: #ffffff;
+    --wcm-ok: #16a34a;
+    --wcm-warn: #d97706;
+    --wcm-crit: #dc2626;
+    --wcm-ok-soft: rgba(22, 163, 74, 0.10);
+    --wcm-warn-soft: rgba(217, 119, 6, 0.10);
+    --wcm-crit-soft: rgba(220, 38, 38, 0.10);
+    --wcm-shadow-1: 0 1px 2px rgba(12,13,16,0.04), 0 12px 32px rgba(12,13,16,0.06);
+    --wcm-shadow-2: 0 8px 24px rgba(12,13,16,0.10);
+    --wcm-radius-lg: 22px;
+    --wcm-radius-md: 16px;
+    --wcm-radius-sm: 12px;
+    --font-display: "Bricolage Grotesque", "Geist", system-ui, sans-serif;
+    --font-body: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+[data-theme="dark"] {
+    --wcm-bg: #0a0b0d;
+    --wcm-bg-2: #111215;
+    --wcm-surface: #16181c;
+    --wcm-surface-2: #1f2126;
+    --wcm-surface-elev: #1c1e22;
+    --wcm-border: rgba(255,255,255,0.06);
+    --wcm-border-strong: rgba(255,255,255,0.12);
+    --wcm-ink: #f5f5f4;
+    --wcm-ink-2: #d4d4d8;
+    --wcm-muted: #a1a1aa;
+    --wcm-accent: #fb923c;
+    --wcm-accent-strong: #ea580c;
+    --wcm-accent-soft: rgba(251, 146, 60, 0.12);
+    --wcm-accent-ink: #0a0b0d;
+    --wcm-ok: #4ade80;
+    --wcm-warn: #fbbf24;
+    --wcm-crit: #f87171;
+    --wcm-ok-soft: rgba(74, 222, 128, 0.12);
+    --wcm-warn-soft: rgba(251, 191, 36, 0.12);
+    --wcm-crit-soft: rgba(248, 113, 113, 0.14);
+    --wcm-shadow-1: 0 1px 0 rgba(255,255,255,0.04) inset, 0 12px 32px rgba(0,0,0,0.45);
+    --wcm-shadow-2: 0 8px 24px rgba(0,0,0,0.55);
+}
+
 /* ── Reset / Base ─────────────────────────────────────────── */
 
 *, *::before, *::after {
@@ -7,15 +66,25 @@
     -webkit-tap-highlight-color: transparent;
 }
 
-body {
-    font-family: Arial, Helvetica, sans-serif;
-    background: #f0f2f5;
-    color: #1e2a38;
-    min-height: 100dvh;
-    padding-bottom: 32px;
+html {
+    transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-/* ── Header ───────────────────────────────────────────────── */
+body {
+    font-family: var(--font-body);
+    background: var(--wcm-bg);
+    color: var(--wcm-ink);
+    min-height: 100dvh;
+    padding-bottom: 32px;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+body.mob-on-toplevel {
+    padding-bottom: calc(120px + env(safe-area-inset-bottom));
+}
+
+/* ── Header (telas que não a home) ────────────────────────── */
 
 .mob-header {
     background: #1e2a38;
@@ -27,6 +96,10 @@ body {
     position: sticky;
     top: 0;
     z-index: 100;
+}
+
+body.mob-on-themed .mob-header {
+    display: none;
 }
 
 .mob-logo {
@@ -82,7 +155,12 @@ body {
     gap: 16px;
 }
 
-/* ── Floating action button ───────────────────────────────── */
+.mob-screen--home {
+    padding: 18px 16px 16px;
+    gap: 18px;
+}
+
+/* ── Floating action button (telas que não a home) ────────── */
 
 .mob-fab {
     position: fixed;
@@ -174,6 +252,25 @@ body {
 
 .mob-input--search {
     padding-left: 14px;
+}
+
+/* Inputs/selects dentro do bottom sheet da home seguem tema */
+.mob-home-filters-sheet .mob-input,
+.mob-home-filters-sheet .mob-select {
+    background-color: var(--wcm-surface-2);
+    border-color: var(--wcm-border);
+    color: var(--wcm-ink);
+    border-radius: var(--wcm-radius-sm);
+    height: 48px;
+    font-family: var(--font-body);
+}
+
+[data-theme="dark"] .mob-home-filters-sheet .mob-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%23a1a1aa' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+}
+
+.mob-home-filters-sheet .mob-label {
+    color: var(--wcm-muted);
 }
 
 /* ── Buttons ──────────────────────────────────────────────── */
@@ -307,4 +404,90 @@ body {
 .mob-toast--error {
     background: #991b1b;
     color: #fee2e2;
+}
+
+/* ── Bottom navigation flutuante ──────────────────────────── */
+
+.mob-bottom-nav {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    height: 66px;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2px;
+    padding: 6px 8px;
+    background: color-mix(in srgb, var(--wcm-surface) 88%, transparent);
+    border: 1px solid var(--wcm-border);
+    border-radius: 28px;
+    box-shadow: var(--wcm-shadow-2);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 100;
+}
+
+body.mob-on-toplevel .mob-bottom-nav {
+    display: flex;
+}
+
+.mob-bottom-nav-item {
+    flex: 1;
+    height: 54px;
+    border: none;
+    background: transparent;
+    color: var(--wcm-muted);
+    font-family: var(--font-body);
+    font-size: 10.5px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border-radius: 18px;
+    transition: color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+}
+
+.mob-bottom-nav-item .material-symbols-outlined {
+    font-size: 22px;
+}
+
+.mob-bottom-nav-item:active {
+    transform: scale(0.94);
+}
+
+.mob-bottom-nav-item--active {
+    color: var(--wcm-ink);
+}
+
+.mob-bottom-nav-item--active .material-symbols-outlined {
+    color: var(--wcm-accent);
+}
+
+.mob-bottom-nav-item--center {
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--wcm-ink);
+    color: var(--wcm-bg);
+    position: relative;
+    top: -16px;
+    box-shadow: 0 8px 22px color-mix(in srgb, var(--wcm-ink) 30%, transparent);
+}
+
+.mob-bottom-nav-item--center .material-symbols-outlined {
+    font-size: 26px;
+    color: var(--wcm-bg);
+}
+
+.mob-bottom-nav-item--center.mob-bottom-nav-item--active .material-symbols-outlined {
+    color: var(--wcm-accent);
+}
+
+.mob-bottom-nav-item--center span:not(.material-symbols-outlined) {
+    display: none;
 }

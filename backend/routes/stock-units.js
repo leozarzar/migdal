@@ -206,7 +206,7 @@ router.get("/position", (req, res) => {
             COUNT(*)                                                        AS lots_total,
             MIN(CASE WHEN lb.exit_qty < lb.entry_qty THEN lb.entry_date END) AS oldest_entry
         FROM lot_balance lb
-        JOIN materials m ON m.id = lb.material_id
+        JOIN materials m ON m.id = lb.material_id AND m.tracking_mode = 'lots'
         LEFT JOIN groups g ON g.id = m.group_id
         GROUP BY lb.material_id
         ${havingClause}

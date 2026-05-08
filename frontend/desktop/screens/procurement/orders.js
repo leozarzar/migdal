@@ -70,7 +70,13 @@ const Orders = {
                     {
                         key: 'total_qty', header: 'Quantidade', sortable: true,
                         sortValue: r => r.total_qty || 0,
-                        render: r => r.total_qty != null ? String(r.total_qty) : '',
+                        render: r => {
+                            const total = r.total_qty != null ? r.total_qty : '—';
+                            if (r.received_qty > 0) {
+                                return `${r.received_qty} <span class="stock-units-remaining-label">/ ${total}</span>`;
+                            }
+                            return String(total);
+                        },
                     },
                     {
                         key: 'due_date', header: 'Prazo',
@@ -83,11 +89,6 @@ const Orders = {
                         render: r => r.expected_date
                             ? r.expected_date.split('-').reverse().join('/').replace(/^(\d{2}\/\d{2}\/)\d{2}(\d{2})$/, '$1$2')
                             : '',
-                    },
-                    {
-                        key: 'received_qty', header: 'Qtd. R.', sortable: true,
-                        sortValue: r => r.received_qty || 0,
-                        render: r => r.received_qty > 0 ? String(r.received_qty) : '',
                     },
                     {
                         key: 'lead_time', header: 'Lead time',
@@ -108,6 +109,7 @@ const Orders = {
                     },
                 ],
                 getRowKey: r => r.id,
+                pageSize: 13,
                 actions: [
                     {
                         label: 'Excluir',

@@ -27,9 +27,8 @@ const StockPosition = {
                     <span class="material-symbols-outlined stock-position-filters-icon">filter_list</span>
                 </div>
                 <div id="stockPositionGroupContainer" class="stock-position-filter-select-wrap"></div>
-                <input id="stockPositionSearch" class="stock-position-search" placeholder="Buscar" oninput="StockPosition._onSearch(this.value)">
+                <div id="stockPositionSearchMount"></div>
             </div>
-            <div id="stockPositionSummary" class="stock-position-summary"></div>
             <div id="stockPositionTableContainer"></div>
         </div>`;
     },
@@ -38,8 +37,19 @@ const StockPosition = {
         this._search = localStorage.getItem('wcm.stockPosition.search') || '';
         this._selectedGroup = localStorage.getItem('wcm.stockPosition.group') || '';
 
-        const searchEl = document.getElementById('stockPositionSearch');
-        if (searchEl) searchEl.value = this._search;
+        if (!this._searchInput) {
+            const mount = document.getElementById('stockPositionSearchMount');
+            if (mount) {
+                this._searchInput = createInput({
+                    id: 'stockPositionSearch',
+                    placeholder: 'Buscar',
+                    icon: 'Search',
+                    onInput: v => StockPosition._onSearch(v),
+                });
+                mount.appendChild(this._searchInput.el);
+            }
+        }
+        this._searchInput?.setValue(this._search);
 
         if (!this._dataTable) {
             this._dataTable = createDataTable({
@@ -60,6 +70,7 @@ const StockPosition = {
                     },
                 ],
                 getRowKey: r => String(r.material_id),
+                pageSize: 13,
                 onRowClick: r => {
                     if (r.tracking_mode === 'lots' && r.balance > 0) StockPosition.goToMaterial(r.material);
                 },
@@ -117,7 +128,7 @@ const StockPosition = {
                         <input id="stockPositionExitDate" type="date" class="dialog-input" value="${new Date().toISOString().slice(0, 10)}">
                     </label>
                     <label>Quantidade (kg)
-                        <input id="stockPositionExitQty" type="number" step="any" min="0.01" class="dialog-input" placeholder="0,00">
+                        <div id="stockPositionExitQtyMount"></div>
                     </label>
                     <label>Motivo
                         <select id="stockPositionExitReason" class="dialog-input">
@@ -126,16 +137,23 @@ const StockPosition = {
                         </select>
                     </label>
                     <label>Observações
-                        <input id="stockPositionExitNotes" type="text" class="dialog-input" placeholder="Opcional">
+                        <div id="stockPositionExitNotesMount"></div>
                     </label>
                 </div>
             `,
             actions: [
-                { label: 'Confirmar', className: 'btn-primary', icon: 'check', onClick: () => this._submitExit(row) },
-                { label: 'Cancelar', className: 'btn-secondary', onClick: () => this._exitDialog.close() },
+                { label: 'Confirmar', variant: 'primary', icon: 'check', onClick: () => this._submitExit(row) },
+                { label: 'Cancelar', variant: 'secondary', onClick: () => this._exitDialog.close() },
             ],
         });
         this._exitDialog.open();
+
+        const qty = createInput({ id: 'stockPositionExitQty', type: 'number', placeholder: '0,00' });
+        qty.input.step = 'any'; qty.input.min = '0.01';
+        document.getElementById('stockPositionExitQtyMount').appendChild(qty.el);
+
+        const notes = createInput({ id: 'stockPositionExitNotes', placeholder: 'Opcional' });
+        document.getElementById('stockPositionExitNotesMount').appendChild(notes.el);
     },
 
     async _submitExit(row) {
@@ -185,11 +203,10 @@ const StockPosition = {
         if (!container) return;
 
         if (!this._groupSelect) {
-            this._groupSelect = createSearchSelect({
+            this._groupSelect = createSelect({
                 placeholder: 'Grupo',
-                size: 'small',
                 sections: [{ key: 'groups', items: [] }],
-                onChange: (sel) => this._onGroupChange(sel && sel.value != null ? String(sel.value) : '')
+                onChange: (value) => this._onGroupChange(value != null ? String(value) : '')
             });
             this._groupSelect.mount(container);
         }
@@ -202,7 +219,7 @@ const StockPosition = {
             .sort((a, b) => a.label.localeCompare(b.label));
         this._groupSelect.setItems('groups', items);
 
-        if (this._selectedGroup) this._groupSelect.select('groups', this._selectedGroup);
+        if (this._selectedGroup) this._groupSelect.setValue(this._selectedGroup);
     },
 
     _getFilteredData() {
@@ -219,35 +236,12 @@ const StockPosition = {
 
     _renderTable() {
         if (!this._dataTable) return;
-        const summaryEl = document.getElementById('stockPositionSummary');
         const filtered = this._getFilteredData();
 
         const units = Array.from(new Set(filtered.map(r => r.unit).filter(Boolean)));
         const totalBalance = filtered.reduce((s, r) => s + r.balance, 0);
         const totalLots = filtered.reduce((s, r) => s + r.lots_in_stock, 0);
         const materialsWithStock = filtered.filter(r => r.balance > 0).length;
-
-        if (summaryEl) {
-            summaryEl.innerHTML = `
-                <span class="stock-position-summary-item">
-                    <strong>${filtered.length}</strong> materiais
-                </span>
-                <span class="stock-position-summary-sep">·</span>
-                <span class="stock-position-summary-item">
-                    <strong>${materialsWithStock}</strong> com saldo
-                </span>
-                ${units.length === 1 ? `
-                <span class="stock-position-summary-sep">·</span>
-                <span class="stock-position-summary-item">
-                    <strong>${totalBalance.toLocaleString('pt-BR')} ${units[0]}</strong> total
-                </span>` : ''}
-                ${totalLots > 0 ? `
-                <span class="stock-position-summary-sep">·</span>
-                <span class="stock-position-summary-item">
-                    <strong>${totalLots}</strong> lotes em estoque
-                </span>` : ''}
-            `;
-        }
 
         this._dataTable.setData(filtered);
     },

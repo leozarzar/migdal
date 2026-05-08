@@ -37,7 +37,7 @@ const MaterialsDetails = {
                     <div class="md-card-content">
                         <div class="md-form-group">
                             <label for="mdName">Nome <span class="md-required">*</span></label>
-                            <input type="text" id="mdName" class="md-form-control" placeholder="Nome do material">
+                            <div id="mdNameMount"></div>
                         </div>
                         <div class="md-form-group">
                             <label>Grupo</label>
@@ -96,8 +96,8 @@ const MaterialsDetails = {
                 </div>
                 <div class="md-card-content">
                     <div class="md-pkg-add-row">
-                        <input type="text" id="mdPkgName" class="md-form-control" placeholder="Nome da embalagem">
-                        <input type="number" id="mdPkgQty" class="md-form-control md-pkg-qty-input" placeholder="Quantidade" step="any" min="0">
+                        <div id="mdPkgNameMount"></div>
+                        <div id="mdPkgQtyMount" class="md-pkg-qty-input"></div>
                         <button class="md-btn-add" onclick="MaterialsDetails.addPackaging()">
                             <span class="material-symbols-outlined">add</span>
                             Adicionar
@@ -125,6 +125,25 @@ const MaterialsDetails = {
     /** Marca o formulário como modificado */
     _markDirty() { this._isDirty = true; },
 
+    _mountInputs() {
+        const nameMount = document.getElementById('mdNameMount');
+        if (nameMount && !nameMount.firstChild) {
+            const cmp = createInput({ id: 'mdName', placeholder: 'Nome do material' });
+            nameMount.appendChild(cmp.el);
+        }
+        const pkgNameMount = document.getElementById('mdPkgNameMount');
+        if (pkgNameMount && !pkgNameMount.firstChild) {
+            const cmp = createInput({ id: 'mdPkgName', placeholder: 'Nome da embalagem' });
+            pkgNameMount.appendChild(cmp.el);
+        }
+        const pkgQtyMount = document.getElementById('mdPkgQtyMount');
+        if (pkgQtyMount && !pkgQtyMount.firstChild) {
+            const cmp = createInput({ id: 'mdPkgQty', type: 'number', placeholder: 'Quantidade' });
+            cmp.input.step = 'any'; cmp.input.min = '0';
+            pkgQtyMount.appendChild(cmp.el);
+        }
+    },
+
     /** Permite ao router verificar se pode navegar para outra tela */
     async canLeave() {
         if (!this._isDirty) return true;
@@ -137,14 +156,13 @@ const MaterialsDetails = {
         this._materialId = null;
         this._packagings = [];
         this._pendingPackagings = [];
+        this._mountInputs();
         this._removedPackagingIds = [];
 
-        // Monta SearchSelect de grupo
-        this._groupSelect = createSearchSelect({
-            id: 'mdGroupSelect',
+        // Monta Select de grupo
+        this._groupSelect = createSelect({
             placeholder: 'Sem grupo',
             searchable: true,
-            searchPlaceholder: 'Buscar...',
             sections: [{ key: 'group', items: [] }]
         });
         this._groupSelect.mount(document.getElementById('mdGroupContainer'));
@@ -176,7 +194,7 @@ const MaterialsDetails = {
                 document.getElementById("mdTrackingMode").value = mat.tracking_mode || 'simple';
                 document.getElementById("mdAllowPartial").checked = !!mat.allow_partial_exit;
 
-                if (mat.group_id) this._groupSelect.select('group', mat.group_id);
+                if (mat.group_id) this._groupSelect.setValue(mat.group_id);
 
                 this._packagings = mat.packagings || [];
             } catch (e) {
@@ -302,7 +320,7 @@ const MaterialsDetails = {
             actions: [
                 {
                     label: 'Vincular à minha localização',
-                    className: 'btn-primary',
+                    variant: 'primary',
                     onClick: async () => {
                         try {
                             await apiCall(API + `/materials/${existing.id}/link`, {
@@ -321,7 +339,7 @@ const MaterialsDetails = {
                 },
                 {
                     label: 'Cancelar',
-                    className: 'btn-secondary',
+                    variant: 'secondary',
                     onClick: () => { dlg.close(); dlg.destroy(); }
                 }
             ]

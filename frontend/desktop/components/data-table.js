@@ -200,7 +200,7 @@ function createDataTable(config) {
                 }).join('');
 
                 html += `<td class="dt-actions-cell">
-                    <div class="dt-action-wrap">
+                    <div class="dt-action-wrap" ${visibleActions.length === 0 ? 'style="visibility:hidden"' : ''}>
                         <button class="dt-action-trigger" aria-label="Ações">
                             <span class="material-symbols-outlined">more_horiz</span>
                         </button>

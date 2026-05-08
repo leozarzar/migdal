@@ -1,0 +1,374 @@
+/* ── DatePicker ───────────────────────────────────────────────────────────── */
+
+.wcm-dp-wrap {
+    position: relative;
+    height: 2.25rem;
+    display: inline-block;
+}
+
+/* ── Trigger ─────────────────────────────────────────────────────────────── */
+
+.wcm-dp-trigger {
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px 0 12px;
+    background: var(--background);
+    border: 1px solid var(--border-components);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--foreground);
+    text-align: left;
+    transition: border-color 0.15s;
+    min-width: 0;
+}
+
+.wcm-dp-trigger:hover:not(:disabled) {
+    border-color: var(--border-components-darker);
+}
+
+.wcm-dp-trigger--open,
+.wcm-dp-trigger--open:hover {
+    border-color: var(--border-components-darker);
+}
+
+.wcm-dp-trigger:disabled,
+.wcm-dp-disabled .wcm-dp-trigger {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--muted);
+}
+
+.wcm-dp-icon {
+    font-size: 18px !important;
+    color: var(--border-components-darkest);
+    flex-shrink: 0;
+}
+
+.wcm-dp-content {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wcm-dp-content--placeholder {
+    color: var(--placeholder);
+}
+
+.wcm-dp-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    color: var(--placeholder);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, background-color 0.15s, color 0.15s;
+    flex-shrink: 0;
+}
+
+.wcm-dp-trigger:hover .wcm-dp-clear,
+.wcm-dp-trigger--open .wcm-dp-clear {
+    opacity: 1;
+}
+
+.wcm-dp-clear:hover {
+    background-color: var(--muted);
+    color: var(--secondary-text);
+}
+
+.wcm-dp-clear .material-symbols-outlined {
+    font-size: 14px;
+}
+
+/* ── Dropdown ────────────────────────────────────────────────────────────── */
+
+.wcm-dp-dropdown {
+    background: var(--background);
+    border: 1px solid var(--border-components);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    padding: 14px;
+    user-select: none;
+}
+
+.wcm-dp-months {
+    display: flex;
+    gap: 18px;
+}
+
+.wcm-dp-month {
+    width: 240px;
+}
+
+/* ── Month header ────────────────────────────────────────────────────────── */
+
+.wcm-dp-month-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 0 4px;
+}
+
+.wcm-dp-month-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--foreground);
+    flex: 1;
+    text-align: center;
+}
+
+.wcm-dp-nav {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    color: var(--secondary-text);
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.wcm-dp-nav:hover {
+    background: var(--muted);
+    color: var(--foreground);
+}
+
+/* ── Weekdays ────────────────────────────────────────────────────────────── */
+
+.wcm-dp-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 4px;
+}
+
+.wcm-dp-weekday {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--placeholder);
+    padding: 6px 0;
+}
+
+/* ── Day grid ────────────────────────────────────────────────────────────── */
+
+.wcm-dp-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    row-gap: 2px;
+}
+
+/* Cell wrapper — hospeda o background do range (sem gap horizontal entre cells) */
+.wcm-dp-cell {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Day button (círculo) */
+.wcm-dp-day {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    border-radius: 50%;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--foreground);
+    cursor: pointer;
+    padding: 0;
+    transition: background-color 0.1s, color 0.1s;
+    position: relative;
+    z-index: 1;
+}
+
+.wcm-dp-day:hover:not(:disabled) {
+    background: var(--muted);
+}
+
+.wcm-dp-cell--out .wcm-dp-day {
+    color: var(--placeholder);
+}
+
+.wcm-dp-cell--disabled .wcm-dp-day {
+    color: var(--border-components);
+    cursor: not-allowed;
+}
+
+.wcm-dp-cell--disabled .wcm-dp-day:hover {
+    background: transparent;
+}
+
+.wcm-dp-cell--today .wcm-dp-day {
+    font-weight: 600;
+}
+
+/* ── Range background (preenche a célula entre start e end) ──────────────── */
+
+.wcm-dp-cell--in-range::before,
+.wcm-dp-cell--start::before,
+.wcm-dp-cell--end::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: var(--muted);
+    z-index: 0;
+}
+
+.wcm-dp-cell--in-range::before {
+    left: 0;
+    right: 0;
+}
+
+/* Borda arredondada nas extremidades do range */
+.wcm-dp-cell--start::before {
+    left: 50%;
+    right: 0;
+    border-top-left-radius: 999px;
+    border-bottom-left-radius: 999px;
+}
+
+.wcm-dp-cell--end::before {
+    left: 0;
+    right: 50%;
+    border-top-right-radius: 999px;
+    border-bottom-right-radius: 999px;
+}
+
+/* Quando start === end, não há range visual */
+.wcm-dp-cell--start.wcm-dp-cell--end::before {
+    display: none;
+}
+
+/* Selecionado (start ou end ou single) — círculo preenchido */
+.wcm-dp-cell--selected .wcm-dp-day {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 500;
+}
+
+.wcm-dp-cell--selected .wcm-dp-day:hover {
+    background: var(--primary-darker);
+}
+
+/* ── Month picker ────────────────────────────────────────────────────────── */
+
+.wcm-dp-month--picker {
+    width: 220px;
+}
+
+.wcm-dp-mgrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    padding: 4px 0;
+}
+
+.wcm-dp-mcell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+}
+
+.wcm-dp-mday {
+    width: 100%;
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--foreground);
+    cursor: pointer;
+    padding: 0;
+    transition: background-color 0.1s, color 0.1s;
+    position: relative;
+    z-index: 1;
+}
+
+.wcm-dp-mday:hover:not(:disabled) {
+    background: var(--muted);
+}
+
+.wcm-dp-mcell--disabled .wcm-dp-mday {
+    color: var(--border-components);
+    cursor: not-allowed;
+}
+
+.wcm-dp-mcell--disabled .wcm-dp-mday:hover {
+    background: transparent;
+}
+
+.wcm-dp-mcell--today .wcm-dp-mday {
+    font-weight: 600;
+}
+
+/* Range background para month picker */
+
+.wcm-dp-mcell--in-range::before,
+.wcm-dp-mcell--start::before,
+.wcm-dp-mcell--end::before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    background: var(--muted);
+    z-index: 0;
+}
+
+.wcm-dp-mcell--in-range::before {
+    left: 0;
+    right: 0;
+}
+
+.wcm-dp-mcell--start::before {
+    left: 50%;
+    right: 0;
+    border-top-left-radius: 999px;
+    border-bottom-left-radius: 999px;
+}
+
+.wcm-dp-mcell--end::before {
+    left: 0;
+    right: 50%;
+    border-top-right-radius: 999px;
+    border-bottom-right-radius: 999px;
+}
+
+.wcm-dp-mcell--start.wcm-dp-mcell--end::before {
+    display: none;
+}
+
+.wcm-dp-mcell--selected .wcm-dp-mday {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 500;
+}
+
+.wcm-dp-mcell--selected .wcm-dp-mday:hover {
+    background: var(--primary-darker);
+}

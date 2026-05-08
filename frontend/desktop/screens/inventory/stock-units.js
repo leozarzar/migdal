@@ -22,6 +22,7 @@ const StockUnits = {
     _exitBag: null,
     _selectedIds: new Set(),
     _showOnlySelected: false,
+    _filterSelectedBtn: null,
 
     // ── Ciclo de Vida ──
 
@@ -38,9 +39,11 @@ const StockUnits = {
         this._materialSelect?.destroy(); this._materialSelect = null;
         this._supplierSelect?.destroy(); this._supplierSelect = null;
         this._dataTable?.destroy();      this._dataTable      = null;
+        this._searchInput = null;
         this._filterStatus = '';
         this._selectedIds = new Set();
         this._showOnlySelected = false;
+        this._filterSelectedBtn = null;
         return `
         <div class="stock-units-container">
             <div id="stockUnitsBatchBar" class="stock-units-batch-bar" style="display:none">
@@ -62,11 +65,8 @@ const StockUnits = {
                 </div>
                 <div id="stockUnitsMaterialContainer" class="stock-units-filter-select-wrap"></div>
                 <div id="stockUnitsSupplierContainer" class="stock-units-filter-select-wrap"></div>
-                <input id="search" class="stock-units-search" placeholder="Buscar" oninput="StockUnits.load()">
-                <button id="filterSelectedBtn" class="stock-units-filter-selected-btn" onclick="StockUnits._toggleShowSelected()" title="Mostrar apenas selecionados">
-                    <span class="material-symbols-outlined">checklist</span>
-                    Selecionados
-                </button>
+                <div id="stockUnitsSearchMount" style="width: 194px; height: 36px;"></div>
+                <div id="filterSelectedBtnMount"></div>
             </div>
             <div id="stockUnitsTableContainer"></div>
         </div>
@@ -75,6 +75,33 @@ const StockUnits = {
 
     async load() {
         this._resetForm();
+
+        if (!this._searchInput) {
+            const mount = document.getElementById('stockUnitsSearchMount');
+            if (mount) {
+                this._searchInput = createInput({
+                    id: 'search',
+                    placeholder: 'Buscar',
+                    icon: 'Search',
+                    onInput: () => StockUnits.load(),
+                });
+                mount.appendChild(this._searchInput.el);
+            }
+        }
+
+        if (!this._filterSelectedBtn) {
+            const mount = document.getElementById('filterSelectedBtnMount');
+            if (mount) {
+                this._filterSelectedBtn = createButton({
+                    label: 'Selecionados',
+                    variant: 'secondary',
+                    icon: 'checklist',
+                    title: 'Mostrar apenas selecionados',
+                    onClick: () => StockUnits._toggleShowSelected(),
+                });
+                mount.appendChild(this._filterSelectedBtn.el);
+            }
+        }
 
         if (!this._batchDialog)  this._batchDialog  = this._createBatchDialog();
         if (!this._detailDialog) this._detailDialog = this._createDetailDialog();
@@ -97,10 +124,10 @@ const StockUnits = {
                     {
                         key: '_status', header: '', width: '32px',
                         render: r => {
-                            if (r.tracking_mode === 'simple') return '';
+                            if (r.tracking_mode === 'simple') return ' ';
                             if (r.status === 'PARTIAL') return '<span class="material-symbols-outlined stock-units-status-partial">timelapse</span>';
                             if (r.status !== 'IN_STOCK') return '<span class="material-symbols-outlined stock-units-status-check">check_circle</span>';
-                            return '';
+                            return ' ';
                         },
                     },
                     {
@@ -137,6 +164,7 @@ const StockUnits = {
                     { key: 'notes', header: 'Obs', render: r => r.notes ?? '' },
                 ],
                 getRowKey: r => r.tracking_mode === 'simple' ? `simple-${r.material_id}` : String(r.id),
+                pageSize: 13,
                 onRowClick: r => StockUnits.selectStockUnit(r),
                 actions: [
                     {
@@ -197,8 +225,8 @@ const StockUnits = {
                     this._filterStatus = 'IN_STOCK';
                     localStorage.setItem('wcm.stockUnits.material', presetMaterial);
                 }
-                if (savedMaterial) this._materialSelect.select('material', savedMaterial);
-                if (savedSupplier) this._supplierSelect.select('supplier', savedSupplier);
+                if (savedMaterial) this._materialSelect.setValue(savedMaterial);
+                if (savedSupplier) this._supplierSelect.setValue(savedSupplier);
             }
 
             localStorage.setItem('wcm.stockUnits.search', document.getElementById('search')?.value || '');
@@ -303,8 +331,8 @@ const StockUnits = {
                     </div>
                 `,
                 actions: [
-                    { label: 'Confirmar saída', className: 'btn-primary', icon: 'output', onClick: () => StockUnits._confirmExitDialog() },
-                    { label: 'Cancelar', className: 'btn-secondary', onClick: () => StockUnits._exitDialog?.close() },
+                    { label: 'Confirmar saída', variant: 'primary', icon: 'output', onClick: () => StockUnits._confirmExitDialog() },
+                    { label: 'Cancelar', variant: 'secondary', onClick: () => StockUnits._exitDialog?.close() },
                 ],
             });
             this._exitDialog.open();
@@ -363,8 +391,8 @@ const StockUnits = {
                 subtitle: 'Selecione as saídas que deseja reverter:',
                 bodyHTML: `<div class="stock-units-return-list">${rowsHTML}</div>`,
                 actions: [
-                    { label: 'Confirmar retorno', className: 'btn-primary', icon: 'undo', onClick: () => StockUnits._confirmReturnDialog() },
-                    { label: 'Cancelar', className: 'btn-secondary', onClick: () => StockUnits._returnDialog?.close() },
+                    { label: 'Confirmar retorno', variant: 'primary', icon: 'undo', onClick: () => StockUnits._confirmReturnDialog() },
+                    { label: 'Cancelar', variant: 'secondary', onClick: () => StockUnits._returnDialog?.close() },
                 ],
             });
             this._returnDialog.open();
@@ -415,7 +443,7 @@ const StockUnits = {
             wide: true,
             bodyHTML: `<p class="stock-units-delete-warning">A exclusão do lote <strong>${bag ? this._codeFor(bag) : '#' + id}</strong> também removerá os movimentos de estoque vinculados e impactará o recebimento associado.</p>`,
             actions: [
-                { label: 'Excluir', className: 'btn-danger', icon: 'delete', onClick: async () => {
+                { label: 'Excluir', variant: 'cancel', icon: 'delete', onClick: async () => {
                     this._deleteDialog?.close();
                     try {
                         await apiCall(`${API}/stock-units/${id}`, { method: 'DELETE' });
@@ -430,7 +458,7 @@ const StockUnits = {
                     } catch { Receipts.selectedReceipt = null; }
                     openNewTab('receipt-details');
                 }}] : []),
-                { label: 'Cancelar', className: 'btn-secondary', onClick: () => this._deleteDialog?.close() },
+                { label: 'Cancelar', variant: 'secondary', onClick: () => this._deleteDialog?.close() },
             ],
         });
         this._deleteDialog.open();
@@ -449,13 +477,12 @@ const StockUnits = {
         const suppliers = [...new Set(visibleBags.map(b => b.supplier).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
         if (!this._materialSelect) {
-            this._materialSelect = createSearchSelect({
-                id: 'stockUnitsMaterial',
+            this._materialSelect = createSelect({
                 placeholder: 'Material',
                 searchable: true,
                 multiple: false,
                 sections: [{ key: 'material', items: [] }],
-                onChange: ({ value }) => {
+                onChange: (value) => {
                     localStorage.setItem('wcm.stockUnits.material', value != null ? String(value) : '');
                     StockUnits.load();
                 }
@@ -464,13 +491,12 @@ const StockUnits = {
         }
 
         if (!this._supplierSelect) {
-            this._supplierSelect = createSearchSelect({
-                id: 'stockUnitsSupplier',
+            this._supplierSelect = createSelect({
                 placeholder: 'Fornecedor',
                 searchable: true,
                 multiple: false,
                 sections: [{ key: 'supplier', items: [] }],
-                onChange: ({ value }) => {
+                onChange: (value) => {
                     localStorage.setItem('wcm.stockUnits.supplier', value != null ? String(value) : '');
                     StockUnits.load();
                 }
@@ -487,8 +513,8 @@ const StockUnits = {
         const supplierSel = this._supplierSelect?.getValue();
         return {
             status: this._filterStatus || null,
-            material: materialSel ? String(materialSel.value) : null,
-            supplier: supplierSel ? String(supplierSel.value) : null,
+            material: materialSel != null ? String(materialSel) : null,
+            supplier: supplierSel != null ? String(supplierSel) : null,
             search: document.getElementById('search')?.value.toLowerCase() || null,
             onlySelected: this._showOnlySelected,
             location: AppState.getLocationFilter() || null,
@@ -583,9 +609,9 @@ const StockUnits = {
     },
 
     _updateSelectedFilterBtn() {
-        const btn = document.getElementById('filterSelectedBtn');
-        if (!btn) return;
-        btn.classList.toggle('stock-units-filter-selected-btn--active', this._showOnlySelected);
+        const el = this._filterSelectedBtn?.el;
+        if (!el) return;
+        el.classList.toggle('stock-units-filter-selected-btn--active', this._showOnlySelected);
     },
 
     openBatchOut() {
@@ -685,14 +711,14 @@ const StockUnits = {
                 </div>
             `,
             actions: [
-                { label: 'Confirmar', className: 'btn-primary', onClick: () => StockUnits.confirmBatchOut() },
-                { label: 'Cancelar',  className: 'btn-secondary', onClick: () => StockUnits.closeBatchDialog() },
+                { label: 'Confirmar', variant: 'primary', onClick: () => StockUnits.confirmBatchOut() },
+                { label: 'Cancelar',  variant: 'secondary', onClick: () => StockUnits.closeBatchDialog() },
             ],
         });
     },
 
     _createDetailDialog() {
-        return createDialog({
+        const dlg = createDialog({
             title: '',
             wide: true,
             closeOnBackdrop: true,
@@ -701,31 +727,31 @@ const StockUnits = {
                 <div class="stock-units-edit-fields">
                     <div class="stock-units-edit-field">
                         <label>Código</label>
-                        <input readonly id="code" class="stock-units-edit-input" placeholder="Código">
+                        <div id="codeMount"></div>
                     </div>
                     <div id="stockUnitsFieldOldId" class="stock-units-edit-field">
                         <label>ID Antigo</label>
-                        <input readonly id="old_id" class="stock-units-edit-input" placeholder="ID Antigo">
+                        <div id="old_idMount"></div>
                     </div>
                     <div class="stock-units-edit-field">
                         <label>Material</label>
-                        <input readonly id="material" class="stock-units-edit-input" placeholder="Material">
+                        <div id="materialMount"></div>
                     </div>
                     <div id="stockUnitsFieldSupplier" class="stock-units-edit-field">
                         <label>Fornecedor</label>
-                        <input readonly id="supplier" class="stock-units-edit-input" placeholder="Fornecedor">
+                        <div id="supplierMount"></div>
                     </div>
                     <div id="stockUnitsFieldOperator" class="stock-units-edit-field">
                         <label>Operador</label>
-                        <input readonly id="operator" class="stock-units-edit-input" placeholder="Operador">
+                        <div id="operatorMount"></div>
                     </div>
                     <div class="stock-units-edit-field">
                         <label>Peso</label>
-                        <input readonly id="weight" class="stock-units-edit-input" placeholder="Peso">
+                        <div id="weightMount"></div>
                     </div>
                     <div id="stockUnitsRemainingField" class="stock-units-edit-field" style="display:none">
                         <label>Restante</label>
-                        <input readonly id="stockUnitsRemainingWeight" class="stock-units-edit-input" placeholder="Restante">
+                        <div id="stockUnitsRemainingWeightMount"></div>
                     </div>
                     <div class="stock-units-edit-field">
                         <label>Entrada</label>
@@ -744,14 +770,28 @@ const StockUnits = {
                     </div>
                     <div id="stockUnitsFieldNotes" class="stock-units-edit-field stock-units-edit-field-obs">
                         <label>Obs</label>
-                        <input readonly id="notes" class="stock-units-edit-input" placeholder="Observação">
+                        <div id="notesMount"></div>
                     </div>
                 </div>
             `,
             actions: [
-                { label: 'Fechar', className: 'btn-secondary', onClick: () => StockUnits._detailDialog?.close() },
+                { label: 'Fechar', variant: 'secondary', onClick: () => StockUnits._detailDialog?.close() },
             ],
         });
+
+        const fields = [
+            ['code', 'Código'], ['old_id', 'ID Antigo'], ['material', 'Material'],
+            ['supplier', 'Fornecedor'], ['operator', 'Operador'], ['weight', 'Peso'],
+            ['stockUnitsRemainingWeight', 'Restante'], ['notes', 'Observação'],
+        ];
+        for (const [id, ph] of fields) {
+            const m = document.getElementById(id + 'Mount');
+            if (m) {
+                const cmp = createInput({ id, readonly: true, placeholder: ph });
+                m.appendChild(cmp.el);
+            }
+        }
+        return dlg;
     },
 
     openPartialExit(event, id) {
@@ -794,8 +834,7 @@ const StockUnits = {
                     </select>
                 </label>
                 <label id="stockUnitsPartialPkgCountLabel" style="display:none">Quantidade de embalagens <span class="required">*</span>
-                    <input id="stockUnitsPartialPkgCount" type="number" step="1" min="1" class="dialog-input" placeholder="0"
-                           oninput="StockUnits._onPkgCountChange()">
+                    <div id="stockUnitsPartialPkgCountMount"></div>
                     <span id="stockUnitsPartialPkgHint" class="stock-units-pkg-hint"></span>
                 </label>`;
         }
@@ -807,7 +846,7 @@ const StockUnits = {
                 <div class="stock-movements-dialog-form">
                     ${pkgOptionsHTML}
                     <label id="stockUnitsPartialQtyLabel">Quantidade (kg) <span class="required">*</span>
-                        <input id="stockUnitsPartialQty" type="number" step="any" min="0.01" max="${remaining}" class="dialog-input" placeholder="0,00">
+                        <div id="stockUnitsPartialQtyMount"></div>
                     </label>
                     <label>Data de saída <span class="required">*</span>
                         <input id="stockUnitsPartialDate" type="date" class="dialog-input" value="${new Date().toISOString().slice(0, 10)}">
@@ -819,16 +858,41 @@ const StockUnits = {
                         </select>
                     </label>
                     <label>Observações
-                        <input id="stockUnitsPartialNotes" type="text" class="dialog-input" placeholder="Opcional">
+                        <div id="stockUnitsPartialNotesMount"></div>
                     </label>
                 </div>
             `,
             actions: [
-                { label: 'Confirmar Saída', className: 'btn-primary', icon: 'check', onClick: () => this._submitPartialExit(bag.id) },
-                { label: 'Cancelar', className: 'btn-secondary', onClick: () => this._partialExitDialog.close() },
+                { label: 'Confirmar Saída', variant: 'primary', icon: 'check', onClick: () => this._submitPartialExit(bag.id) },
+                { label: 'Cancelar', variant: 'secondary', onClick: () => this._partialExitDialog.close() },
             ],
         });
         this._partialExitDialog.open();
+
+        if (hasPkg) {
+            const pkgCount = createInput({
+                id: 'stockUnitsPartialPkgCount',
+                type: 'number',
+                placeholder: '0',
+                onInput: () => StockUnits._onPkgCountChange(),
+            });
+            pkgCount.input.step = '1';
+            pkgCount.input.min = '1';
+            document.getElementById('stockUnitsPartialPkgCountMount').appendChild(pkgCount.el);
+        }
+        const qty = createInput({
+            id: 'stockUnitsPartialQty',
+            type: 'number',
+            placeholder: '0,00',
+        });
+        qty.input.step = 'any';
+        qty.input.min = '0.01';
+        qty.input.max = String(remaining);
+        document.getElementById('stockUnitsPartialQtyMount').appendChild(qty.el);
+
+        const notes = createInput({ id: 'stockUnitsPartialNotes', placeholder: 'Opcional' });
+        document.getElementById('stockUnitsPartialNotesMount').appendChild(notes.el);
+
         this._onPkgSelectChange();
     },
 

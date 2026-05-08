@@ -127,9 +127,6 @@
     min-width: 0;
 }
 
-.cstats-filter-checks {
-    justify-content: flex-end;
-}
 
 .cstats-label {
     display: block;
@@ -317,43 +314,6 @@
 }
 
 /* ---------------------------------------------------
-   Aggregation toggle group
-   --------------------------------------------------- */
-.cstats-toggle-group {
-    display: flex;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.cstats-toggle-btn {
-    height: 32px;
-    padding: 0 14px;
-    border: none;
-    border-right: 1px solid #e2e8f0;
-    background: #ffffff;
-    color: #374151;
-    font-size: 13px;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-    white-space: nowrap;
-}
-
-.cstats-toggle-btn:last-child {
-    border-right: none;
-}
-
-.cstats-toggle-btn:hover:not(.cstats-toggle-btn--active) {
-    background: #f8fafc;
-}
-
-.cstats-toggle-btn--active {
-    background: #111827;
-    color: #ffffff;
-    font-weight: 600;
-}
-
-/* ---------------------------------------------------
    Native select (forecast method)
    --------------------------------------------------- */
 .cstats-select-native {
@@ -373,31 +333,115 @@
 }
 
 /* ---------------------------------------------------
-   Checkboxes
+   Tratamentos dropdown
    --------------------------------------------------- */
-.cstats-checkboxes {
-    display: flex;
+.cstats-trat-wrap {
+    position: relative;
+}
+
+.cstats-trat-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: #1f2937;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.cstats-trat-chevron {
+    font-size: 18px !important;
+    transition: transform 0.2s;
+    color: #64748b;
+}
+
+.cstats-trat-btn--open .cstats-trat-chevron {
+    transform: rotate(180deg);
+}
+
+.cstats-trat-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 300px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    z-index: 200;
+    padding: 8px;
     flex-direction: column;
     gap: 6px;
 }
 
-.cstats-checkbox-label {
+.cstats-trat-dropdown.open {
+    display: flex;
+}
+
+.cstats-trat-option {
     display: flex;
     align-items: center;
-    gap: 7px;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
     cursor: pointer;
-    font-size: 13px;
-    color: #374151;
-    height: 18px;
+    transition: background 0.15s, border-color 0.15s;
     user-select: none;
 }
 
-.cstats-checkbox-label input[type="checkbox"] {
-    width: 15px;
-    height: 15px;
-    cursor: pointer;
-    accent-color: #111827;
+.cstats-trat-option:hover {
+    background: #f8fafc;
+}
+
+.cstats-trat-option--selected {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.cstats-trat-option-body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    min-width: 0;
+}
+
+.cstats-trat-option-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+    line-height: 1.3;
+}
+
+.cstats-trat-option-desc {
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+.cstats-trat-check {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #d1d5db;
     flex-shrink: 0;
+    background: #fff;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.cstats-trat-check--on {
+    border-color: #111827;
+    background: #111827;
+    box-shadow: inset 0 0 0 3px #fff;
 }
 
 /* ---------------------------------------------------

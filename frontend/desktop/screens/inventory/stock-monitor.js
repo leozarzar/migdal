@@ -13,6 +13,7 @@ const StockMonitor = {
     endDate: null,
     _chartPoints: [],
     _materialSelect: null,
+    _datePicker: null,
     _policyLevels: {}, // { materialName: [{ policy_name, review_type, safety_stock, reorder_point, max_stock }] }
 
     // ══════════════════════════════════════════════
@@ -21,13 +22,6 @@ const StockMonitor = {
 
     /** Retorna o template HTML do monitor de estoque. */
     render() {
-        const today = new Date();
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(today.getDate() - 30);
-
-        const defaultEnd = this._formatDate(today);
-        const defaultStart = this._formatDate(thirtyDaysAgo);
-
         return `
         <div class="stock-monitor-container">
             <div class="stock-monitor-card">
@@ -45,13 +39,8 @@ const StockMonitor = {
                     </div>
 
                     <div class="stock-monitor-date-filter">
-                        <label class="stock-monitor-label">Data Início</label>
-                        <input type="date" id="stockMonitorStartDate" class="stock-monitor-date-input" value="${defaultStart}">
-                    </div>
-
-                    <div class="stock-monitor-date-filter">
-                        <label class="stock-monitor-label">Data Fim</label>
-                        <input type="date" id="stockMonitorEndDate" class="stock-monitor-date-input" value="${defaultEnd}">
+                        <label class="stock-monitor-label">Período</label>
+                        <div id="stockMonitorDatePicker"></div>
                     </div>
                 </div>
 
@@ -88,22 +77,44 @@ const StockMonitor = {
         if (this._materialSelect) {
             this._materialSelect.destroy();
         }
+        if (this._datePicker) {
+            this._datePicker.destroy();
+        }
 
-        this._materialSelect = createSearchSelect({
-            id: "stockMonitorMaterial",
+        this._materialSelect = createSelect({
             placeholder: "Selecione um material",
             searchable: true,
             multiple: false,
             sections: [
                 { key: "material", label: "Materiais", items: [] }
             ],
-            onChange: async ({ value }) => {
+            onChange: async (value) => {
                 this.selectedMaterials = value != null ? [value] : [];
                 localStorage.setItem('wcm.stockMonitor.material', value || '');
                 await this.refresh();
             }
         });
         this._materialSelect.mount(document.getElementById("stockMonitorMaterialSelect"));
+
+        this._datePicker = createDatePicker({
+            range: true,
+            value: {
+                start: this.startDate ? new Date(this.startDate + 'T00:00:00') : null,
+                end:   this.endDate   ? new Date(this.endDate   + 'T00:00:00') : null,
+            },
+            onChange: async ({ start, end }) => {
+                if (start) {
+                    this.startDate = this._formatDate(start);
+                    localStorage.setItem('wcm.stockMonitor.startDate', this.startDate);
+                }
+                if (end) {
+                    this.endDate = this._formatDate(end);
+                    localStorage.setItem('wcm.stockMonitor.endDate', this.endDate);
+                }
+                await this.refresh();
+            },
+        });
+        this._datePicker.mount(document.getElementById("stockMonitorDatePicker"));
 
         this._bindEvents();
 
@@ -124,14 +135,8 @@ const StockMonitor = {
             const savedMaterial = localStorage.getItem('wcm.stockMonitor.material') || '';
             if (savedMaterial && this.materials.includes(savedMaterial)) {
                 this.selectedMaterials = [savedMaterial];
-                this._materialSelect.select('material', savedMaterial);
+                this._materialSelect.setValue(savedMaterial);
             }
-
-            // Sync date inputs with (possibly restored) values
-            const startInput = document.getElementById('stockMonitorStartDate');
-            const endInput   = document.getElementById('stockMonitorEndDate');
-            if (startInput) startInput.value = this.startDate;
-            if (endInput)   endInput.value   = this.endDate;
 
             await this.refresh();
         } catch (error) {
@@ -143,27 +148,8 @@ const StockMonitor = {
     // ══ Eventos ══
     // ══════════════════════════════════════════════
 
-    /** Vincula listeners de filtros, dropdown, datas e hover do canvas. */
+    /** Vincula listeners de filtros e hover do canvas. */
     _bindEvents() {
-        const startInput = document.getElementById("stockMonitorStartDate");
-        const endInput = document.getElementById("stockMonitorEndDate");
-
-        if (startInput) {
-            startInput.onchange = async () => {
-                this.startDate = startInput.value;
-                localStorage.setItem('wcm.stockMonitor.startDate', this.startDate);
-                await this.refresh();
-            };
-        }
-
-        if (endInput) {
-            endInput.onchange = async () => {
-                this.endDate = endInput.value;
-                localStorage.setItem('wcm.stockMonitor.endDate', this.endDate);
-                await this.refresh();
-            };
-        }
-
         const canvas = document.getElementById("stockMonitorChart");
         if (canvas) {
             canvas.onmousemove = (e) => this._onChartHover(e);

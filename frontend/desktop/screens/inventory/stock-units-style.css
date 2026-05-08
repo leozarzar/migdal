@@ -99,10 +99,10 @@
 .stock-units-status-pill {
     height: 36px;
     padding: 0 14px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-components);
     border-radius: 20px;
     background: #ffffff;
-    color: #64748b;
+    color: var(--foreground);
     font-size: 13px;
     font-weight: 500;
     font-family: inherit;
@@ -112,20 +112,16 @@
 }
 
 .stock-units-status-pill:hover {
-    border-color: #94a3b8;
-    color: #1e293b;
+    border-color: var(--border-components-darkest);
 }
 
 .stock-units-status-pill--active {
-    background: #1e293b;
-    color: #ffffff;
-    border-color: #1e293b;
+    background: var(--background-selected);
+    border-color: var(--border-components-darkest);
 }
 
 .stock-units-status-pill--active:hover {
-    background: #0f172a;
-    border-color: #0f172a;
-    color: #f8f8f8;
+    background: var(--background-selected-hover);
 }
 
 /* ── Search ── */
@@ -163,6 +159,7 @@
     align-items: center;
     gap: 10px;
     padding: 8px 14px;
+    margin-bottom: 12px;
     background: #eff6ff;
     border: 1px solid #93c5fd;
     border-radius: 8px;
@@ -210,40 +207,13 @@
 
 /* ── Filter "Selecionados" button ── */
 
-.stock-units-filter-selected-btn {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    height: 32px;
-    padding: 0 12px;
-    font-size: 13px;
-    font-family: inherit;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    background: white;
-    color: #334155;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
-    white-space: nowrap;
-}
-
-.stock-units-filter-selected-btn .material-symbols-outlined {
-    font-size: 16px;
-}
-
-.stock-units-filter-selected-btn:hover {
-    background: #f1f5f9;
-    border-color: #94a3b8;
-}
-
 .stock-units-filter-selected-btn--active {
-    background: #eff6ff;
-    border-color: #3b82f6;
-    color: #1d4ed8;
+    background: var(--background-selected) !important;
+    border-color: var(--border-components-darkest) !important;
 }
 
 .stock-units-filter-selected-btn--active:hover {
-    background: #dbeafe;
+    background: var(--background-selected-hover) !important;
 }
 
 /* ── Status icons (used in render functions) ── */

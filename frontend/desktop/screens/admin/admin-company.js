@@ -6,8 +6,23 @@
 const AdminCompany = {
     _company: {},
     _formDirty: false,
+    _inputs: {},
+
+    _INPUT_FIELDS: [
+        { id: 'companyName',         placeholder: 'Ex: ICASA INDÚSTRIA DE PLÁSTICOS EIRELI' },
+        { id: 'companyCNPJ',         placeholder: 'XX.XXX.XXX/XXXX-XX' },
+        { id: 'companyIE',           placeholder: 'IE' },
+        { id: 'companyAddress',      placeholder: 'Ex: AV. CÍCERO BATISTA DE OLIVEIRA, 2.980' },
+        { id: 'companyNeighborhood', placeholder: 'Ex: ALPES SUÍÇOS' },
+        { id: 'companyCity',         placeholder: 'Ex: GRAVATÁ' },
+        { id: 'companyCEP',          placeholder: '55.645-000' },
+        { id: 'companyPhone',        placeholder: '(81) 3533-0512', type: 'tel' },
+        { id: 'companyEmail',        placeholder: 'contato@empresa.com', type: 'email' },
+    ],
 
     render() {
+        for (const k of Object.keys(this._inputs)) this._inputs[k]?.destroy();
+        this._inputs = {};
         return `
         <div class="admin-company-container">
             <div class="admin-company-card">
@@ -21,24 +36,18 @@ const AdminCompany = {
                         <div class="admin-company-field-row">
                             <div class="admin-company-field admin-company-field--full">
                                 <label class="admin-company-label">Nome da Empresa</label>
-                                <input type="text" id="companyName" class="admin-company-input"
-                                       placeholder="Ex: ICASA INDÚSTRIA DE PLÁSTICOS EIRELI"
-                                       onchange="AdminCompany._markDirty()">
+                                <div id="companyNameMount"></div>
                             </div>
                         </div>
 
                         <div class="admin-company-field-row">
                             <div class="admin-company-field admin-company-field--half">
                                 <label class="admin-company-label">CNPJ</label>
-                                <input type="text" id="companyCNPJ" class="admin-company-input"
-                                       placeholder="XX.XXX.XXX/XXXX-XX"
-                                       onchange="AdminCompany._markDirty()">
+                                <div id="companyCNPJMount"></div>
                             </div>
                             <div class="admin-company-field admin-company-field--half">
                                 <label class="admin-company-label">Inscrição Estadual</label>
-                                <input type="text" id="companyIE" class="admin-company-input"
-                                       placeholder="IE"
-                                       onchange="AdminCompany._markDirty()">
+                                <div id="companyIEMount"></div>
                             </div>
                         </div>
                     </div>
@@ -49,24 +58,18 @@ const AdminCompany = {
                         <div class="admin-company-field-row">
                             <div class="admin-company-field admin-company-field--full">
                                 <label class="admin-company-label">Endereço</label>
-                                <input type="text" id="companyAddress" class="admin-company-input"
-                                       placeholder="Ex: AV. CÍCERO BATISTA DE OLIVEIRA, 2.980"
-                                       onchange="AdminCompany._markDirty()">
+                                <div id="companyAddressMount"></div>
                             </div>
                         </div>
 
                         <div class="admin-company-field-row">
                             <div class="admin-company-field admin-company-field--half">
                                 <label class="admin-company-label">Bairro</label>
-                                <input type="text" id="companyNeighborhood" class="admin-company-input"
-                                       placeholder="Ex: ALPES SUÍÇOS"
-                                       onchange="AdminCompany._markDirty()">
+                                <div id="companyNeighborhoodMount"></div>
                             </div>
                             <div class="admin-company-field admin-company-field--quarter">
                                 <label class="admin-company-label">Cidade</label>
-                                <input type="text" id="companyCity" class="admin-company-input"
-                                       placeholder="Ex: GRAVATÁ"
-                                       onchange="AdminCompany._markDirty()">
+                                <div id="companyCityMount"></div>
                             </div>
                             <div class="admin-company-field admin-company-field--quarter">
                                 <label class="admin-company-label">UF</label>
@@ -107,9 +110,7 @@ const AdminCompany = {
                         <div class="admin-company-field-row">
                             <div class="admin-company-field admin-company-field--half">
                                 <label class="admin-company-label">CEP</label>
-                                <input type="text" id="companyCEP" class="admin-company-input"
-                                       placeholder="55.645-000"
-                                       onchange="AdminCompany._markDirty()">
+                                <div id="companyCEPMount"></div>
                             </div>
                         </div>
                     </div>
@@ -120,15 +121,11 @@ const AdminCompany = {
                         <div class="admin-company-field-row">
                             <div class="admin-company-field admin-company-field--half">
                                 <label class="admin-company-label">Telefone</label>
-                                <input type="tel" id="companyPhone" class="admin-company-input"
-                                       placeholder="(81) 3533-0512"
-                                       onchange="AdminCompany._markDirty()">
+                                <div id="companyPhoneMount"></div>
                             </div>
                             <div class="admin-company-field admin-company-field--half">
                                 <label class="admin-company-label">E-mail Corporativo</label>
-                                <input type="email" id="companyEmail" class="admin-company-input"
-                                       placeholder="contato@empresa.com"
-                                       onchange="AdminCompany._markDirty()">
+                                <div id="companyEmailMount"></div>
                             </div>
                         </div>
                     </div>
@@ -149,6 +146,7 @@ const AdminCompany = {
     },
 
     async load() {
+        this._mountInputs();
         try {
             this._company = await apiCall(API + '/company') || {};
             this._populateForm();
@@ -156,6 +154,21 @@ const AdminCompany = {
             this._updateButtonStates();
         } catch (e) {
             alert(e.message);
+        }
+    },
+
+    _mountInputs() {
+        for (const f of this._INPUT_FIELDS) {
+            const mount = document.getElementById(f.id + 'Mount');
+            if (!mount) continue;
+            const cmp = createInput({
+                id: f.id,
+                type: f.type || 'text',
+                placeholder: f.placeholder,
+                onChange: () => AdminCompany._markDirty(),
+            });
+            mount.appendChild(cmp.el);
+            this._inputs[f.id] = cmp;
         }
     },
 

@@ -29,6 +29,11 @@ const ConsumptionStats = {
     _lastAggregated: [],
     _lastHighlightIdx: -1,
     _materialSelect: null,  // instância do componente SearchSelect
+    _aggregationToggle: null, // instância do componente ToggleGroup
+    _datePicker: null,  // instância do componente DatePicker (range)
+    _linkBtn: null,     // instância do componente Button (Vincular)
+    _optimizeBtn: null, // instância do componente Button (Otimizar)
+    _tratamentosCloseHandler: null, // listener de fechar dropdown no document
     _policyItems: [],   // [{ item_id, policy_id, policy_name }] para o material selecionado
 
     // ══════════════════════════════════════════════════════════════
@@ -37,13 +42,6 @@ const ConsumptionStats = {
 
     /** @returns {string} HTML completo da tela (filtros, gráfico e indicadores) */
     render() {
-        const today = new Date();
-        const ninetyDaysAgo = new Date(today);
-        ninetyDaysAgo.setDate(today.getDate() - 90);
-
-        const defaultEnd = this._formatDate(today);
-        const defaultStart = this._formatDate(ninetyDaysAgo);
-
         return `
         <div class="cstats-container">
 
@@ -55,8 +53,8 @@ const ConsumptionStats = {
                         <p class="cstats-card-subtitle">Análise estatística e previsão de consumo por material</p>
                     </div>
                     <div class="cstats-btn-group">
-                        <button id="cstatsLinkBtn" class="cstats-btn cstats-btn--link" type="button" style="display:none" title="Vincular à política de estoque"><span class="material-symbols-outlined">link</span>Vincular</button>
-                        <button id="cstatsOptimizeBtn" class="cstats-btn cstats-btn--optimize" type="button"><span class="material-symbols-outlined">tune</span>Otimizar</button>
+                        <div id="cstatsLinkBtnContainer"></div>
+                        <div id="cstatsOptimizeBtnContainer"></div>
                     </div>
                 </div>
 
@@ -68,22 +66,13 @@ const ConsumptionStats = {
                     </div>
 
                     <div class="cstats-filter-group">
-                        <label class="cstats-label">Data Início</label>
-                        <input type="date" id="cstatsStartDate" class="cstats-date-input" value="${defaultStart}">
-                    </div>
-
-                    <div class="cstats-filter-group">
-                        <label class="cstats-label">Data Fim</label>
-                        <input type="date" id="cstatsEndDate" class="cstats-date-input" value="${defaultEnd}">
+                        <label class="cstats-label">Período</label>
+                        <div id="cstatsDatePickerContainer"></div>
                     </div>
 
                     <div class="cstats-filter-group">
                         <label class="cstats-label">Agregação</label>
-                        <div class="cstats-toggle-group" id="cstatsAggregation">
-                            <button class="cstats-toggle-btn cstats-toggle-btn--active" data-value="daily" type="button">Diário</button>
-                            <button class="cstats-toggle-btn" data-value="weekly" type="button">Semanal</button>
-                            <button class="cstats-toggle-btn" data-value="monthly" type="button">Mensal</button>
-                        </div>
+                        <div id="cstatsAggregationContainer"></div>
                     </div>
                 </div>
 
@@ -119,22 +108,9 @@ const ConsumptionStats = {
                         <div id="cstatsNinputServiceLevel"></div>
                     </div>
 
-                    <div class="cstats-filter-group cstats-filter-checks">
-                        <label class="cstats-label cstats-label--invisible">Opções</label>
-                        <div class="cstats-checkboxes">
-                            <label class="cstats-checkbox-label">
-                                <input type="checkbox" id="cstatsRemoveZeros">
-                                <span class="cstats-checkbox-text">Remover zeros</span>
-                            </label>
-                            <label class="cstats-checkbox-label">
-                                <input type="checkbox" id="cstatsTreatOutliers">
-                                <span class="cstats-checkbox-text">Tratar outliers</span>
-                            </label>
-                            <label class="cstats-checkbox-label">
-                                <input type="checkbox" id="cstatsRemoveNoActivity">
-                                <span class="cstats-checkbox-text">Tratar rupturas</span>
-                            </label>
-                        </div>
+                    <div class="cstats-filter-group">
+                        <label class="cstats-label cstats-label--invisible">Tratamentos</label>
+                        <div id="cstatsTratamentosContainer"></div>
                     </div>
                 </div>
 
@@ -258,33 +234,63 @@ const ConsumptionStats = {
         this.groups            = [];
         this._policyItems      = [];
 
-        // Recria o componente de seleção a cada load() para garantir DOM e listeners limpos
-        if (this._materialSelect) this._materialSelect.destroy();
-        this._materialSelect = createSearchSelect({
-            id:                'cstatsMaterial',
+        // Recria os componentes a cada load() para garantir DOM e listeners limpos
+        if (this._materialSelect)    this._materialSelect.destroy();
+        if (this._aggregationToggle) this._aggregationToggle.destroy();
+        if (this._datePicker)        this._datePicker.destroy();
+        if (this._linkBtn)           this._linkBtn.destroy();
+        if (this._optimizeBtn)       this._optimizeBtn.destroy();
+        if (this._tratamentosCloseHandler) {
+            document.removeEventListener('click', this._tratamentosCloseHandler);
+            this._tratamentosCloseHandler = null;
+        }
+
+        this._linkBtn = createButton({
+            label: 'Vincular', variant: 'secondary', icon: 'link',
+            title: 'Vincular à política de estoque',
+            onClick: async () => { await this._linkForecastToPolicy(); },
+        });
+        const linkContainer = document.getElementById('cstatsLinkBtnContainer');
+        if (linkContainer) {
+            linkContainer.innerHTML = '';
+            linkContainer.appendChild(this._linkBtn.el);
+        }
+        this._linkBtn.el.style.display = 'none';
+
+        this._optimizeBtn = createButton({
+            label: 'Otimizar', variant: 'secondary', icon: 'tune',
+            onClick: async () => { await this._optimizeForecast(); },
+        });
+        const optimizeContainer = document.getElementById('cstatsOptimizeBtnContainer');
+        if (optimizeContainer) {
+            optimizeContainer.innerHTML = '';
+            optimizeContainer.appendChild(this._optimizeBtn.el);
+        }
+        this._materialSelect = createSelect({
             placeholder:       'Selecione um material',
             searchable:        true,
-            searchPlaceholder: 'Buscar material...',
             sections: [
                 { key: 'material', label: 'Materiais', items: [] },
                 { key: 'group',    label: 'Grupos',    items: [] }
             ],
-            onChange: async (selection) => {
-                if (selection.key === 'group') {
+            onChange: async (value) => {
+                if (value == null) return;
+                const groupObj = this.groups.find(g => String(g.id) === String(value));
+                if (groupObj) {
                     this.selectedType     = 'group';
                     this.selectedMaterial = null;
                     try {
-                        const gData = await apiCall(API + `/groups/${selection.value}`);
+                        const gData = await apiCall(API + `/groups/${value}`);
                         this.selectedGroupData = {
-                            id:        selection.value,
-                            name:      selection.label,
+                            id:        value,
+                            name:      groupObj.name,
                             materials: gData.materials || []
                         };
                     } catch {
-                        this.selectedGroupData = { id: selection.value, name: selection.label, materials: [] };
+                        this.selectedGroupData = { id: value, name: groupObj.name, materials: [] };
                     }
                 } else {
-                    this.selectedMaterial  = selection.label;
+                    this.selectedMaterial  = String(value);
                     this.selectedType      = 'material';
                     this.selectedGroupData = null;
                 }
@@ -294,6 +300,36 @@ const ConsumptionStats = {
             }
         });
         this._materialSelect.mount(document.getElementById('cstatsMaterialContainer'));
+
+        this._aggregationToggle = createToggleGroup({
+            options: [
+                { value: 'daily',   label: 'Diário'  },
+                { value: 'weekly',  label: 'Semanal' },
+                { value: 'monthly', label: 'Mensal'  },
+            ],
+            value: this.aggregation,
+            onChange: async (value) => {
+                this.aggregation = value;
+                this._saveFilters();
+                await this.refresh();
+            },
+        });
+        this._aggregationToggle.mount('cstatsAggregationContainer');
+
+        this._datePicker = createDatePicker({
+            range: true,
+            value: {
+                start: this.startDate ? new Date(this.startDate + 'T00:00:00') : null,
+                end:   this.endDate   ? new Date(this.endDate   + 'T00:00:00') : null,
+            },
+            onChange: async ({ start, end }) => {
+                if (start) this.startDate = this._formatDate(start);
+                if (end)   this.endDate   = this._formatDate(end);
+                this._saveFilters();
+                await this.refresh();
+            },
+        });
+        this._datePicker.mount(document.getElementById('cstatsDatePickerContainer'));
 
         // Monta os componentes NumberInput nos seus contêineres (usa valores já restaurados).
         // Os callbacks onChange são a fonte de verdade para salvar parâmetros — mais
@@ -322,34 +358,13 @@ const ConsumptionStats = {
         ].forEach(cfg => createNumberInput(cfg).mount(cfg.containerId));
 
         this._bindEvents();
-
-        // Sincroniza inputs de DOM com os valores restaurados
-        const startInput = document.getElementById('cstatsStartDate');
-        const endInput   = document.getElementById('cstatsEndDate');
-        if (startInput) startInput.value = this.startDate;
-        if (endInput)   endInput.value   = this.endDate;
-
-        const aggregationGroup = document.getElementById('cstatsAggregation');
-        if (aggregationGroup) {
-            aggregationGroup.querySelectorAll('.cstats-toggle-btn').forEach(btn => {
-                btn.classList.toggle('cstats-toggle-btn--active', btn.getAttribute('data-value') === this.aggregation);
-            });
-        }
+        this._mountTratamentosBtn();
 
         const methodSelect = document.getElementById('cstatsForecastMethod');
         if (methodSelect) {
             methodSelect.value = this.forecastMethod;
             this._updateMethodParams();
         }
-
-        const removeZerosChk = document.getElementById('cstatsRemoveZeros');
-        if (removeZerosChk) removeZerosChk.checked = this.removeZeros;
-
-        const treatOutliersChk = document.getElementById('cstatsTreatOutliers');
-        if (treatOutliersChk) treatOutliersChk.checked = this.treatOutliers;
-
-        const removeNoActivityChk = document.getElementById('cstatsRemoveNoActivity');
-        if (removeNoActivityChk) removeNoActivityChk.checked = this.removeNoActivity;
 
         this._drawChart([]);
 
@@ -374,7 +389,7 @@ const ConsumptionStats = {
             if (_savedType === 'group' && _savedGroupId) {
                 const group = this.groups.find(g => String(g.id) === _savedGroupId);
                 if (group) {
-                    this._materialSelect.select('group', _savedGroupId);
+                    this._materialSelect.setValue(_savedGroupId);
                     this.selectedType = 'group';
                     try {
                         const gData = await apiCall(API + `/groups/${_savedGroupId}`);
@@ -386,7 +401,7 @@ const ConsumptionStats = {
                     await this._checkPolicyLink();
                 }
             } else if (_savedType === 'material' && _savedMaterial && this.materials.includes(_savedMaterial)) {
-                this._materialSelect.select('material', _savedMaterial);
+                this._materialSelect.setValue(_savedMaterial);
                 this.selectedMaterial = _savedMaterial;
                 await this.refresh();
                 await this._checkPolicyLink();
@@ -402,54 +417,10 @@ const ConsumptionStats = {
     // ══ Eventos ══
     // ══════════════════════════════════════════════════════════════
 
-    /** Bindeia todos os event-handlers de filtros, botões e canvas */
+    /** Bindeia todos os event-handlers de filtros e canvas */
     _bindEvents() {
-        const startInput       = document.getElementById("cstatsStartDate");
-        const endInput         = document.getElementById("cstatsEndDate");
-        const aggregationGroup = document.getElementById("cstatsAggregation");
-        const methodSelect     = document.getElementById("cstatsForecastMethod");
-        const removeZerosChk   = document.getElementById("cstatsRemoveZeros");
-        const treatOutliersChk = document.getElementById("cstatsTreatOutliers");
-        const canvas           = document.getElementById("cstatsChart");
-
-        const optimizeBtn = document.getElementById("cstatsOptimizeBtn");
-        const linkBtn     = document.getElementById("cstatsLinkBtn");
-
-        if (optimizeBtn) {
-            optimizeBtn.onclick = async () => { await this._optimizeForecast(); };
-        }
-
-        if (linkBtn) {
-            linkBtn.onclick = async () => { await this._linkForecastToPolicy(); };
-        }
-
-        if (startInput) {
-            startInput.onchange = async () => {
-                this.startDate = startInput.value;
-                this._saveFilters();
-                await this.refresh();
-            };
-        }
-
-        if (endInput) {
-            endInput.onchange = async () => {
-                this.endDate = endInput.value;
-                this._saveFilters();
-                await this.refresh();
-            };
-        }
-
-        if (aggregationGroup) {
-            aggregationGroup.querySelectorAll(".cstats-toggle-btn").forEach(btn => {
-                btn.onclick = async () => {
-                    aggregationGroup.querySelectorAll(".cstats-toggle-btn").forEach(b => b.classList.remove("cstats-toggle-btn--active"));
-                    btn.classList.add("cstats-toggle-btn--active");
-                    this.aggregation = btn.getAttribute("data-value");
-                    this._saveFilters();
-                    await this.refresh();
-                };
-            });
-        }
+        const methodSelect = document.getElementById("cstatsForecastMethod");
+        const canvas       = document.getElementById("cstatsChart");
 
         if (methodSelect) {
             methodSelect.onchange = async () => {
@@ -460,36 +431,103 @@ const ConsumptionStats = {
             };
         }
 
-        // Checkboxes: usar addEventListener para garantir que o handler persiste
-        // (onchange = ... pode ser sobrescrito por outros c\u00f3digos)
-        if (removeZerosChk) {
-            removeZerosChk.addEventListener('change', async () => {
-                this.removeZeros = removeZerosChk.checked;
-                this._saveFilters();
-                await this.refresh();
-            });
-        }
-
-        if (treatOutliersChk) {
-            treatOutliersChk.addEventListener('change', async () => {
-                this.treatOutliers = treatOutliersChk.checked;
-                this._saveFilters();
-                await this.refresh();
-            });
-        }
-
-        const removeNoActivityChk = document.getElementById("cstatsRemoveNoActivity");
-        if (removeNoActivityChk) {
-            removeNoActivityChk.addEventListener('change', async () => {
-                this.removeNoActivity = removeNoActivityChk.checked;
-                this._saveFilters();
-                await this.refresh();
-            });
-        }
-
         if (canvas) {
             canvas.onmousemove = (e) => this._onChartHover(e);
             canvas.onmouseleave = () => this._onChartLeave();
+        }
+    },
+
+    /** Monta o botão Tratamentos com dropdown multi-seleção */
+    _mountTratamentosBtn() {
+        const container = document.getElementById('cstatsTratamentosContainer');
+        if (!container) return;
+
+        const options = [
+            {
+                key:   'removeZeros',
+                label: 'Remover zeros',
+                desc:  'Períodos sem consumo são excluídos do cálculo estatístico.',
+            },
+            {
+                key:   'treatOutliers',
+                label: 'Tratar outliers',
+                desc:  'Valores extremos são removidos pelo método IQR (Q1 ± 1,5×IQR).',
+            },
+            {
+                key:   'removeNoActivity',
+                label: 'Tratar rupturas',
+                desc:  'Períodos sem estoque disponível são desconsiderados da série.',
+            },
+        ];
+
+        container.innerHTML = `
+            <div class="cstats-trat-wrap">
+                <button class="wcm-btn wcm-btn--secondary cstats-trat-btn" id="cstatsTratBtn" type="button">
+                    <span class="material-symbols-outlined">filter_list</span>
+                    Tratamentos
+                    <span class="cstats-trat-badge" id="cstatsTratBadge" style="display:none">0</span>
+                    <span class="material-symbols-outlined cstats-trat-chevron">expand_more</span>
+                </button>
+                <div class="cstats-trat-dropdown" id="cstatsTratDropdown">
+                    ${options.map(o => `
+                    <div class="cstats-trat-option" data-key="${o.key}">
+                        <div class="cstats-trat-option-body">
+                            <span class="cstats-trat-option-title">${o.label}</span>
+                            <span class="cstats-trat-option-desc">${o.desc}</span>
+                        </div>
+                        <div class="cstats-trat-check" id="cstatsTratCheck-${o.key}"></div>
+                    </div>`).join('')}
+                </div>
+            </div>`;
+
+        this._syncTratamentosUI();
+
+        const btn      = document.getElementById('cstatsTratBtn');
+        const dropdown = document.getElementById('cstatsTratDropdown');
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = dropdown.classList.contains('open');
+            dropdown.classList.toggle('open', !isOpen);
+            btn.classList.toggle('cstats-trat-btn--open', !isOpen);
+        });
+
+        options.forEach(o => {
+            const el = container.querySelector(`[data-key="${o.key}"]`);
+            if (!el) return;
+            el.addEventListener('click', async () => {
+                this[o.key] = !this[o.key];
+                this._syncTratamentosUI();
+                this._saveFilters();
+                await this.refresh();
+            });
+        });
+
+        this._tratamentosCloseHandler = (e) => {
+            const wrap = container.querySelector('.cstats-trat-wrap');
+            if (wrap && !wrap.contains(e.target)) {
+                dropdown.classList.remove('open');
+                btn.classList.remove('cstats-trat-btn--open');
+            }
+        };
+        document.addEventListener('click', this._tratamentosCloseHandler);
+    },
+
+    /** Sincroniza o visual do dropdown com o estado atual das flags de tratamento */
+    _syncTratamentosUI() {
+        const keys = ['removeZeros', 'treatOutliers', 'removeNoActivity'];
+        let count = 0;
+        keys.forEach(key => {
+            const opt   = document.querySelector(`#cstatsTratamentosContainer [data-key="${key}"]`);
+            const check = document.getElementById(`cstatsTratCheck-${key}`);
+            if (opt)   opt.classList.toggle('cstats-trat-option--selected', !!this[key]);
+            if (check) check.classList.toggle('cstats-trat-check--on', !!this[key]);
+            if (this[key]) count++;
+        });
+        const badge = document.getElementById('cstatsTratBadge');
+        if (badge) {
+            badge.style.display = count > 0 ? '' : 'none';
+            badge.textContent   = count;
         }
     },
 
@@ -528,14 +566,13 @@ const ConsumptionStats = {
      * Gera candidatos para cada modelo e seleciona o de menor desvio padrão residual.
      */
     async _optimizeForecast() {
-        const optimizeBtn = document.getElementById("cstatsOptimizeBtn");
         const hasSelection = this.selectedType === 'group' ? !!this.selectedGroupData : !!this.selectedMaterial;
         if (!hasSelection || !this.startDate || !this.endDate) {
             alert("Selecione um material ou grupo e um intervalo de datas antes de otimizar.");
             return;
         }
 
-        if (optimizeBtn) { optimizeBtn.disabled = true; optimizeBtn.textContent = "Otimizando..."; }
+        if (this._optimizeBtn) this._optimizeBtn.setLoading(true);
 
         try {
             const aggregated = await this._fetchCurrentData();
@@ -610,7 +647,7 @@ const ConsumptionStats = {
         } catch (e) {
             alert("Erro ao otimizar previsão.");
         } finally {
-            if (optimizeBtn) { optimizeBtn.disabled = false; optimizeBtn.textContent = "Otimizar"; }
+            if (this._optimizeBtn) this._optimizeBtn.setLoading(false);
         }
     },
 
@@ -635,11 +672,10 @@ const ConsumptionStats = {
 
     /** Verifica se o material/grupo selecionado possui ítens vinculados a políticas de estoque */
     async _checkPolicyLink() {
-        const linkBtn = document.getElementById("cstatsLinkBtn");
-        if (!linkBtn) return;
+        if (!this._linkBtn) return;
 
         if (!hasPermission('inventory', 'consumption-stats', 'edit')) {
-            linkBtn.style.display = "none";
+            this._linkBtn.el.style.display = "none";
             return;
         }
 
@@ -647,7 +683,7 @@ const ConsumptionStats = {
 
         if (this.selectedType === 'group') {
             if (!this.selectedGroupData) {
-                linkBtn.style.display = "none";
+                this._linkBtn.el.style.display = "none";
                 return;
             }
             try {
@@ -655,15 +691,15 @@ const ConsumptionStats = {
                     API + `/stock-policies/check-group/${encodeURIComponent(this.selectedGroupData.id)}`
                 );
                 this._policyItems = result?.items || [];
-                linkBtn.style.display = this._policyItems.length > 0 ? "" : "none";
+                this._linkBtn.el.style.display = this._policyItems.length > 0 ? "" : "none";
             } catch {
-                linkBtn.style.display = "none";
+                this._linkBtn.el.style.display = "none";
             }
             return;
         }
 
         if (!this.selectedMaterial) {
-            linkBtn.style.display = "none";
+            this._linkBtn.el.style.display = "none";
             return;
         }
 
@@ -672,9 +708,9 @@ const ConsumptionStats = {
                 API + `/stock-policies/check-material/${encodeURIComponent(this.selectedMaterial)}`
             );
             this._policyItems = result?.items || [];
-            linkBtn.style.display = this._policyItems.length > 0 ? "" : "none";
+            this._linkBtn.el.style.display = this._policyItems.length > 0 ? "" : "none";
         } catch {
-            linkBtn.style.display = "none";
+            this._linkBtn.el.style.display = "none";
         }
     },
 

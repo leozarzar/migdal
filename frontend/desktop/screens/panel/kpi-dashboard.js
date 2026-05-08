@@ -17,6 +17,8 @@ const KpiDashboard = {
     _chartPoints:   [],          // pontos acumulados para hover
     _policies:      [],
     _policySelect:  null,
+    _kpiSelect:     null,
+    _datePicker:    null,
 
     // ── Definições de KPI ────────────────────────────────────────────────────
 
@@ -36,6 +38,10 @@ const KpiDashboard = {
     render() {
         this._policySelect?.destroy();
         this._policySelect = null;
+        this._kpiSelect?.destroy();
+        this._kpiSelect    = null;
+        this._datePicker?.destroy();
+        this._datePicker   = null;
         this._data         = [];
         this._chartPoints  = [];
 
@@ -64,14 +70,7 @@ const KpiDashboard = {
                 <div class="kpid-filters">
                     <div class="kpid-filter-group">
                         <label class="kpid-label">Indicador</label>
-                        <select id="kpidKpiSelect" class="kpid-select" onchange="KpiDashboard._onKpiChange(this.value)">
-                            <option value="turnover"  ${this._kpi === 'turnover'  ? 'selected' : ''}>Giro de Estoque</option>
-                            <option value="stockout"  ${this._kpi === 'stockout'  ? 'selected' : ''}>Rupturas</option>
-                            <option value="coverage"  ${this._kpi === 'coverage'  ? 'selected' : ''}>Cobertura de Estoque</option>
-                            <option value="accuracy"  ${this._kpi === 'accuracy'  ? 'selected' : ''}>Acuracidade</option>
-                            <option value="avg_stock" ${this._kpi === 'avg_stock' ? 'selected' : ''}>Estoque Médio</option>
-                            <option value="lead_time" ${this._kpi === 'lead_time' ? 'selected' : ''}>Lead Time de Reposição</option>
-                        </select>
+                        <div id="kpidKpiSelectContainer"></div>
                     </div>
 
                     <div class="kpid-filter-group">
@@ -80,17 +79,8 @@ const KpiDashboard = {
                     </div>
 
                     <div class="kpid-filter-group">
-                        <label class="kpid-label">Data Início</label>
-                        <input type="month" id="kpidStart" class="kpid-date-input"
-                               value="${this._startMonth}"
-                               onchange="KpiDashboard._onPeriodChange()">
-                    </div>
-
-                    <div class="kpid-filter-group">
-                        <label class="kpid-label">Data Fim</label>
-                        <input type="month" id="kpidEnd" class="kpid-date-input"
-                               value="${this._endMonth}"
-                               onchange="KpiDashboard._onPeriodChange()">
+                        <label class="kpid-label">Período</label>
+                        <div id="kpidDatePickerContainer"></div>
                     </div>
 
                     <div class="kpid-filter-group kpid-filter-adjust" id="kpidAdjustGroup">
@@ -127,14 +117,6 @@ const KpiDashboard = {
         const headerOptions = document.getElementById('headerOptionsContent');
         if (headerOptions) headerOptions.innerHTML = '';
 
-        // Sincroniza estado com DOM (necessário quando load() é chamado por filtros)
-        const kpiEl   = document.getElementById('kpidKpiSelect');
-        const startEl = document.getElementById('kpidStart');
-        const endEl   = document.getElementById('kpidEnd');
-        if (kpiEl)   this._kpi        = kpiEl.value;
-        if (startEl) this._startMonth = startEl.value;
-        if (endEl)   this._endMonth   = endEl.value;
-
         // Persiste preferências
         localStorage.setItem('wcm.kpiDashboard.kpi',           this._kpi);
         localStorage.setItem('wcm.kpiDashboard.start',         this._startMonth);
@@ -142,9 +124,50 @@ const KpiDashboard = {
         localStorage.setItem('wcm.kpiDashboard.policy',        this._policyId || '');
         localStorage.setItem('wcm.kpiDashboard.includeAdjust', this._includeAdjust ? '1' : '0');
 
+        // Inicializa o select de indicador uma única vez
+        if (!this._kpiSelect) {
+            const kpiItems = Object.entries(this._KPI_DEFS).map(([value, def]) => ({ value, label: def.label }));
+            this._kpiSelect = createSelect({
+                placeholder: 'Indicador',
+                searchable: false,
+                multiple: false,
+                clearable: false,
+                sections: [{ key: 'kpi', items: kpiItems }],
+                onChange: (value) => {
+                    if (value != null) KpiDashboard._onKpiChange(value);
+                },
+            });
+            const kpiContainer = document.getElementById('kpidKpiSelectContainer');
+            if (kpiContainer) {
+                this._kpiSelect.mount(kpiContainer);
+                this._kpiSelect.setValue(this._kpi);
+            }
+        } else {
+            this._kpiSelect.setValue(this._kpi);
+        }
+
         // Inicializa o filtro de política uma única vez
         if (!this._policySelect) {
             await this._initPolicySelect();
+        }
+
+        // Inicializa o datepicker de período uma única vez
+        if (!this._datePicker) {
+            this._datePicker = createDatePicker({
+                picker: 'month',
+                range: true,
+                value: {
+                    start: this._monthStrToDate(this._startMonth),
+                    end:   this._monthStrToDate(this._endMonth),
+                },
+                onChange: ({ start, end }) => {
+                    if (start) this._startMonth = this._dateToMonthStr(start);
+                    if (end)   this._endMonth   = this._dateToMonthStr(end);
+                    this.load();
+                },
+            });
+            const container = document.getElementById('kpidDatePickerContainer');
+            if (container) this._datePicker.mount(container);
         }
 
         // Visibilidade do checkbox de ajuste
@@ -153,9 +176,6 @@ const KpiDashboard = {
         // Lê estado atual do checkbox
         const adjEl = document.getElementById('kpidIncludeAdjust');
         if (adjEl) this._includeAdjust = adjEl.checked;
-
-        // Atualiza seleção visual do KPI select
-        if (kpiEl) kpiEl.value = this._kpi;
 
         this._setLoading(true);
         try {
@@ -200,12 +220,15 @@ const KpiDashboard = {
         if (group) group.style.display = ADJUST_KPIS.has(this._kpi) ? '' : 'none';
     },
 
-    _onPeriodChange() {
-        const startEl = document.getElementById('kpidStart');
-        const endEl   = document.getElementById('kpidEnd');
-        if (startEl) this._startMonth = startEl.value;
-        if (endEl)   this._endMonth   = endEl.value;
-        this.load();
+    _monthStrToDate(ym) {
+        if (!ym) return null;
+        const [y, m] = ym.split('-').map(Number);
+        return new Date(y, m - 1, 1);
+    },
+
+    _dateToMonthStr(date) {
+        if (!date) return '';
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     },
 
     // ── Renderização ─────────────────────────────────────────────────────────
@@ -467,8 +490,7 @@ const KpiDashboard = {
             this._policies = [];
         }
 
-        this._policySelect = createSearchSelect({
-            id: 'kpidPolicy',
+        this._policySelect = createSelect({
             placeholder: 'Todos os materiais',
             searchable: false,
             multiple: false,
@@ -476,7 +498,7 @@ const KpiDashboard = {
                 key: 'policy',
                 items: this._policies.map(p => ({ value: String(p.id), label: p.name })),
             }],
-            onChange: ({ value }) => {
+            onChange: (value) => {
                 this._policyId = value != null ? String(value) : null;
                 localStorage.setItem('wcm.kpiDashboard.policy', this._policyId || '');
                 KpiDashboard.load();
@@ -489,7 +511,7 @@ const KpiDashboard = {
             const saved = localStorage.getItem('wcm.kpiDashboard.policy');
             if (saved) {
                 this._policyId = saved;
-                this._policySelect.select('policy', saved);
+                this._policySelect.setValue(saved);
             }
         }
     },

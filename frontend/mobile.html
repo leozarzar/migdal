@@ -5,7 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>WCM</title>
     <base href="/">
+    <script>
+        (function () {
+            var t = localStorage.getItem('wcm.mobile.theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="mobile/style.css">
     <link rel="stylesheet" href="mobile/screens/home-style.css">
     <link rel="stylesheet" href="mobile/screens/receipts-list-style.css">
@@ -27,44 +37,103 @@
     </header>
 
     <!-- ── Tela: Home ─────────────────────────────────────────────── -->
-    <main id="screenHome" class="mob-screen">
+    <main id="screenHome" class="mob-screen mob-screen--home">
 
-        <!-- Atalhos de navegação -->
-        <div class="mob-shortcuts">
-            <button class="mob-shortcut-card" id="mobShortcutReceipts" onclick="MobApp.showScreen('list')">
-                <img src="icons/add-document.svg" class="mob-shortcut-icon" alt="">
-                <span class="mob-shortcut-label">Recebimentos</span>
+        <!-- Top bar: avatar + sino (esquerda) · filtros (direita) -->
+        <header class="mob-home-topbar">
+            <button class="mob-home-avatar" onclick="MobApp.showScreen('profile')" aria-label="Perfil">
+                <span class="mob-home-avatar-initials" id="mobHomeAvatarInitials">·</span>
             </button>
-            <button class="mob-shortcut-card" id="mobShortcutStock" onclick="MobApp.showScreen('stock-list')">
-                <img src="icons/box.svg" class="mob-shortcut-icon" alt="">
-                <span class="mob-shortcut-label">Estoque</span>
+            <button class="mob-home-icon-btn" id="mobHomeBell" onclick="MobApp.HomeScreen.openNotifications()" aria-label="Notificações">
+                <span class="material-symbols-outlined">notifications</span>
+                <span class="mob-home-icon-dot" id="mobHomeBellDot" style="display:none"></span>
             </button>
-        </div>
+            <span class="mob-home-topbar-spacer"></span>
+            <button class="mob-home-icon-btn mob-home-icon-btn--filter" onclick="MobApp.HomeScreen.openFilters()" aria-label="Filtros">
+                <span class="material-symbols-outlined">tune</span>
+                <span class="mob-home-icon-dot" id="mobHomeFilterDot" style="display:none"></span>
+            </button>
+        </header>
 
-        <!-- Filtro de política -->
-        <select class="mob-select mob-home-policy-filter" id="mobHomePolicySelect" onchange="MobApp.HomeScreen.onPolicyChange()">
-            <option value="">Política de Estoque</option>
-        </select>
+        <!-- KPIs primários -->
+        <section class="mob-home-kpis" aria-label="Indicadores principais">
+            <button class="mob-home-kpi" id="mobHomeKpiStock" onclick="MobApp.HomeScreen.openFilters()">
+                <span class="mob-home-kpi-icon" aria-hidden="true">
+                    <span class="material-symbols-outlined">inventory_2</span>
+                </span>
+                <span class="mob-home-kpi-label">Em estoque</span>
+                <span class="mob-home-kpi-value" data-target="0">—</span>
+                <span class="mob-home-kpi-sub" id="mobHomeKpiStockSub">monitorado</span>
+            </button>
+            <button class="mob-home-kpi" id="mobHomeKpiLeadTime" type="button">
+                <span class="mob-home-kpi-icon" aria-hidden="true">
+                    <span class="material-symbols-outlined">schedule</span>
+                </span>
+                <span class="mob-home-kpi-label">Lead time</span>
+                <span class="mob-home-kpi-value" data-target="0">—</span>
+                <span class="mob-home-kpi-sub" id="mobHomeKpiLeadTimeSub">últimos 30 dias</span>
+            </button>
+        </section>
 
-        <!-- Gráfico de consumo semanal -->
-        <section class="mob-card">
-            <div class="mob-home-card-head">
-                <div>
-                    <div class="mob-home-title">Consumo</div>
-                    <div class="mob-home-subtitle">Acompanhamento semanal</div>
+        <!-- Chips de KPI -->
+        <nav class="mob-home-chips" aria-label="Seletor de KPI">
+            <i class="mob-home-chips-spacer"></i>
+            <button class="mob-home-chip mob-home-chip--active" data-kpi="levels" onclick="MobApp.HomeScreen.setKpi('levels')">
+                <span class="material-symbols-outlined">stacked_bar_chart</span>
+                <span>Níveis</span>
+            </button>
+            <button class="mob-home-chip" data-kpi="monitor" onclick="MobApp.HomeScreen.setKpi('monitor')">
+                <span class="material-symbols-outlined">monitoring</span>
+                <span>Monitor</span>
+            </button>
+            <button class="mob-home-chip" data-kpi="stockout" onclick="MobApp.HomeScreen.setKpi('stockout')">
+                <span class="material-symbols-outlined">error</span>
+                <span>Rupturas</span>
+            </button>
+            <button class="mob-home-chip" data-kpi="avg_stock" onclick="MobApp.HomeScreen.setKpi('avg_stock')">
+                <span class="material-symbols-outlined">equalizer</span>
+                <span>Média</span>
+            </button>
+            <button class="mob-home-chip" data-kpi="coverage" onclick="MobApp.HomeScreen.setKpi('coverage')">
+                <span class="material-symbols-outlined">date_range</span>
+                <span>Cobertura</span>
+            </button>
+            <i class="mob-home-chips-spacer"></i>
+        </nav>
+
+        <!-- Hero swipeable — um card por material -->
+        <div class="mob-home-hero-carousel" id="mobHomeHeroCarousel" aria-label="Materiais monitorados">
+            <i class="mob-home-hero-spacer"></i>
+            <section class="mob-home-hero mob-home-hero--placeholder" id="mobHomeHeroPlaceholder">
+                <div class="mob-home-hero-bg" aria-hidden="true"></div>
+                <div class="mob-home-hero-content">
+                    <div class="mob-home-hero-eyebrow">Selecione uma política</div>
+                    <div class="mob-home-hero-title">Pulso do estoque</div>
+                    <div class="mob-home-hero-meta">Abra os filtros para começar.</div>
                 </div>
-            </div>
+            </section>
+            <i class="mob-home-hero-spacer"></i>
+        </div>
+        <div class="mob-home-hero-dots" id="mobHomeHeroDots" aria-hidden="true"></div>
+
+        <!-- Consumo semanal -->
+        <section class="mob-home-card mob-home-card--chart">
+            <header class="mob-home-card-header">
+                <div>
+                    <div class="mob-home-card-eyebrow">Consumo</div>
+                    <div class="mob-home-card-title">Acompanhamento semanal</div>
+                </div>
+            </header>
 
             <div class="mob-home-week-nav">
                 <button class="mob-home-nav-btn" onclick="MobApp.HomeScreen.prevWeek()" aria-label="Semana anterior">
-                    &#8249;
+                    <span class="material-symbols-outlined">chevron_left</span>
                 </button>
-                <span class="mob-home-week-range" id="mobHomeWeekRange">-</span>
+                <span class="mob-home-week-range" id="mobHomeWeekRange">—</span>
                 <button class="mob-home-nav-btn" onclick="MobApp.HomeScreen.nextWeek()" aria-label="Próxima semana">
-                    &#8250;
+                    <span class="material-symbols-outlined">chevron_right</span>
                 </button>
             </div>
-
 
             <div class="mob-home-chart-wrap">
                 <canvas id="mobHomeChart" height="180"></canvas>
@@ -77,16 +146,64 @@
             <div id="mobHomeTooltip" class="mob-home-tooltip"></div>
         </section>
 
-        <!-- Balanço de Estoque -->
-        <section class="mob-card">
-            <div class="mob-home-title">Balanço de Estoque</div>
-            <div class="mob-home-subtitle">Níveis vs. política selecionada</div>
-            <div id="mobHomeBalanceBody">
-                <p class="mob-items-empty">Selecione uma política para visualizar.</p>
-            </div>
-        </section>
+        <!-- Espaço para o bottom nav -->
+        <div class="mob-home-nav-spacer" aria-hidden="true"></div>
 
     </main>
+
+    <!-- Bottom nav flutuante (telas top-level) -->
+    <nav class="mob-bottom-nav" id="mobBottomNav" aria-label="Navegação principal">
+        <button class="mob-bottom-nav-item" data-screen="list" id="mobBottomNavReceipts" onclick="MobApp.showScreen('list')">
+            <span class="material-symbols-outlined">inbox</span>
+            <span>Receb.</span>
+        </button>
+        <button class="mob-bottom-nav-item" data-screen="stock-list" id="mobBottomNavStock" onclick="MobApp.showScreen('stock-list')">
+            <span class="material-symbols-outlined">inventory_2</span>
+            <span>Estoque</span>
+        </button>
+        <button class="mob-bottom-nav-item mob-bottom-nav-item--center mob-bottom-nav-item--active" data-screen="home" onclick="MobApp.showScreen('home')" aria-label="Home">
+            <span class="material-symbols-outlined">home</span>
+        </button>
+        <button class="mob-bottom-nav-item" data-screen="orders" id="mobBottomNavOrders" onclick="MobApp.showScreen('orders')">
+            <span class="material-symbols-outlined">shopping_cart</span>
+            <span>Pedidos</span>
+        </button>
+        <button class="mob-bottom-nav-item" data-screen="more" onclick="MobApp.showScreen('more')">
+            <span class="material-symbols-outlined">grid_view</span>
+            <span>Mais</span>
+        </button>
+    </nav>
+
+    <!-- Bottom sheet — filtros da home -->
+    <div class="mob-home-filters-backdrop" id="mobHomeFiltersBackdrop" style="display:none" onclick="MobApp.HomeScreen._onFiltersBackdropClick(event)">
+        <div class="mob-home-filters-sheet" role="dialog" aria-label="Filtros da home">
+            <div class="mob-home-filters-handle" aria-hidden="true"></div>
+            <header class="mob-home-filters-header">
+                <h2>Filtros</h2>
+                <button class="mob-home-filters-close" onclick="MobApp.HomeScreen.closeFilters()" aria-label="Fechar">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </header>
+            <div class="mob-home-filters-body">
+                <div class="mob-field">
+                    <label class="mob-label" for="mobHomePolicySelect">Política de estoque</label>
+                    <select class="mob-select" id="mobHomePolicySelect" onchange="MobApp.HomeScreen.onPolicyChange()">
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="mob-field">
+                    <label class="mob-label" for="mobHomeLocationSelect">Localização</label>
+                    <select class="mob-select" id="mobHomeLocationSelect" onchange="MobApp.HomeScreen.onLocationChange()">
+                        <option value="">Todas</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mob-home-filters-footer">
+                <button class="mob-home-filters-reset" onclick="MobApp.HomeScreen.resetFilters()">Limpar</button>
+                <button class="mob-home-filters-apply" onclick="MobApp.HomeScreen.closeFilters()">Aplicar</button>
+            </div>
+        </div>
+    </div>
 
     <!-- ── Tela: Lista de Recebimentos ───────────────────── -->
     <main id="screenList" class="mob-screen" style="display:none">
@@ -391,6 +508,77 @@
 
     </main>
 
+    <!-- ── Tela: Perfil ──────────────────────────────────── -->
+    <main id="screenProfile" class="mob-screen mob-screen--themed mob-screen--profile" style="display:none">
+        <header class="mob-profile-header">
+            <button class="mob-icon-back" onclick="MobApp.showScreen('home')" aria-label="Voltar">
+                <span class="material-symbols-outlined">arrow_back</span>
+            </button>
+            <h1 class="mob-profile-heading">Perfil</h1>
+            <span style="width:40px"></span>
+        </header>
+        <section class="mob-profile-card">
+            <div class="mob-profile-avatar"><span id="mobProfileInitials">·</span></div>
+            <div class="mob-profile-name" id="mobProfileName">—</div>
+            <div class="mob-profile-email" id="mobProfileEmail">—</div>
+        </section>
+        <section class="mob-profile-options" aria-label="Opções">
+            <button class="mob-profile-option" onclick="MobApp.toggleTheme()">
+                <span class="mob-profile-option-icon">
+                    <span class="material-symbols-outlined mob-profile-option-icon--light">light_mode</span>
+                    <span class="material-symbols-outlined mob-profile-option-icon--dark">dark_mode</span>
+                </span>
+                <span class="mob-profile-option-label">
+                    <span class="mob-profile-option-title" id="mobProfileThemeTitle">Modo escuro</span>
+                    <span class="mob-profile-option-sub" id="mobProfileThemeSub">Toque para alternar</span>
+                </span>
+                <span class="mob-profile-option-state" id="mobProfileThemeState">—</span>
+            </button>
+            <button class="mob-profile-option mob-profile-option--danger" onclick="mobLogout()">
+                <span class="mob-profile-option-icon"><span class="material-symbols-outlined">logout</span></span>
+                <span class="mob-profile-option-label">
+                    <span class="mob-profile-option-title">Sair</span>
+                    <span class="mob-profile-option-sub">Encerrar sessão</span>
+                </span>
+                <span class="material-symbols-outlined mob-profile-option-chev">chevron_right</span>
+            </button>
+        </section>
+        <div class="mob-home-nav-spacer" aria-hidden="true"></div>
+    </main>
+
+    <!-- ── Tela: Pedidos (placeholder) ─────────────────── -->
+    <main id="screenOrders" class="mob-screen mob-screen--themed mob-screen--placeholder" style="display:none">
+        <header class="mob-profile-header">
+            <button class="mob-icon-back" onclick="MobApp.showScreen('home')" aria-label="Voltar">
+                <span class="material-symbols-outlined">arrow_back</span>
+            </button>
+            <h1 class="mob-profile-heading">Pedidos</h1>
+            <span style="width:40px"></span>
+        </header>
+        <section class="mob-placeholder-card">
+            <div class="mob-placeholder-icon"><span class="material-symbols-outlined">shopping_cart</span></div>
+            <h2 class="mob-placeholder-title">Pedidos chegando em breve</h2>
+            <p class="mob-placeholder-text">Esta tela está em construção. Em breve você poderá acompanhar pedidos de compra direto no celular.</p>
+        </section>
+        <div class="mob-home-nav-spacer" aria-hidden="true"></div>
+    </main>
+
+    <!-- ── Tela: Mais ──────────────────────────────────── -->
+    <main id="screenMore" class="mob-screen mob-screen--themed mob-screen--more" style="display:none">
+        <header class="mob-profile-header">
+            <button class="mob-icon-back" onclick="MobApp.showScreen('home')" aria-label="Voltar">
+                <span class="material-symbols-outlined">arrow_back</span>
+            </button>
+            <h1 class="mob-profile-heading">Mais</h1>
+            <button class="mob-icon-back" id="mobMoreEditBtn" onclick="MobApp.MoreScreen.toggleEdit()" aria-label="Reordenar">
+                <span class="material-symbols-outlined">edit</span>
+            </button>
+        </header>
+        <p class="mob-more-hint" id="mobMoreHint">Atalhos rápidos para outras funcionalidades.</p>
+        <section class="mob-more-grid" id="mobMoreGrid" aria-label="Funcionalidades"></section>
+        <div class="mob-home-nav-spacer" aria-hidden="true"></div>
+    </main>
+
     <script src="utils.js"></script>
     <script src="stock-policy-utils.js"></script>
     <script src="canvas-chart-utils.js"></script>
@@ -400,6 +588,7 @@
     <script src="mobile/screens/stock-list.js"></script>
     <script src="mobile/screens/stock-details.js"></script>
     <script src="mobile/screens/home.js"></script>
+    <script src="mobile/screens/more.js"></script>
 
 </body>
 </html>

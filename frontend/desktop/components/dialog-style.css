@@ -159,7 +159,6 @@
     gap: 8px;
     justify-content: flex-end;
     padding-top: 12px;
-    border-top: 1px solid #f0f0f0;
 }
 
 .dialog-actions button {
@@ -168,28 +167,5 @@
     gap: 6px;
     height: 32px;
     padding: 0 16px;
-    font-family: inherit;
-    font-size: 13px;
-    border: 1px solid #cccccc;
-    border-radius: 6px;
-    background: white;
-    color: #1a1a1a;
-    cursor: pointer;
-    transition: background 0.15s;
-}
 
-.dialog-actions button:hover {
-    background: #f0f0f0;
-}
-
-.dialog-actions .btn-secondary {
-    color: crimson;
-}
-
-.dialog-actions .btn-secondary:hover {
-    background: #fff0f0;
-}
-
-.dialog-actions button .material-symbols-outlined {
-    font-size: 16px;
 }

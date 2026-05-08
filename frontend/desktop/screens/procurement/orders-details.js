@@ -18,6 +18,12 @@ const OrdersDetails = {
     /** Indica se há alterações não salvas */
     _isDirty: false,
 
+    /** Cache de seleção de item (material ou grupo) */
+    _lastItemSelection: null,
+
+    /** Cache de grupos carregados */
+    _groupsCache: [],
+
     /** Verifica se a tela está em modo somente leitura (sem permissão de edição) */
     _isReadOnly() {
         if (!Orders.selectedOrder) return false;
@@ -187,7 +193,7 @@ const OrdersDetails = {
                                             <span class="material-symbols-outlined">open_in_new</span>
                                         </button>
                                     </div>
-                                    <input id="itemQuantity" placeholder="Quantidade" class="form-control">
+                                    <div id="itemQuantityContainer"></div>
                                 </div>
                                 <div class="item-form-btns">
                                     <button id="ordersDetailsAddBtn" class="btn-add" onclick="OrdersDetails.addItem()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
@@ -228,34 +234,37 @@ const OrdersDetails = {
     /** Inicializa a tela: popula selects, preenche campos do pedido selecionado */
     async load() {
         this._isDirty = false;
-        this._itemSelect = createSearchSelect({
-            id: 'orderItem',
+        this._itemSelect = createSelect({
             placeholder: 'Selecione material ou grupo',
             searchable: true,
-            searchPlaceholder: 'Buscar...',
             sections: [
                 { key: 'material', label: 'Materiais', items: [] },
                 { key: 'group',    label: 'Grupos',    items: [] }
             ],
-            onChange: ({ key, value, label }) => {
-                // Se material já existe na lista, entrar automaticamente em modo de edição
-                if (key === 'material') {
-                    const idx = this.items.findIndex(i => i.type === 'material' && i.material === label);
+            onChange: (value) => {
+                if (value == null) { this._lastItemSelection = null; return; }
+                const isGroup = typeof value === 'number';
+                if (isGroup) {
+                    const group = this._groupsCache.find(g => g.id === value);
+                    this._lastItemSelection = { type: 'group', id: value, name: group?.name || '' };
+                    const idx = this.items.findIndex(i => i.type === 'group' && i.group_id === value);
                     if (idx !== -1) { this.startEditItem(idx); return; }
-                } else if (key === 'group') {
-                    const idx = this.items.findIndex(i => i.type === 'group' && i.group_id === Number(value));
+                } else {
+                    this._lastItemSelection = { type: 'material', name: String(value) };
+                    const idx = this.items.findIndex(i => i.type === 'material' && i.material === value);
                     if (idx !== -1) { this.startEditItem(idx); return; }
                 }
-                // Ghost selecionado via select: apenas carrega o select, sem edição
             }
         });
         this._itemSelect.mount(document.getElementById('itemSelectContainer'));
 
-        this._supplierSelect = createSearchSelect({
-            id: 'orderSupplier',
+        this._quantityInput?.destroy();
+        this._quantityInput = createInput({ id: 'itemQuantity', placeholder: 'Quantidade' });
+        document.getElementById('itemQuantityContainer').appendChild(this._quantityInput.el);
+
+        this._supplierSelect = createSelect({
             placeholder: 'Selecione um fornecedor',
             searchable: true,
-            searchPlaceholder: 'Buscar...',
             sections: [{ key: 'supplier', items: [] }],
             onChange: () => { OrdersDetails._updateHeaderFields(); OrdersDetails._markDirty(); }
         });
@@ -268,7 +277,7 @@ const OrdersDetails = {
 
         if (Orders.selectedOrder) {
             document.getElementById("orderTitleCode").textContent = `#${Orders.selectedOrder.id}`;
-            if (Orders.selectedOrder.supplier) this._supplierSelect.select('supplier', Orders.selectedOrder.supplier);
+            if (Orders.selectedOrder.supplier) this._supplierSelect.setValue(Orders.selectedOrder.supplier);
             document.getElementById("orderDate").value = Orders.selectedOrder.date;
             document.getElementById("orderExpected").value = Orders.selectedOrder.expected_date;
             document.getElementById("orderDue").value = Orders.selectedOrder.due_date;
@@ -312,8 +321,8 @@ const OrdersDetails = {
         if (this._isReadOnly()) {
             document.querySelectorAll('#content input, #content select, #content textarea')
                 .forEach(el => el.disabled = true);
-            document.querySelectorAll('#content .sselect-wrap')
-                .forEach(el => el.classList.add('sselect-disabled'));
+            this._itemSelect?.setDisabled(true);
+            this._supplierSelect?.setDisabled(true);
             const formWrapper = document.querySelector('.item-form-wrapper');
             if (formWrapper) formWrapper.style.display = 'none';
         } else {
@@ -332,6 +341,7 @@ const OrdersDetails = {
                 apiCall(API + "/groups").catch(() => [])
             ]);
             this._itemSelect.setItems('material', (materials || []).map(m => ({ value: m.name, label: m.name })));
+            this._groupsCache = groups || [];
             this._itemSelect.setItems('group',    (groups   || []).map(g => ({ value: g.id,   label: g.name })));
             this._supplierSelect.setItems('supplier', (suppliers || []).map(s => ({ value: s.name, label: s.name })));
         } catch (e) { /* falha silenciosa em background */ }
@@ -409,7 +419,7 @@ const OrdersDetails = {
 
     /** Adiciona ou atualiza um item (material ou grupo) no pedido */
     addItem() {
-        const selected = this._itemSelect && this._itemSelect.getValue();
+        const selected = this._lastItemSelection;
         const quantity = document.getElementById("itemQuantity").value;
 
         if (!selected || !quantity) {
@@ -428,25 +438,25 @@ const OrdersDetails = {
             this._editingItemIndex = null;
             this._restoreAddBtn();
         } else {
-            if (selected.key === 'group') {
+            if (selected.type === 'group') {
                 this.items.push({
                     type: 'group',
-                    group_id: Number(selected.value),
-                    group_name: selected.label,
+                    group_id: Number(selected.id),
+                    group_name: selected.name,
                     group_quantity: Number(quantity)
                 });
             } else {
                 // Verificar se ghost: preservar receivedQuantity
-                const ghost = this._ghostItems.find(g => g.material === selected.label);
+                const ghost = this._ghostItems.find(g => g.material === selected.name);
                 const newItem = {
                     type: 'material',
-                    material: selected.label,
+                    material: selected.name,
                     quantity: Number(quantity),
                     receivedQuantity: ghost ? ghost.receivedQuantity : 0
                 };
                 this.items.push(newItem);
                 // Remover da lista de ghosts
-                this._ghostItems = this._ghostItems.filter(g => g.material !== selected.label);
+                this._ghostItems = this._ghostItems.filter(g => g.material !== selected.name);
             }
         }
 
@@ -505,10 +515,10 @@ const OrdersDetails = {
         this._editingItemIndex = index;
         const item = this.items[index];
         if (item.type === 'group') {
-            this._itemSelect?.select('group', item.group_id);
+            this._itemSelect?.setValue(item.group_id);
             document.getElementById('itemQuantity').value = item.group_quantity;
         } else {
-            this._itemSelect?.select('material', item.material);
+            this._itemSelect?.setValue(item.material);
             document.getElementById('itemQuantity').value = item.quantity;
         }
         const addBtn = document.getElementById('ordersDetailsAddBtn');
@@ -520,7 +530,7 @@ const OrdersDetails = {
 
     /** Ativa modo de adição a partir de um ghost row */
     startEditGhost(material) {
-        this._itemSelect?.select('material', material);
+        this._itemSelect?.setValue(material);
         document.getElementById('itemQuantity').value = '';
         document.getElementById('itemQuantity').focus();
     },
@@ -654,7 +664,7 @@ const OrdersDetails = {
     /** Atualiza os textos de fornecedor e status exibidos no header */
     _updateHeaderFields() {
         const statusEl = document.getElementById("orderStatus");
-        const supplierName = this._supplierSelect?.getValue()?.label;
+        const supplierName = this._supplierSelect?.getValue();
         const statusText = statusEl?.options[statusEl.selectedIndex]?.text;
 
         const supplierNameEl = document.getElementById("orderSupplierName");
@@ -683,7 +693,7 @@ const OrdersDetails = {
         const titleCode = document.getElementById("orderTitleCode").textContent;
         return {
             id: titleCode.replace('#', '').trim(),
-            supplier: this._supplierSelect?.getValue()?.value || '',
+            supplier: this._supplierSelect?.getValue() || '',
             date: document.getElementById("orderDate").value,
             expected_date: document.getElementById("orderExpected").value,
             due_date: document.getElementById("orderDue").value,

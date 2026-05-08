@@ -11,13 +11,15 @@ const AdminRoles = {
     selectedRoleId: null,
     _dataTable: null,
     _newBtn: null,
+    _searchInput: null,
     _searchQuery: '',
 
     // ── Ciclo de Vida ──
 
     render() {
-        this._dataTable?.destroy(); this._dataTable = null;
-        this._newBtn?.destroy();    this._newBtn = null;
+        this._dataTable?.destroy();    this._dataTable = null;
+        this._newBtn?.destroy();       this._newBtn = null;
+        this._searchInput?.destroy();  this._searchInput = null;
         this._searchQuery = '';
         return `
         <div class="admin-roles-container">
@@ -25,7 +27,7 @@ const AdminRoles = {
                 <div class="admin-roles-filters-icon-wrap">
                     <span class="material-symbols-outlined admin-roles-filters-icon">filter_list</span>
                 </div>
-                <input type="text" id="adminRolesSearch" class="admin-roles-search-input" placeholder="Buscar" oninput="AdminRoles._onSearch(this.value)">
+                <div id="adminRolesSearchContainer" class="admin-roles-search-container"></div>
                 <div id="adminRolesNewBtnContainer" class="admin-roles-filters-actions"></div>
             </div>
             <div id="adminRolesTableContainer"></div>
@@ -34,6 +36,7 @@ const AdminRoles = {
 
     async load() {
         this._mountNewButton();
+        this._mountSearchInput();
 
         if (!this._dataTable) {
             this._dataTable = createDataTable({
@@ -113,6 +116,17 @@ const AdminRoles = {
             ? this._roles.filter(r => r.name.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q))
             : this._roles;
         this._dataTable?.setData(filtered);
+    },
+
+    _mountSearchInput() {
+        const container = document.getElementById('adminRolesSearchContainer');
+        if (!container) return;
+        this._searchInput = createInput({
+            placeholder: 'Buscar',
+            icon: 'Search',
+            onInput: v => AdminRoles._onSearch(v),
+        });
+        container.appendChild(this._searchInput.el);
     },
 
     _mountNewButton() {

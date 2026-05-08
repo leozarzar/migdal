@@ -1,0 +1,34 @@
+/* ===================================================
+   TOGGLE GROUP — Seleção exclusiva em grupo de botões
+   =================================================== */
+
+.wcm-toggle-group {
+    display: flex;
+    background: var(--background);
+    border: 1px solid var(--border-components);
+    border-radius: 11.25px;
+    overflow: hidden;
+}
+
+.wcm-toggle-btn {
+    height: 34px;
+    padding: 0 14px;
+    border: none;
+    border-right: 1px solid var(--border-components);
+    background: var(--background);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.wcm-toggle-btn:last-child {
+    border-right: none;
+}
+
+.wcm-toggle-btn:hover {
+    background: var(--background-selected);
+}
+.wcm-toggle-btn--active {
+    background: var(--background-selected);
+}

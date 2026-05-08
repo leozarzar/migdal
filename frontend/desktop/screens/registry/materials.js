@@ -22,6 +22,7 @@ const Materials = {
         this._dataTable?.destroy();    this._dataTable = null;
         this._newBtn?.destroy();       this._newBtn = null;
         this._importBtn?.destroy();    this._importBtn = null;
+        this._searchInput?.destroy();  this._searchInput = null;
         this._allMaterials = [];
         this._searchQuery = '';
         return `
@@ -30,7 +31,7 @@ const Materials = {
                 <div class="materials-filters-icon-wrap">
                     <span class="material-symbols-outlined materials-filters-icon">filter_list</span>
                 </div>
-                <input type="text" id="materialsSearch" class="materials-search-input" placeholder="Buscar" oninput="Materials._onSearch(this.value)">
+                <div id="materialsSearchMount"></div>
                 <div id="materialsActionsContainer" class="materials-filters-actions"></div>
             </div>
             <div id="materialsTableContainer"></div>
@@ -40,6 +41,7 @@ const Materials = {
 
     async load() {
         this._mountButtons();
+        this._mountSearchInput();
 
         if (!this._dataTable) {
             this._dataTable = createDataTable({
@@ -61,6 +63,7 @@ const Materials = {
                     },
                 ],
                 getRowKey: r => r.id,
+                pageSize: 13,
                 onRowClick: r => this.selectMaterial(r),
                 actions: [
                     {
@@ -137,6 +140,19 @@ const Materials = {
         this._dataTable?.setData(filtered);
     },
 
+    _mountSearchInput() {
+        if (this._searchInput) return;
+        const mount = document.getElementById('materialsSearchMount');
+        if (!mount) return;
+        this._searchInput = createInput({
+            id: 'materialsSearch',
+            placeholder: 'Buscar',
+            icon: 'Search',
+            onInput: v => Materials._onSearch(v),
+        });
+        mount.appendChild(this._searchInput.el);
+    },
+
     _mountButtons() {
         document.getElementById('headerOptionsContent').innerHTML = '';
         const container = document.getElementById('materialsActionsContainer');
@@ -211,7 +227,7 @@ const Materials = {
             wide: true,
             bodyHTML: `
                 <div class="materials-import-search">
-                    <input type="text" id="materialsImportSearch" class="md-form-control" placeholder="Filtrar materiais..." oninput="Materials._filterImportList()">
+                    <div id="materialsImportSearchMount"></div>
                 </div>
                 <div class="materials-import-table-container">
                     <table class="materials-import-table">
@@ -230,6 +246,14 @@ const Materials = {
             `,
         });
         this._importDialog.open();
+
+        const importSearch = createInput({
+            id: 'materialsImportSearch',
+            placeholder: 'Filtrar materiais...',
+            icon: 'Search',
+            onInput: () => Materials._filterImportList(),
+        });
+        document.getElementById('materialsImportSearchMount').appendChild(importSearch.el);
     },
 
     async _linkMaterial(materialId) {

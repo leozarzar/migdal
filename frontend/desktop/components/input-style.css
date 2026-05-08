@@ -13,10 +13,10 @@
     transform: translateY(-50%);
     pointer-events: none;
     z-index: 1;
-    color: var(--interactive);
-    font-size: 16px;
-    line-height: 1;
-    display: flex;
+    color: var(--border-components-darkest);
+    font-size: 18px !important;
+    line-height: 1 !important;
+    display: flex !important;
     align-items: center;
 }
 

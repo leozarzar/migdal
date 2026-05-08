@@ -80,6 +80,7 @@ const Receipts = {
                     },
                 ],
                 getRowKey: r => r.id,
+                pageSize: 13,
                 actions: [
                     {
                         label: 'Excluir',

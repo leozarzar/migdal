@@ -7,48 +7,84 @@ const Operators = {
 
     // ── Estado ──
 
-    selectedOperator: null,
+    _dataTable: null,
+    _dialog: null,
+    _newBtn: null,
+    _searchInput: null,
+    _nameInput: null,
+    _editingId: null,
+    _allOperators: [],
 
     // ── Ciclo de Vida ──
 
-    /** Retorna o template HTML da tela. */
     render() {
+        this._dataTable?.destroy();   this._dataTable   = null;
+        this._dialog?.destroy();      this._dialog      = null;
+        this._newBtn?.destroy();      this._newBtn      = null;
+        this._searchInput?.destroy(); this._searchInput = null;
+        this._nameInput   = null;
+        this._editingId   = null;
+        this._allOperators = [];
         return `
         <div class="operators-container">
-                <div class="operators-form-wrapper">
-                    <input id="operatorName" class="operators-input" placeholder="Nome do operador">
-                    <button class="operators-btn-save" id="operatorSaveBtn" onclick="Operators.saveOperator()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
-                    <button class="operators-btn-cancel" id="operatorsCancelBtn" style="display:none" onclick="Operators.cancelEdit()">Cancelar</button>
+            <div class="operators-filters">
+                <div class="operators-filters-icon-wrap">
+                    <span class="material-symbols-outlined operators-filters-icon">filter_list</span>
                 </div>
-                <div class="operators-table-container">
-                    <table class="operators-table">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="operatorsTableBody"></tbody>
-                    </table>
-                </div>
+                <div id="operatorsSearchContainer"></div>
+                <div id="operatorsNewBtnContainer" class="operators-filters-actions"></div>
+            </div>
+            <div id="operatorsTableContainer"></div>
         </div>
         `;
     },
 
-    /** Inicializa a tela: reseta formulário e carrega operadores. */
     async load() {
-        this._resetForm();
-        const headerOptions = document.getElementById("headerOptionsContent");
-        if (headerOptions) headerOptions.innerHTML = "";
+        this._mountNewButton();
 
-        const formWrapper = document.querySelector('.operators-form-wrapper');
-        if (formWrapper) formWrapper.style.display = hasPermission('registry', 'operators', 'create') ? '' : 'none';
+        if (!this._searchInput) {
+            this._searchInput = createInput({
+                placeholder: 'Buscar',
+                icon: 'Search',
+                onInput: () => this._applyFilter(),
+            });
+            document.getElementById('operatorsSearchContainer').appendChild(this._searchInput.el);
+        }
+
+        if (!this._dialog) this._dialog = this._createDialog();
+
+        if (!this._dataTable) {
+            this._dataTable = createDataTable({
+                columns: [
+                    { key: 'name', header: 'Nome', sortable: true, render: r => r.name },
+                ],
+                getRowKey: r => r.id,
+                actions: [
+                    {
+                        label: 'Editar', icon: 'edit',
+                        hidden: () => !hasPermission('registry', 'operators', 'edit'),
+                        onClick: r => this.openDialog(r),
+                    },
+                    {
+                        label: 'Excluir', icon: 'delete', variant: 'destructive',
+                        hidden: () => !hasPermission('registry', 'operators', 'delete'),
+                        onClick: r => this.deleteOperator(r.id),
+                    },
+                ],
+                emptyMessage: 'Nenhum operador cadastrado.',
+                emptyIcon: 'badge',
+            });
+            this._dataTable.mount(document.getElementById('operatorsTableContainer'));
+        }
+
+        this._dataTable.setLoading(true);
 
         try {
-            const operators = await apiCall(API + "/operators");
-            this._renderTable(operators);
+            this._allOperators = await apiCall(API + '/operators') || [];
+            this._applyFilter();
         } catch (error) {
-            alert("Erro ao carregar operadores");
+            this._dataTable.setData([]);
+            alert('Erro ao carregar operadores');
         }
     },
 
@@ -56,123 +92,95 @@ const Operators = {
 
     // ── Ações Públicas ──
 
-    /** Salva um novo operador ou atualiza o selecionado. */
-    async saveOperator() {
-        const action = this.selectedOperator ? 'edit' : 'create';
-        if (!hasPermission('registry', 'operators', action)) return;
+    openDialog(operator = null) {
+        this._editingId = operator?.id ?? null;
+        this._dialog.setTitle(operator ? 'Editar Operador' : 'Novo Operador');
+        if (this._nameInput) this._nameInput.setValue(operator?.name ?? '');
+        this._dialog.open();
+        setTimeout(() => this._nameInput?.input.focus(), 50);
+    },
 
-        const name = document.getElementById("operatorName").value.trim();
+    async saveOperator() {
+        const name = this._nameInput?.getValue().trim();
 
         if (!name) {
-            alert("Digite o nome do operador");
+            alert('Digite o nome do operador');
             return;
         }
 
         try {
-            if (this.selectedOperator) {
-                await apiCall(API + `/operators/${this.selectedOperator}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name })
+            if (this._editingId) {
+                await apiCall(API + `/operators/${this._editingId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name }),
                 });
-                alert("Operador atualizado com sucesso");
             } else {
-                await apiCall(API + "/operators", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name })
+                await apiCall(API + '/operators', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name }),
                 });
-                alert("Operador criado com sucesso");
             }
+            this._dialog.close();
             this.load();
         } catch (error) {
-            alert(error.message || "Erro ao salvar operador");
+            alert(error.message || 'Erro ao salvar operador');
         }
     },
 
-    /** Seleciona um operador e preenche o formulário para edição. */
-    selectOperator(operator, tr) {
-        clearTableSelection();
-        tr.classList.add("selected");
-        document.getElementById("operatorName").value = operator.name;
-        this.selectedOperator = operator.id;
-        const cancelBtn = document.getElementById("operatorsCancelBtn");
-        if (cancelBtn) cancelBtn.style.display = "";
-        const saveBtn = document.getElementById("operatorSaveBtn");
-        if (saveBtn) saveBtn.innerHTML = 'Salvar';
-    },
-
-    /** Cancela a edição e reseta o formulário. */
-    cancelEdit() {
-        this._resetForm();
-    },
-
-    /** Deleta um operador após confirmação do usuário. */
-    async deleteOperator(event, id) {
-        event.stopPropagation();
-
-        if (!confirm("Tem certeza que deseja deletar?")) return;
-
+    async deleteOperator(id) {
+        if (!confirm('Tem certeza que deseja deletar este operador?')) return;
         try {
-            await apiCall(API + `/operators/${id}`, { method: "DELETE" });
+            await apiCall(API + `/operators/${id}`, { method: 'DELETE' });
             this.load();
         } catch (error) {
-            alert("Erro ao deletar operador");
+            alert(error.message || 'Erro ao deletar operador');
         }
     },
 
-    // ── Renderização ──
+    // ── Privado ──
 
-    /** Renderiza a tabela de operadores ou mensagem de estado vazio. */
-    _renderTable(operators) {
-        const tbody = document.getElementById("operatorsTableBody");
-        tbody.innerHTML = "";
+    _applyFilter() {
+        const q = this._searchInput?.getValue().toLowerCase() ?? '';
+        const filtered = q
+            ? this._allOperators.filter(r => r.name.toLowerCase().includes(q))
+            : this._allOperators;
+        this._dataTable?.setData(filtered);
+    },
 
-        if (!operators || operators.length === 0) {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `<td colspan="2" class="empty-state">Nenhum operador cadastrado.</td>`;
-            tbody.appendChild(tr);
-            return;
-        }
-
-        const canEdit = hasPermission('registry', 'operators', 'edit');
-        operators.forEach(operator => {
-            const tr = this._createTableRow(operator);
-            if (canEdit) {
-                tr.onclick = () => this.selectOperator(operator, tr);
-            } else {
-                tr.style.cursor = 'default';
-            }
-            tbody.appendChild(tr);
+    _createDialog() {
+        const dlg = createDialog({
+            title: '',
+            closeOnBackdrop: true,
+            bodyHTML: `
+                <div class="dialog-field">
+                    <label>Nome <span class="required">*</span></label>
+                    <div id="operatorNameMount"></div>
+                </div>
+            `,
+            actions: [
+                { label: 'Salvar', variant: 'primary', icon: 'save', onClick: () => Operators.saveOperator() },
+                { label: 'Cancelar', variant: 'cancel', onClick: () => dlg.close() },
+            ],
         });
+
+        this._nameInput = createInput({ id: 'operatorName', placeholder: 'Nome do operador' });
+        document.getElementById('operatorNameMount').appendChild(this._nameInput.el);
+
+        return dlg;
     },
 
-    /** Cria uma linha <tr> para exibição de um operador. */
-    _createTableRow(operator) {
-        const tr = document.createElement("tr");
-
-        tr.innerHTML = `
-            <td class="operators-col-name">${operator.name}</td>
-            <td class="operators-col-actions">
-                ${hasPermission('registry', 'operators', 'delete') ? `<button onclick="Operators.deleteOperator(event, ${operator.id})">
-                    <span class="material-symbols-outlined">delete</span>
-                </button>` : ''}
-            </td>
-        `;
-
-        return tr;
-    },
-
-    // ── Utilitários Privados ──
-
-    /** Reseta o formulário para o estado inicial (novo registro). */
-    _resetForm() {
-        clearFormInputs(["operatorName"]);
-        clearTableSelection();
-        this.selectedOperator = null;
-        const cancelBtn = document.getElementById("operatorsCancelBtn");
-        if (cancelBtn) cancelBtn.style.display = "none";
-        const saveBtn = document.getElementById("operatorSaveBtn");
-        if (saveBtn) saveBtn.innerHTML = '<span class="material-symbols-outlined">playlist_add</span>Adicionar';
+    _mountNewButton() {
+        const headerOptions = document.getElementById('headerOptionsContent');
+        if (headerOptions) headerOptions.innerHTML = '';
+        if (!hasPermission('registry', 'operators', 'create')) return;
+        this._newBtn = createButton({
+            label: 'Novo Operador',
+            variant: 'primary',
+            icon: 'add',
+            onClick: () => this.openDialog(),
+        });
+        document.getElementById('operatorsNewBtnContainer').appendChild(this._newBtn.el);
     },
 };

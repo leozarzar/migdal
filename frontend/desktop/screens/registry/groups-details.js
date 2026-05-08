@@ -36,7 +36,7 @@ const GroupsDetails = {
                     <div class="gd-card-content">
                         <div class="gd-form-group">
                             <label for="gdName">Nome do Grupo <span class="gd-required">*</span></label>
-                            <input type="text" id="gdName" class="gd-form-control" placeholder="Nome do grupo">
+                            <div id="gdNameMount"></div>
                         </div>
                     </div>
                 </div>
@@ -91,11 +91,15 @@ const GroupsDetails = {
     /** Inicializa a tela: carrega materiais e popula dados do grupo selecionado. */
     async load() {
         this._isDirty = false;
-        this._materialSelect = createSearchSelect({
-            id: 'gdMaterialSelect',
+        const nameMount = document.getElementById('gdNameMount');
+        if (nameMount) {
+            nameMount.innerHTML = '';
+            const cmp = createInput({ id: 'gdName', placeholder: 'Nome do grupo' });
+            nameMount.appendChild(cmp.el);
+        }
+        this._materialSelect = createSelect({
             placeholder: 'Selecionar material...',
             searchable: true,
-            searchPlaceholder: 'Buscar...',
             sections: [{ key: 'material', items: [] }]
         });
         this._materialSelect.mount(document.getElementById('gdMaterialSelectContainer'));
@@ -208,8 +212,8 @@ const GroupsDetails = {
     /** Adiciona um material à lista de associados. */
     addMaterial() {
         const sel = this._materialSelect?.getValue();
-        if (!sel) return;
-        const id = parseInt(sel.value);
+        if (sel == null) return;
+        const id = parseInt(sel);
         if (!id) return;
 
         const material = this.allMaterials.find(m => m.id === id);

@@ -1,0 +1,49 @@
+/* ── Textarea ──────────────────────────────────────────────────────────────── */
+
+.wcm-textarea {
+    width: 100%;
+    padding: 8px 10px;
+    background-color: var(--background);
+    border: 1px solid var(--border-components);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--foreground);
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.wcm-textarea::placeholder {
+    color: var(--placeholder);
+}
+
+.wcm-textarea:hover:not(:disabled):not(:focus) {
+    border-color: var(--border-components-darker);
+}
+
+.wcm-textarea:focus {
+    border-color: var(--border-components-darker);
+}
+
+.wcm-textarea:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--muted);
+}
+
+.wcm-textarea:read-only {
+    background-color: var(--muted);
+    cursor: default;
+}
+
+.wcm-textarea--error {
+    border-color: var(--destructive);
+}
+
+.wcm-textarea--error:hover:not(:disabled):not(:focus),
+.wcm-textarea--error:focus {
+    border-color: var(--destructive);
+}

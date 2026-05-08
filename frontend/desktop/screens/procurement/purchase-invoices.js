@@ -20,6 +20,7 @@ const PurchaseInvoices = {
     _items: [],
     _supplierId: null,
     _allInvoices: [],
+    _suppliersCache: [],
 
     // ── Ciclo de Vida ────────────────────────────────────────────────────────
 
@@ -186,8 +187,8 @@ const PurchaseInvoices = {
             wide: true,
             bodyHTML: `<div id="piStepBody" class="pi-step-body"></div>`,
             actions: [
-                { label: 'Próximo', className: 'btn-primary', id: 'piNextBtn', onClick: () => this._nextStep() },
-                { label: 'Cancelar', className: 'btn-secondary', onClick: () => this._dialog.close() }
+                { label: 'Próximo', variant: 'primary', id: 'piNextBtn', onClick: () => this._nextStep() },
+                { label: 'Cancelar', variant: 'secondary', onClick: () => this._dialog.close() }
             ]
         });
         this._dialog.open();
@@ -196,10 +197,11 @@ const PurchaseInvoices = {
 
     async _nextStep() {
         if (this._step === 1) {
-            const supVal = this._supplierSelect?.getValue();
-            if (!supVal) { alert('Selecione um fornecedor'); return; }
-            this._selectedSupplier = supVal.label;
-            this._supplierId = Number(supVal.value);
+            const supId = this._supplierSelect?.getValue();
+            if (!supId) { alert('Selecione um fornecedor'); return; }
+            this._supplierId = Number(supId);
+            const supplier = this._suppliersCache.find(s => s.id === this._supplierId);
+            this._selectedSupplier = supplier?.name || '';
             this._step = 2;
             await this._renderStep();
         } else if (this._step === 2) {
@@ -230,16 +232,15 @@ const PurchaseInvoices = {
                 <div id="piSupplierContainer" class="pi-supplier-container"></div>
             </div>`;
             this._supplierSelect?.destroy();
-            this._supplierSelect = createSearchSelect({
-                id: 'piSupplier',
+            this._supplierSelect = createSelect({
                 placeholder: 'Buscar fornecedor...',
                 searchable: true,
-                searchPlaceholder: 'Buscar...',
                 sections: [{ key: 'supplier', items: [] }]
             });
             this._supplierSelect.mount(document.getElementById('piSupplierContainer'));
             try {
                 const suppliers = await apiCall(API + '/suppliers');
+                this._suppliersCache = suppliers || [];
                 this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: String(s.id), label: s.name })));
             } catch {}
 
@@ -270,12 +271,24 @@ const PurchaseInvoices = {
         } else if (this._step === 3) {
             if (nextBtn) nextBtn.textContent = 'Próximo';
             body.innerHTML = `<p class="pi-step-label">Passo 3 de 4 — Revise e ajuste os itens</p>${this._buildItemsTable()}`;
-            document.querySelectorAll('.pi-price-input').forEach((inp, i) => {
-                inp.addEventListener('input', () => {
-                    this._items[i].unit_price = parseFloat(inp.value) || 0;
-                    this._items[i].total_value = this._items[i].unit_price * this._items[i].quantity;
-                    this._updateItemsTotal();
+            this._priceInputs?.forEach(p => p.destroy());
+            this._priceInputs = [];
+            document.querySelectorAll('.pi-price-cell').forEach(cell => {
+                const i = parseInt(cell.dataset.idx, 10);
+                const cmp = createInput({
+                    type: 'number',
+                    className: 'pi-price-input',
+                    value: this._items[i].unit_price.toFixed(2),
+                    onInput: v => {
+                        this._items[i].unit_price = parseFloat(v) || 0;
+                        this._items[i].total_value = this._items[i].unit_price * this._items[i].quantity;
+                        this._updateItemsTotal();
+                    },
                 });
+                cmp.input.min = '0';
+                cmp.input.step = '0.01';
+                cell.appendChild(cmp.el);
+                this._priceInputs.push(cmp);
             });
 
         } else if (this._step === 4) {
@@ -286,11 +299,11 @@ const PurchaseInvoices = {
             <div class="pi-meta-form">
                 <div class="pi-meta-field">
                     <label>Tipo de documento</label>
-                    <input class="pi-meta-input" value="NCI" readonly>
+                    <div id="piDocTypeMount"></div>
                 </div>
                 <div class="pi-meta-field">
                     <label>Número</label>
-                    <input id="piNumber" class="pi-meta-input" placeholder="Ex: 001234">
+                    <div id="piNumberMount"></div>
                 </div>
                 <div class="pi-meta-field">
                     <label>Data de Emissão</label>
@@ -302,26 +315,46 @@ const PurchaseInvoices = {
                 </div>
                 <div class="pi-meta-field">
                     <label>Dias para vencimento</label>
-                    <input id="piPaymentDays" type="number" min="0" class="pi-meta-input" placeholder="30" oninput="PurchaseInvoices._calcDueDate()">
+                    <div id="piPaymentDaysMount"></div>
                 </div>
                 <div class="pi-meta-field">
                     <label>Vencimento</label>
-                    <input id="piDueDate" class="pi-meta-input" readonly placeholder="Calculado automaticamente">
+                    <div id="piDueDateMount"></div>
                 </div>
                 <div class="pi-meta-field">
                     <label>Transportador</label>
-                    <input id="piTransporter" class="pi-meta-input" placeholder="Nome">
+                    <div id="piTransporterMount"></div>
                 </div>
                 <div class="pi-meta-field">
                     <label>Motorista</label>
-                    <input id="piDriver" class="pi-meta-input" placeholder="Nome">
+                    <div id="piDriverMount"></div>
                 </div>
                 <div class="pi-meta-field">
                     <label>Placa</label>
-                    <input id="piPlate" class="pi-meta-input" placeholder="AAA-0000">
+                    <div id="piPlateMount"></div>
                 </div>
             </div>`;
+
+            this._mountStep4Inputs();
         }
+    },
+
+    _mountStep4Inputs() {
+        const mk = (mountId, opts) => {
+            const m = document.getElementById(mountId);
+            if (!m) return null;
+            const cmp = createInput(opts);
+            m.appendChild(cmp.el);
+            return cmp;
+        };
+        mk('piDocTypeMount',     { value: 'NCI', readonly: true });
+        mk('piNumberMount',      { id: 'piNumber',      placeholder: 'Ex: 001234' });
+        const days = mk('piPaymentDaysMount', { id: 'piPaymentDays', type: 'number', placeholder: '30', onInput: () => PurchaseInvoices._calcDueDate() });
+        if (days) days.input.min = '0';
+        mk('piDueDateMount',     { id: 'piDueDate',     readonly: true, placeholder: 'Calculado automaticamente' });
+        mk('piTransporterMount', { id: 'piTransporter', placeholder: 'Nome' });
+        mk('piDriverMount',      { id: 'piDriver',      placeholder: 'Nome' });
+        mk('piPlateMount',       { id: 'piPlate',       placeholder: 'AAA-0000' });
     },
 
     _calcDueDate() {
@@ -384,7 +417,7 @@ const PurchaseInvoices = {
             <td>${esc(item.description)}</td>
             <td>${esc(item.unit_measure)}</td>
             <td class="right">${fmtQty(item.quantity)}</td>
-            <td><input type="number" class="pi-price-input" value="${item.unit_price.toFixed(2)}" min="0" step="0.01"></td>
+            <td><div class="pi-price-cell" data-idx="${i}"></div></td>
             <td class="right pi-total-cell" data-idx="${i}">${fmtQty(item.total_value)}</td>
         </tr>`).join('');
 

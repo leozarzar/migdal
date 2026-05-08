@@ -10,6 +10,7 @@ const AdminUsers = {
     _locations: [],
     _userLocations: {},
     _table: null,
+    _searchInput: null,
     _searchQuery: '',
 
 // ── Ciclo de Vida ────────────────────────────────────────────────
@@ -17,6 +18,8 @@ const AdminUsers = {
     render() {
         this._table?.destroy();
         this._table = null;
+        this._searchInput?.destroy();
+        this._searchInput = null;
         this._searchQuery = '';
         return `
         <div class="admin-users-container">
@@ -24,13 +27,14 @@ const AdminUsers = {
                 <div class="admin-users-filters-icon-wrap">
                     <span class="material-symbols-outlined admin-users-filters-icon">filter_list</span>
                 </div>
-                <input type="text" id="adminUsersSearch" class="admin-users-search-input" placeholder="Buscar" oninput="AdminUsers._onSearch(this.value)">
+                <div id="adminUsersSearchMount"></div>
             </div>
             <div id="adminUsersTableMount"></div>
         </div>`;
     },
 
     async load() {
+        this._ensureSearchInput();
         this._ensureTable();
         this._table.setLoading(true);
 
@@ -114,6 +118,19 @@ const AdminUsers = {
             : this._allUsers;
         this._users = filtered;
         this._table?.setData(filtered);
+    },
+
+    _ensureSearchInput() {
+        if (this._searchInput) return;
+        const mount = document.getElementById('adminUsersSearchMount');
+        if (!mount) return;
+        this._searchInput = createInput({
+            id: 'adminUsersSearch',
+            placeholder: 'Buscar',
+            icon: 'Search',
+            onInput: v => AdminUsers._onSearch(v),
+        });
+        mount.appendChild(this._searchInput.el);
     },
 
     _ensureTable() {

@@ -1,11 +1,15 @@
 /**
  * @file mobile/screens/home.js
- * @description Tela inicial do mobile — atalhos de navegação, gráfico de consumo
- *   semanal e balanço de estoque baseado na política selecionada.
+ * @description Tela inicial do mobile — saudação, KPIs primários, hero do
+ *   material crítico, chips de filtro rápido, grid de materiais (balanço),
+ *   gráfico de consumo semanal e bottom sheet de filtros (política + local).
  *
  * Estende MobApp com o sub-objeto HomeScreen.
  * Carregado após mobile/app.js.
  */
+
+const HOME_LS_POLICY   = 'wcm.mobile.home.policyId';
+const HOME_LS_LOCATION = 'wcm.mobile.home.locationId';
 
 Object.assign(MobApp, {
 
@@ -19,12 +23,21 @@ Object.assign(MobApp, {
         materialColors: {},
         _chartSegments: [],
         policies: [],
+        locations: [],
         _selectedPolicyId: null,
+        _selectedLocationId: null,
         _policyFull: null,
         _balanceRows: [],
+        _activeKpi: 'levels',
+        _heroIndex: 0,
         _groupedMaterialNames: null,
         _leadTimeCache: {},
         _materialColorMap: {},
+        _heroRanked: [],
+        _greetingApplied: false,
+        _uniqueStockTotal: 0,
+        _uniqueMaterialCount: 0,
+        _leadTime30d: null,
 
         // ── Ciclo de vida ────────────────────────────────────────────────────
 
@@ -32,10 +45,19 @@ Object.assign(MobApp, {
             this.weekStart  = this._startOfWeek(new Date());
             this._leadTimeCache = {};
 
+            this._applyGreeting();
+
+            // Restaura preferências persistidas
+            const savedPolicy   = localStorage.getItem(HOME_LS_POLICY) || null;
+            const savedLocation = localStorage.getItem(HOME_LS_LOCATION) || null;
+            if (savedPolicy)   this._selectedPolicyId   = savedPolicy;
+            if (savedLocation) this._selectedLocationId = savedLocation;
+
             try {
-                const [materials, policies] = await Promise.all([
+                const [materials, policies, locations] = await Promise.all([
                     apiCall(API + '/materials'),
                     apiCall(API + '/stock-policies'),
+                    apiCall(API + '/locations').catch(() => []),
                 ]);
 
                 this.materials = (materials || [])
@@ -46,17 +68,38 @@ Object.assign(MobApp, {
                     (materials || []).filter(m => m.name && m.color).map(m => [m.name, m.color])
                 );
 
-                this.policies = policies || [];
+                this.policies  = policies || [];
+                this.locations = filterUserLocations(locations || []);
                 this._assignMaterialColors();
                 this._renderPoliciesSelect();
+                this._renderLocationsSelect();
                 this._bindChartEvents();
 
-                // Restaura política previamente selecionada (se ainda existir)
-                const savedId = this._selectedPolicyId;
-                await this.onPolicyChange(savedId || null);
+                await this.onPolicyChange(this._selectedPolicyId || null);
             } catch {
                 MobApp._toast('Erro ao carregar dados do dashboard', 'error');
             }
+        },
+
+        _applyGreeting() {
+            if (this._greetingApplied) return;
+            const eyebrow = document.getElementById('mobHomeGreetEyebrow');
+            const nameEl  = document.getElementById('mobHomeGreetName');
+            if (!eyebrow || !nameEl) return;
+
+            const h = new Date().getHours();
+            let greet = 'olá';
+            if (h < 5)        greet = 'boa madrugada';
+            else if (h < 12)  greet = 'bom dia';
+            else if (h < 18)  greet = 'boa tarde';
+            else              greet = 'boa noite';
+            eyebrow.textContent = greet;
+
+            const name = (localStorage.getItem('wcm.auth.name') || '').trim();
+            const first = name ? name.split(/\s+/)[0] : 'visitante';
+            nameEl.textContent = first;
+
+            this._greetingApplied = true;
         },
 
         // ── Navegação semanal ────────────────────────────────────────────────
@@ -71,19 +114,97 @@ Object.assign(MobApp, {
             this.refresh();
         },
 
-        // ── Seleção de Política ──────────────────────────────────────────────
+        // ── Notificações (placeholder) ───────────────────────────────────────
+
+        openNotifications() {
+            MobApp._toast('Sem novas notificações');
+        },
+
+        // ── Bottom sheet de filtros ──────────────────────────────────────────
+
+        openFilters() {
+            const bd = document.getElementById('mobHomeFiltersBackdrop');
+            if (bd) bd.style.display = 'flex';
+        },
+
+        closeFilters() {
+            const bd = document.getElementById('mobHomeFiltersBackdrop');
+            if (bd) bd.style.display = 'none';
+        },
+
+        _onFiltersBackdropClick(e) {
+            const bd = document.getElementById('mobHomeFiltersBackdrop');
+            if (e.target === bd) this.closeFilters();
+        },
+
+        resetFilters() {
+            this._selectedLocationId = null;
+            localStorage.removeItem(HOME_LS_LOCATION);
+            const locSel = document.getElementById('mobHomeLocationSelect');
+            if (locSel) locSel.value = '';
+            this.onPolicyChange(null);
+            this.closeFilters();
+        },
+
+        async onLocationChange() {
+            const sel = document.getElementById('mobHomeLocationSelect');
+            const id = sel ? (sel.value || null) : null;
+            this._selectedLocationId = id;
+            if (id) localStorage.setItem(HOME_LS_LOCATION, id);
+            else    localStorage.removeItem(HOME_LS_LOCATION);
+            await this._computeBalanceData();
+        },
+
+        // ── Chips de KPI ─────────────────────────────────────────────────────
+
+        setKpi(kpi) {
+            this._activeKpi = kpi || 'levels';
+            document.querySelectorAll('.mob-home-chip').forEach(c => {
+                c.classList.toggle('mob-home-chip--active', c.dataset.kpi === this._activeKpi);
+            });
+            this._renderHero();
+        },
+
+        _severity(row) {
+            if (row.currentStock == null || row.reorderPoint == null) return 'unknown';
+            if (row.currentStock <= (row.safetyStock ?? 0)) return 'critical';
+            if (row.currentStock <= row.reorderPoint)       return 'warning';
+            return 'ok';
+        },
+
+        // ── Selects do bottom sheet ──────────────────────────────────────────
 
         _renderPoliciesSelect() {
             const select = document.getElementById('mobHomePolicySelect');
             if (!select) return;
 
             const current = this._selectedPolicyId || '';
-            select.innerHTML = '<option value="">Política de Estoque</option>';
+            select.innerHTML = '<option value="">Selecione...</option>';
             this.policies.forEach(p => {
                 const opt = document.createElement('option');
                 opt.value = p.id;
                 opt.textContent = p.name;
                 if (String(p.id) === String(current)) opt.selected = true;
+                select.appendChild(opt);
+            });
+
+            if (!current && this.policies.length === 1) {
+                select.value = this.policies[0].id;
+                this._selectedPolicyId = String(this.policies[0].id);
+                localStorage.setItem(HOME_LS_POLICY, this._selectedPolicyId);
+            }
+        },
+
+        _renderLocationsSelect() {
+            const select = document.getElementById('mobHomeLocationSelect');
+            if (!select) return;
+            const current = this._selectedLocationId || '';
+            select.innerHTML = '<option value="">Todas</option>';
+            (this.locations || []).forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l.id;
+                opt.textContent = l.name;
+                if (String(l.id) === String(current)) opt.selected = true;
                 select.appendChild(opt);
             });
         },
@@ -94,19 +215,24 @@ Object.assign(MobApp, {
                 ? (forceId ? String(forceId) : '')
                 : (select ? select.value : '');
 
-            // Sync the select element when forceId is passed
             if (forceId !== undefined && select) select.value = policyId;
 
             this._selectedPolicyId = policyId || null;
+            if (policyId) localStorage.setItem(HOME_LS_POLICY, policyId);
+            else          localStorage.removeItem(HOME_LS_POLICY);
 
             if (!policyId) {
                 this._policyFull            = null;
                 this._balanceRows           = [];
                 this._groupedMaterialNames  = null;
                 this.selectedMaterials      = [];
+                this._uniqueStockTotal      = 0;
+                this._uniqueMaterialCount   = 0;
+                this._leadTime30d           = null;
                 this._drawStackedChart(this._getWeekDays(), {}, []);
                 this._updateWeekLabel();
-                this._renderBalanceTable();
+                this._renderHero();
+                this._renderKpis();
                 return;
             }
 
@@ -198,9 +324,12 @@ Object.assign(MobApp, {
             const canvas = document.getElementById('mobHomeChart');
             if (!canvas) return;
 
+            const cs = getComputedStyle(document.documentElement);
+            const inkMuted = cs.getPropertyValue('--wcm-muted').trim()  || '#6b7280';
+
             const height = 180;
             const { ctx, width } = CanvasChartUtils.setupCanvas(canvas, height, 200);
-            const padding = { top: 20, right: 12, bottom: 40, left: 42 };
+            const padding = { top: 16, right: 8, bottom: 36, left: 38 };
             const chartW  = width  - padding.left - padding.right;
             const chartH  = height - padding.top  - padding.bottom;
 
@@ -222,15 +351,27 @@ Object.assign(MobApp, {
             canvas.style.display = '';
             if (emptyState) emptyState.style.display = 'none';
 
-            CanvasChartUtils.drawYAxis(ctx, padding, chartW, chartH, yMax, { withGrid: false, fontSize: 11, labelOffset: 6 });
+            // Y-axis (rótulos) — desenhado inline para respeitar tema
+            const gridCount = 4;
+            ctx.fillStyle    = inkMuted;
+            ctx.font         = `500 10px "Geist Mono", ui-monospace, monospace`;
+            ctx.textAlign    = 'right';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i <= gridCount; i++) {
+                const value = yMax - (yMax / gridCount) * i;
+                const y     = padding.top + (chartH / gridCount) * i;
+                ctx.fillText(CanvasChartUtils.formatY(value), padding.left - 6, y);
+            }
 
             const slotCount = weekDays.length || 1;
             const slotW     = chartW / slotCount;
-            const barW      = Math.min(44, slotW * 0.62);
+            const barW      = Math.min(40, slotW * 0.58);
+            const radius    = Math.min(6, barW / 2);
 
             weekDays.forEach((day, index) => {
                 const x = padding.left + slotW * index + (slotW - barW) / 2;
                 let currentY = padding.top + chartH;
+                const stackTop = currentY - (totalsByDay[index] / yMax) * chartH;
 
                 selectedMaterials.forEach(material => {
                     const value = (seriesByMaterial[material] && seriesByMaterial[material][index]) || 0;
@@ -238,14 +379,16 @@ Object.assign(MobApp, {
                     const barHeight = (value / yMax) * chartH;
                     const y         = currentY - barHeight;
                     const color     = this.materialColors[material] || '#1f6fb2';
-                    ctx.fillStyle   = color;
-                    ctx.fillRect(x, y, barW, barHeight);
+
+                    const isTopSegment = Math.abs(y - stackTop) < 0.5;
+                    this._roundedTopBar(ctx, x, y, barW, barHeight, isTopSegment ? radius : 0, color);
+
                     this._chartSegments.push({ x, y, width: barW, height: barHeight, material, value, dayIndex: index, day });
                     currentY = y;
                 });
 
-                ctx.fillStyle    = '#334155';
-                ctx.font         = '10px Arial';
+                ctx.fillStyle    = inkMuted;
+                ctx.font         = `500 10px "Geist Mono", ui-monospace, monospace`;
                 ctx.textAlign    = 'center';
                 ctx.textBaseline = 'top';
                 const dayLabel = `${String(day.getDate()).padStart(2, '0')}/${String(day.getMonth() + 1).padStart(2, '0')}`;
@@ -253,14 +396,28 @@ Object.assign(MobApp, {
             });
         },
 
+        _roundedTopBar(ctx, x, y, w, h, r, fill) {
+            const rr = Math.min(r, h);
+            ctx.fillStyle = fill;
+            ctx.beginPath();
+            ctx.moveTo(x, y + h);
+            ctx.lineTo(x, y + rr);
+            ctx.quadraticCurveTo(x, y, x + rr, y);
+            ctx.lineTo(x + w - rr, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+            ctx.lineTo(x + w, y + h);
+            ctx.closePath();
+            ctx.fill();
+        },
+
         _bindChartEvents() {
             const canvas = document.getElementById('mobHomeChart');
-            if (!canvas) return;
+            if (!canvas || canvas._mobBound) return;
+            canvas._mobBound = true;
 
             canvas.addEventListener('mousemove', e => this._onChartHover(e));
             canvas.addEventListener('mouseleave', () => this._onChartLeave());
 
-            // Touch support — only intercept horizontal swipes (tooltip), let vertical pass through for scrolling
             let _touchStartX = 0, _touchStartY = 0;
             canvas.addEventListener('touchstart', e => {
                 _touchStartX = e.touches[0].clientX;
@@ -269,7 +426,7 @@ Object.assign(MobApp, {
             canvas.addEventListener('touchmove', e => {
                 const dx = Math.abs(e.touches[0].clientX - _touchStartX);
                 const dy = Math.abs(e.touches[0].clientY - _touchStartY);
-                if (dy > dx) return; // vertical — let the page scroll
+                if (dy > dx) return;
                 e.preventDefault();
                 const touch = e.touches[0];
                 const rect  = canvas.getBoundingClientRect();
@@ -277,7 +434,6 @@ Object.assign(MobApp, {
             }, { passive: false });
             canvas.addEventListener('touchend', () => this._onChartLeave());
 
-            // Dismiss tooltip when touching anywhere outside the canvas
             document.addEventListener('touchstart', e => {
                 if (!canvas.contains(e.target)) this._onChartLeave();
             }, { passive: true });
@@ -334,22 +490,191 @@ Object.assign(MobApp, {
             if (tooltip) tooltip.style.display = 'none';
         },
 
-        // ── Balanço de Estoque ───────────────────────────────────────────────
+        // ── KPIs / Hero / Grid render ────────────────────────────────────────
+
+        _renderKpis() {
+            const totalStock = this._uniqueStockTotal || 0;
+            const matCount   = this._uniqueMaterialCount || 0;
+            const leadTime   = this._leadTime30d;
+
+            this._animateNumber(document.querySelector('#mobHomeKpiStock .mob-home-kpi-value'), totalStock, { unit: 'kg' });
+
+            const stockSub = document.getElementById('mobHomeKpiStockSub');
+            if (stockSub) stockSub.textContent = `${matCount} ${matCount === 1 ? 'material monitorado' : 'materiais monitorados'}`;
+
+            const ltValue = document.querySelector('#mobHomeKpiLeadTime .mob-home-kpi-value');
+            if (ltValue) {
+                if (leadTime == null) {
+                    ltValue.innerHTML = '—';
+                    ltValue.dataset.target = '0';
+                } else {
+                    this._animateNumber(ltValue, Math.round(leadTime), { unit: leadTime === 1 ? 'dia' : 'dias' });
+                }
+            }
+
+            const ltSub = document.getElementById('mobHomeKpiLeadTimeSub');
+            if (ltSub) ltSub.textContent = leadTime == null ? 'sem recebimentos no período' : 'últimos 30 dias';
+        },
+
+        _animateNumber(el, target, opts) {
+            if (!el) return;
+            opts = opts || {};
+            const duration = 600;
+            const start    = parseFloat(el.dataset.target || '0') || 0;
+            el.dataset.target = String(target);
+
+            const t0 = performance.now();
+            const fmt = v => {
+                const rounded = Math.round(v);
+                const text = rounded.toLocaleString('pt-BR');
+                return opts.unit ? `${text}<span class="mob-home-kpi-unit"> ${opts.unit}</span>` : text;
+            };
+            const step = (now) => {
+                const k = Math.min(1, (now - t0) / duration);
+                const eased = 1 - Math.pow(1 - k, 3);
+                const v = start + (target - start) * eased;
+                el.innerHTML = fmt(v);
+                if (k < 1) requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+        },
+
+        _renderHero() {
+            const carousel = document.getElementById('mobHomeHeroCarousel');
+            const dotsWrap = document.getElementById('mobHomeHeroDots');
+            if (!carousel) return;
+
+            const rows = this._balanceRows || [];
+            const ranked = rows
+                .filter(r => r.currentStock != null && r.reorderPoint != null)
+                .map(r => ({ row: r, sev: this._severity(r), ratio: r.reorderPoint > 0 ? (r.currentStock / r.reorderPoint) : 1 }))
+                .sort((a, b) => {
+                    const order = { critical: 0, warning: 1, ok: 2, unknown: 3 };
+                    if (order[a.sev] !== order[b.sev]) return order[a.sev] - order[b.sev];
+                    return a.ratio - b.ratio;
+                });
+
+            this._heroRanked = ranked;
+
+            // Estado vazio (sem política ou sem itens válidos)
+            if (!this._policyFull || !ranked.length) {
+                carousel.innerHTML = `
+                    <i class="mob-home-hero-spacer"></i>
+                    <section class="mob-home-hero mob-home-hero--idle">
+                        <div class="mob-home-hero-bg" aria-hidden="true"></div>
+                        <div class="mob-home-hero-content">
+                            <div class="mob-home-hero-eyebrow">${this._policyFull ? 'Tudo certo' : 'Selecione uma política'}</div>
+                            <div class="mob-home-hero-title">${this._policyFull ? 'Sem materiais monitorados' : 'Pulso do estoque'}</div>
+                            <div class="mob-home-hero-meta">${this._policyFull ? 'Nenhum item válido na política.' : 'Abra os filtros para começar.'}</div>
+                        </div>
+                    </section>
+                    <i class="mob-home-hero-spacer"></i>`;
+                if (dotsWrap) dotsWrap.innerHTML = '';
+                return;
+            }
+
+            const cards = ranked.map(({ row, sev }) => this._renderHeroCardLevels(row, sev)).join('');
+            carousel.innerHTML = `<i class="mob-home-hero-spacer"></i>${cards}<i class="mob-home-hero-spacer"></i>`;
+
+            if (dotsWrap) {
+                dotsWrap.innerHTML = ranked.map((_, i) =>
+                    `<span class="mob-home-hero-dot${i === 0 ? ' mob-home-hero-dot--active' : ''}" data-index="${i}"></span>`
+                ).join('');
+            }
+
+            this._bindHeroScroll();
+        },
+
+        _renderHeroCardLevels(row, sev) {
+            const fmt = v => Math.round(Number(v)).toLocaleString('pt-BR');
+            const target = row.reorderPoint != null ? row.reorderPoint : row.maxStock;
+            const pct = target > 0 ? Math.min(100, Math.max(0, (row.currentStock / target) * 100)) : 0;
+
+            const eyebrow = sev === 'critical' ? 'Atenção crítica'
+                          : sev === 'warning'  ? 'Em alerta'
+                          : 'Saudável';
+
+            const parts = [`${fmt(row.currentStock)} kg`];
+            if (target != null) parts.push(`${pct.toFixed(0)}% do ponto`);
+            if (row.need > 0) parts.push(`falta ${fmt(row.need)}`);
+
+            const heroCls = `mob-home-hero${sev === 'critical' ? ' mob-home-hero--critical' : ''}`;
+            const progressLabel = target != null
+                ? `${fmt(row.currentStock)} / ${fmt(target)} kg`
+                : `${fmt(row.currentStock)} kg`;
+
+            return `
+                <section class="${heroCls}" data-material="${_esc(row.label)}">
+                    <div class="mob-home-hero-bg" aria-hidden="true"></div>
+                    <div class="mob-home-hero-content">
+                        <div class="mob-home-hero-eyebrow">${eyebrow}</div>
+                        <div class="mob-home-hero-title">${_esc(row.label)}</div>
+                        <div class="mob-home-hero-meta">${parts.join(' · ')}</div>
+                        <div class="mob-home-hero-progress">
+                            <div class="mob-home-hero-progress-track">
+                                <div class="mob-home-hero-progress-fill" style="width:${pct}%"></div>
+                            </div>
+                            <div class="mob-home-hero-progress-label">${progressLabel}</div>
+                        </div>
+                    </div>
+                </section>`;
+        },
+
+        _bindHeroScroll() {
+            const carousel = document.getElementById('mobHomeHeroCarousel');
+            const dotsWrap = document.getElementById('mobHomeHeroDots');
+            if (!carousel || carousel._scrollBound) return;
+            carousel._scrollBound = true;
+
+            let raf = null;
+            carousel.addEventListener('scroll', () => {
+                if (raf) return;
+                raf = requestAnimationFrame(() => {
+                    raf = null;
+                    if (!dotsWrap) return;
+                    const cards = carousel.querySelectorAll('.mob-home-hero');
+                    if (!cards.length) return;
+                    const cRect = carousel.getBoundingClientRect();
+                    const cCenter = cRect.left + cRect.width / 2;
+                    let bestIdx = 0;
+                    let bestDist = Infinity;
+                    cards.forEach((c, i) => {
+                        const r = c.getBoundingClientRect();
+                        const d = Math.abs((r.left + r.width / 2) - cCenter);
+                        if (d < bestDist) { bestDist = d; bestIdx = i; }
+                    });
+                    if (bestIdx !== this._heroIndex) {
+                        this._heroIndex = bestIdx;
+                        dotsWrap.querySelectorAll('.mob-home-hero-dot').forEach((dot, i) => {
+                            dot.classList.toggle('mob-home-hero-dot--active', i === bestIdx);
+                        });
+                    }
+                });
+            }, { passive: true });
+        },
+
+        // ── Cálculo do balanço ───────────────────────────────────────────────
 
         async _computeBalanceData() {
             if (!this._policyFull) {
                 this._balanceRows = [];
-                this._renderBalanceTable();
+                this._uniqueStockTotal = 0;
+                this._uniqueMaterialCount = 0;
+                this._leadTime30d = null;
+                this._renderHero();
+                this._renderKpis();
                 return;
             }
             const items = this._policyFull.items || [];
             if (!items.length) {
                 this._balanceRows = [];
-                this._renderBalanceTable();
+                this._uniqueStockTotal = 0;
+                this._uniqueMaterialCount = 0;
+                this._leadTime30d = null;
+                this._renderHero();
+                this._renderKpis();
                 return;
             }
-
-            this._renderBalanceLoading();
 
             const matItems = items.filter(i => (i.item_type || 'material') !== 'group');
             const grpItems = items.filter(i => i.item_type === 'group');
@@ -363,10 +688,17 @@ Object.assign(MobApp, {
             const directNames = matItems.map(i => i.material).filter(Boolean);
             const allNames    = [...new Set([...directNames, ...groupMemberNames.flat()])];
 
-            const [stocksMap, openOrdersMap] = await Promise.all([
+            const [stocksMap, openOrdersMap, snapshot] = await Promise.all([
                 this._fetchCurrentStocks(allNames),
                 this._fetchOpenOrders(allNames),
+                apiCall(`${API}/kpis/snapshot?policy_id=${encodeURIComponent(this._selectedPolicyId)}`).catch(() => null),
             ]);
+
+            this._leadTime30d = snapshot?.kpis?.lead_time?.current ?? null;
+
+            // Total único de saldo (evita dupla contagem quando material é item direto E membro de grupo)
+            this._uniqueMaterialCount = allNames.length;
+            this._uniqueStockTotal = allNames.reduce((s, n) => s + (Number(stocksMap[n]) || 0), 0);
 
             const [matKpis, grpKpis] = await Promise.all([
                 Promise.all(matItems.map(item => this._computeItemKpis(item.material, item, this._policyFull))),
@@ -393,68 +725,8 @@ Object.assign(MobApp, {
                 }
             });
 
-            this._renderBalanceTable();
-        },
-
-        _renderBalanceLoading() {
-            const el = document.getElementById('mobHomeBalanceBody');
-            if (el) el.innerHTML = '<p class="mob-items-empty">Calculando balanço…</p>';
-        },
-
-        _renderBalanceTable() {
-            const container = document.getElementById('mobHomeBalanceBody');
-            if (!container) return;
-
-            if (!this._policyFull) {
-                container.innerHTML = '<p class="mob-items-empty">Selecione uma política para visualizar.</p>';
-                return;
-            }
-            if (!this._balanceRows.length) {
-                container.innerHTML = '<p class="mob-items-empty">Esta política não possui itens cadastrados.</p>';
-                return;
-            }
-
-            const fmt = v => (v !== null && v !== undefined) ? Math.round(Number(v)).toLocaleString('pt-BR') : '—';
-            const reviewType = this._policyFull.review_type || 'continuous';
-            const colReplenish = reviewType === 'periodic' ? 'Ponto Crítico' : 'Ponto de Reposição';
-
-            container.innerHTML = this._balanceRows.map(row => {
-                let statusClass = '';
-                if (row.currentStock !== null && row.reorderPoint !== null) {
-                    if (row.currentStock <= (row.safetyStock ?? 0))  statusClass = 'mob-balance-row--critical';
-                    else if (row.currentStock <= row.reorderPoint)   statusClass = 'mob-balance-row--warning';
-                    else                                             statusClass = 'mob-balance-row--ok';
-                }
-
-                const badge = row.isGroup ? '<span class="mob-balance-badge">grupo</span>' : '';
-
-                const stats = [
-                    { label: 'Seg.', value: fmt(row.safetyStock) },
-                    { label: colReplenish.split(' ')[0], value: fmt(row.reorderPoint) },
-                    row.maxStock !== null ? { label: 'Máx.', value: fmt(row.maxStock) } : null,
-                    row.onOrder > 0 ? { label: 'Pedido', value: fmt(row.onOrder) } : null,
-                ].filter(Boolean);
-
-                return `
-                <div class="mob-balance-row ${statusClass}">
-                    <div class="mob-balance-row-top">
-                        <div class="mob-balance-name">${_esc(row.label)}${badge}</div>
-                        <div class="mob-balance-stock">${fmt(row.currentStock)}</div>
-                    </div>
-                    <div class="mob-balance-stats">
-                        ${stats.map(s => `
-                        <span class="mob-balance-stat">
-                            <span class="mob-balance-stat-label">${s.label}</span>
-                            ${s.value}
-                        </span>`).join('')}
-                        ${(row.need !== null && row.need > 0) ? `
-                        <span class="mob-balance-stat mob-balance-stat--need">
-                            <span class="mob-balance-stat-label">Necessidade</span>
-                            ${fmt(row.need)}
-                        </span>` : ''}
-                    </div>
-                </div>`;
-            }).join('');
+            this._renderHero();
+            this._renderKpis();
         },
 
         // ── Cálculos de KPI ──────────────────────────────────────────────────
@@ -471,9 +743,12 @@ Object.assign(MobApp, {
             const result    = {};
             const today     = this._formatDate(new Date());
             const twoYrsAgo = this._formatDate(new Date(new Date().getFullYear() - 2, 0, 1));
+            const locId     = this._selectedLocationId || '';
             await Promise.all(materialNames.map(async material => {
                 try {
-                    const q    = new URLSearchParams({ material, startDate: twoYrsAgo, endDate: today });
+                    const params = { material, startDate: twoYrsAgo, endDate: today };
+                    if (locId) params.location = locId;
+                    const q    = new URLSearchParams(params);
                     const rows = await apiCall(`${API}/stock-monitor?${q.toString()}`);
                     result[material] = (rows && rows.length) ? Number(rows[rows.length - 1].balance || 0) : 0;
                 } catch {
@@ -527,155 +802,6 @@ Object.assign(MobApp, {
             }
         },
 
-        // ── Estatística ──────────────────────────────────────────────────────
-
-        _balanceAggregate(rows, aggregation, startDate, stockRows) {
-            const buckets = new Map();
-            rows.forEach(row => {
-                const date = new Date(row.day + 'T00:00:00');
-                let key;
-                if (aggregation === 'weekly') {
-                    const d = date.getDay();
-                    const monday = new Date(date);
-                    monday.setDate(date.getDate() + (d === 0 ? -6 : 1 - d));
-                    key = this._formatDate(monday);
-                } else if (aggregation === 'monthly') {
-                    key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                } else {
-                    key = row.day;
-                }
-                if (!buckets.has(key)) buckets.set(key, { key, value: 0, hasStock: false });
-                buckets.get(key).value += Number(row.consumption || 0);
-            });
-
-            const todayD = new Date(); todayD.setHours(0, 0, 0, 0);
-            let cutoffKey;
-            if (aggregation === 'weekly') {
-                const dow = todayD.getDay();
-                const mon = new Date(todayD); mon.setDate(todayD.getDate() + (dow === 0 ? -6 : 1 - dow));
-                cutoffKey = this._formatDate(mon);
-            } else if (aggregation === 'monthly') {
-                cutoffKey = `${todayD.getFullYear()}-${String(todayD.getMonth() + 1).padStart(2, '0')}`;
-            } else {
-                cutoffKey = this._formatDate(todayD);
-            }
-
-            const start = new Date(startDate + 'T00:00:00');
-            if (aggregation === 'daily') {
-                for (let c = new Date(start); this._formatDate(c) < cutoffKey; c.setDate(c.getDate() + 1)) {
-                    const k = this._formatDate(c);
-                    if (!buckets.has(k)) buckets.set(k, { key: k, value: 0, hasStock: false });
-                }
-            } else if (aggregation === 'weekly') {
-                const c = new Date(start); const dow = c.getDay();
-                c.setDate(c.getDate() + (dow === 0 ? -6 : 1 - dow));
-                while (this._formatDate(c) < cutoffKey) {
-                    const k = this._formatDate(c);
-                    if (!buckets.has(k)) buckets.set(k, { key: k, value: 0, hasStock: false });
-                    c.setDate(c.getDate() + 7);
-                }
-            } else {
-                const c = new Date(start.getFullYear(), start.getMonth(), 1);
-                while (`${c.getFullYear()}-${String(c.getMonth() + 1).padStart(2, '0')}` < cutoffKey) {
-                    const k = `${c.getFullYear()}-${String(c.getMonth() + 1).padStart(2, '0')}`;
-                    if (!buckets.has(k)) buckets.set(k, { key: k, value: 0, hasStock: false });
-                    c.setMonth(c.getMonth() + 1);
-                }
-            }
-
-            const all = Array.from(buckets.values())
-                .sort((a, b) => a.key.localeCompare(b.key))
-                .filter(b => b.key >= startDate && b.key < cutoffKey);
-
-            const sortedStock = (stockRows || []).filter(r => r.date).sort((a, b) => a.date.localeCompare(b.date));
-            if (sortedStock.length > 0) {
-                all.forEach(bucket => {
-                    const endKey = (() => {
-                        if (aggregation === 'daily') return bucket.key;
-                        if (aggregation === 'weekly') {
-                            const d = new Date(bucket.key + 'T00:00:00'); d.setDate(d.getDate() + 6);
-                            return this._formatDate(d);
-                        }
-                        const [y, mo] = bucket.key.split('-').map(Number);
-                        return this._formatDate(new Date(y, mo, 0));
-                    })();
-                    let last = 0;
-                    for (const sr of sortedStock) {
-                        if (sr.date <= endKey) last = Number(sr.balance || 0); else break;
-                    }
-                    bucket.hasStock = last > 0;
-                });
-            }
-            return all;
-        },
-
-        _balanceFilter(data, removeZeros, treatOutliers, treatRuptures) {
-            let result = data.slice();
-            if (removeZeros)   result = result.filter(d => d.value > 0);
-            if (treatRuptures) result = result.filter(d => d.value > 0 || d.hasStock);
-            if (treatOutliers && result.length >= 4) {
-                const sorted = result.map(d => d.value).sort((a, b) => a - b);
-                const q1  = sorted[Math.floor(sorted.length / 4)];
-                const q3  = sorted[Math.floor(3 * sorted.length / 4)];
-                const iqr = q3 - q1;
-                result = result.filter(d => d.value >= q1 - 1.5 * iqr && d.value <= q3 + 1.5 * iqr);
-            }
-            return result;
-        },
-
-        _balanceForecast(data, method, params, serviceLevel) {
-            const values = data.map(d => d.value);
-            const n = values.length;
-            if (n < 2) return null;
-            const residuals = [];
-            let nextForecast;
-
-            if (method === 'moving-average') {
-                const p = Math.max(2, Math.min(params.period || 7, n - 1));
-                for (let i = p; i < n; i++) residuals.push(values[i] - values.slice(i - p, i).reduce((s, v) => s + v, 0) / p);
-                nextForecast = values.slice(n - p).reduce((s, v) => s + v, 0) / p;
-            } else if (method === 'exp-smoothing') {
-                const alpha = Math.max(0.01, Math.min(0.99, params.alpha || 0.3));
-                let s = values[0];
-                for (let i = 1; i < n; i++) { residuals.push(values[i] - s); s = alpha * values[i] + (1 - alpha) * s; }
-                nextForecast = s;
-            } else if (method === 'linear-regression') {
-                const rp = Math.max(3, Math.min(params.regressionPeriod || 30, n));
-                for (let i = rp; i < n; i++) {
-                    const xs = Array.from({ length: rp }, (_, j) => j);
-                    const ys = values.slice(i - rp, i);
-                    const { a, b } = this._balanceLinReg(xs, ys);
-                    residuals.push(values[i] - Math.max(0, a + b * rp));
-                }
-                const xs = Array.from({ length: rp }, (_, j) => j);
-                const { a, b } = this._balanceLinReg(xs, values.slice(n - rp));
-                nextForecast = Math.max(0, a + b * rp);
-            } else {
-                for (let i = 1; i < n; i++) residuals.push(values[i] - values.slice(0, i).reduce((s, v) => s + v, 0) / i);
-                nextForecast = values.reduce((s, v) => s + v, 0) / n;
-            }
-
-            const std = residuals.length ? Math.sqrt(residuals.reduce((s, v) => s + v * v, 0) / residuals.length) : 0;
-            return { nextForecast, std, z: this._balanceZScore(serviceLevel) };
-        },
-
-        _balanceLinReg(xs, ys) {
-            const n = xs.length, sx = xs.reduce((s, v) => s + v, 0), sy = ys.reduce((s, v) => s + v, 0);
-            const sxy = xs.reduce((s, v, i) => s + v * ys[i], 0), sx2 = xs.reduce((s, v) => s + v * v, 0);
-            const den = n * sx2 - sx * sx;
-            if (den === 0) return { a: sy / n, b: 0 };
-            const b = (n * sxy - sx * sy) / den;
-            return { a: (sy - b * sx) / n, b };
-        },
-
-        _balanceZScore(serviceLevel) {
-            const p = Math.max(0.501, Math.min(0.999, serviceLevel / 100));
-            const t = Math.sqrt(-2 * Math.log(1 - p));
-            const c = [2.515517, 0.802853, 0.010328];
-            const d = [1.432788, 0.189269, 0.001308];
-            return t - (c[0] + c[1] * t + c[2] * t * t) / (1 + d[0] * t + d[1] * t * t + d[2] * t * t * t);
-        },
-
         // ── Utilitários ──────────────────────────────────────────────────────
 
         _assignMaterialColors() {
@@ -698,7 +824,7 @@ Object.assign(MobApp, {
         _formatDate: d => StockPolicyUtils.formatDate(d),
 
         _formatDatePtBr(date) {
-            return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
         },
 
         _getWeekDays() {
