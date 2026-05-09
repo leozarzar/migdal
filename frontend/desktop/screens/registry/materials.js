@@ -46,12 +46,6 @@ const Materials = {
         if (!this._dataTable) {
             this._dataTable = createDataTable({
                 columns: [
-                    {
-                        key: 'color', header: '', width: '32px',
-                        render: r => r.color
-                            ? `<span class="materials-color-swatch" style="background:${r.color}"></span>`
-                            : `<span class="materials-color-swatch materials-color-swatch--none"></span>`,
-                    },
                     { key: 'name', header: 'Nome', sortable: true, render: r => r.name },
                     { key: 'unit_of_measure', header: 'Unidade', width: '80px', render: r => r.unit_of_measure || 'kg' },
                     {
@@ -203,13 +197,9 @@ const Materials = {
 
         const listHTML = globalMaterials.map(m => {
             const groupLabel = m.group_name ? `<span class="materials-import-group">${_esc(m.group_name)}</span>` : '';
-            const colorDot = m.color
-                ? `<span class="materials-color-swatch" style="background:${_esc(m.color)}"></span>`
-                : `<span class="materials-color-swatch materials-color-swatch--none"></span>`;
             const uom = m.unit_of_measure || 'kg';
             return `
                 <tr class="materials-import-row" data-material-id="${m.id}">
-                    <td>${colorDot}</td>
                     <td class="materials-import-name">${_esc(m.name)}</td>
                     <td>${_esc(uom)}</td>
                     <td>${groupLabel}</td>

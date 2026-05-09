@@ -54,7 +54,7 @@ body {
 /* ── Screens ─────────────────────────────────────────────── */
 
 .mob-screen {
-    padding: 16px;
+    padding: 0px;
     display: flex;
     flex-direction: column;
     gap: 16px;

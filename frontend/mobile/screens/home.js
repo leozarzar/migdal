@@ -38,6 +38,8 @@ Object.assign(MobApp, {
         _uniqueStockTotal: 0,
         _uniqueMaterialCount: 0,
         _leadTime30d: null,
+        _kpisByMaterial: {},
+        _monitorByMaterial: {},
 
         // ── Ciclo de vida ────────────────────────────────────────────────────
 
@@ -110,6 +112,8 @@ Object.assign(MobApp, {
         },
 
         nextWeek() {
+            const today = this._startOfWeek(new Date());
+            if (this.weekStart >= today) return;
             this.weekStart.setDate(this.weekStart.getDate() + 7);
             this.refresh();
         },
@@ -162,7 +166,10 @@ Object.assign(MobApp, {
             document.querySelectorAll('.mob-home-chip').forEach(c => {
                 c.classList.toggle('mob-home-chip--active', c.dataset.kpi === this._activeKpi);
             });
+            const carousel = document.getElementById('mobHomeHeroCarousel');
+            const savedScroll = carousel ? carousel.scrollLeft : 0;
             this._renderHero();
+            if (carousel) carousel.scrollLeft = savedScroll;
         },
 
         _severity(row) {
@@ -229,6 +236,8 @@ Object.assign(MobApp, {
                 this._uniqueStockTotal      = 0;
                 this._uniqueMaterialCount   = 0;
                 this._leadTime30d           = null;
+                this._kpisByMaterial        = {};
+                this._monitorByMaterial     = {};
                 this._drawStackedChart(this._getWeekDays(), {}, []);
                 this._updateWeekLabel();
                 this._renderHero();
@@ -329,7 +338,7 @@ Object.assign(MobApp, {
 
             const height = 180;
             const { ctx, width } = CanvasChartUtils.setupCanvas(canvas, height, 200);
-            const padding = { top: 16, right: 8, bottom: 36, left: 38 };
+            const padding = { top: 16, right: 8, bottom: 12, left: 38 };
             const chartW  = width  - padding.left - padding.right;
             const chartH  = height - padding.top  - padding.bottom;
 
@@ -368,6 +377,8 @@ Object.assign(MobApp, {
             const barW      = Math.min(40, slotW * 0.58);
             const radius    = Math.min(6, barW / 2);
 
+
+
             weekDays.forEach((day, index) => {
                 const x = padding.left + slotW * index + (slotW - barW) / 2;
                 let currentY = padding.top + chartH;
@@ -386,13 +397,6 @@ Object.assign(MobApp, {
                     this._chartSegments.push({ x, y, width: barW, height: barHeight, material, value, dayIndex: index, day });
                     currentY = y;
                 });
-
-                ctx.fillStyle    = inkMuted;
-                ctx.font         = `500 10px "Geist Mono", ui-monospace, monospace`;
-                ctx.textAlign    = 'center';
-                ctx.textBaseline = 'top';
-                const dayLabel = `${String(day.getDate()).padStart(2, '0')}/${String(day.getMonth() + 1).padStart(2, '0')}`;
-                ctx.fillText(dayLabel, x + barW / 2, padding.top + chartH + 8);
             });
         },
 
@@ -412,27 +416,55 @@ Object.assign(MobApp, {
 
         _bindChartEvents() {
             const canvas = document.getElementById('mobHomeChart');
+            const wrap   = document.getElementById('mobHomeChartWrap');
             if (!canvas || canvas._mobBound) return;
             canvas._mobBound = true;
 
             canvas.addEventListener('mousemove', e => this._onChartHover(e));
             canvas.addEventListener('mouseleave', () => this._onChartLeave());
 
-            let _touchStartX = 0, _touchStartY = 0;
-            canvas.addEventListener('touchstart', e => {
-                _touchStartX = e.touches[0].clientX;
-                _touchStartY = e.touches[0].clientY;
-            }, { passive: true });
-            canvas.addEventListener('touchmove', e => {
-                const dx = Math.abs(e.touches[0].clientX - _touchStartX);
-                const dy = Math.abs(e.touches[0].clientY - _touchStartY);
-                if (dy > dx) return;
-                e.preventDefault();
-                const touch = e.touches[0];
-                const rect  = canvas.getBoundingClientRect();
-                this._showTooltipAt(touch.clientX - rect.left, touch.clientX, touch.clientY);
-            }, { passive: false });
-            canvas.addEventListener('touchend', () => this._onChartLeave());
+            let startX = 0, startY = 0, startT = 0, swiped = false;
+
+            const onStart = (e) => {
+                const t = e.touches[0];
+                startX = t.clientX;
+                startY = t.clientY;
+                startT = Date.now();
+                swiped = false;
+            };
+
+            const onMove = (e) => {
+                const t  = e.touches[0];
+                const dx = t.clientX - startX;
+                const dy = t.clientY - startY;
+                if (Math.abs(dy) > Math.abs(dx)) return;
+                if (Math.abs(dx) > 10) {
+                    e.preventDefault();
+                    this._onChartLeave();
+                    return;
+                }
+                const rect = canvas.getBoundingClientRect();
+                this._showTooltipAt(t.clientX - rect.left, t.clientX, t.clientY);
+            };
+
+            const onEnd = (e) => {
+                const ct = e.changedTouches?.[0];
+                if (ct) {
+                    const dx = ct.clientX - startX;
+                    const dy = ct.clientY - startY;
+                    const dt = Date.now() - startT;
+                    if (Math.abs(dx) > 60 && Math.abs(dy) < 40 && dt < 600) {
+                        swiped = true;
+                        if (dx < 0) this.nextWeek();
+                        else        this.prevWeek();
+                    }
+                }
+                this._onChartLeave();
+            };
+
+            (wrap || canvas).addEventListener('touchstart', onStart, { passive: true });
+            (wrap || canvas).addEventListener('touchmove',  onMove,  { passive: false });
+            (wrap || canvas).addEventListener('touchend',   onEnd,   { passive: true });
 
             document.addEventListener('touchstart', e => {
                 if (!canvas.contains(e.target)) this._onChartLeave();
@@ -573,7 +605,7 @@ Object.assign(MobApp, {
                 return;
             }
 
-            const cards = ranked.map(({ row, sev }) => this._renderHeroCardLevels(row, sev)).join('');
+            const cards = ranked.map(({ row, sev }) => this._renderHeroCard(row, sev)).join('');
             carousel.innerHTML = `<i class="mob-home-hero-spacer"></i>${cards}<i class="mob-home-hero-spacer"></i>`;
 
             if (dotsWrap) {
@@ -585,39 +617,167 @@ Object.assign(MobApp, {
             this._bindHeroScroll();
         },
 
-        _renderHeroCardLevels(row, sev) {
-            const fmt = v => Math.round(Number(v)).toLocaleString('pt-BR');
-            const target = row.reorderPoint != null ? row.reorderPoint : row.maxStock;
-            const pct = target > 0 ? Math.min(100, Math.max(0, (row.currentStock / target) * 100)) : 0;
+        _renderHeroCard(row, sev) {
+            switch (this._activeKpi) {
+                case 'monitor':   return this._renderHeroCardMonitor(row, sev);
+                case 'stockout':  return this._renderHeroCardStockout(row, sev);
+                case 'avg_stock': return this._renderHeroCardAvgStock(row, sev);
+                case 'coverage':  return this._renderHeroCardCoverage(row, sev);
+                default:          return this._renderHeroCardLevels(row, sev);
+            }
+        },
 
-            const eyebrow = sev === 'critical' ? 'Atenção crítica'
-                          : sev === 'warning'  ? 'Em alerta'
-                          : 'Saudável';
-
-            const parts = [`${fmt(row.currentStock)} kg`];
-            if (target != null) parts.push(`${pct.toFixed(0)}% do ponto`);
-            if (row.need > 0) parts.push(`falta ${fmt(row.need)}`);
-
+        _heroShell(row, sev, eyebrow, body) {
             const heroCls = `mob-home-hero${sev === 'critical' ? ' mob-home-hero--critical' : ''}`;
-            const progressLabel = target != null
-                ? `${fmt(row.currentStock)} / ${fmt(target)} kg`
-                : `${fmt(row.currentStock)} kg`;
-
             return `
                 <section class="${heroCls}" data-material="${_esc(row.label)}">
                     <div class="mob-home-hero-bg" aria-hidden="true"></div>
                     <div class="mob-home-hero-content">
                         <div class="mob-home-hero-eyebrow">${eyebrow}</div>
                         <div class="mob-home-hero-title">${_esc(row.label)}</div>
-                        <div class="mob-home-hero-meta">${parts.join(' · ')}</div>
-                        <div class="mob-home-hero-progress">
-                            <div class="mob-home-hero-progress-track">
-                                <div class="mob-home-hero-progress-fill" style="width:${pct}%"></div>
-                            </div>
-                            <div class="mob-home-hero-progress-label">${progressLabel}</div>
-                        </div>
+                        ${body}
                     </div>
                 </section>`;
+        },
+
+        _fmtNum(v, decimals = 0) {
+            if (v == null || isNaN(v)) return '—';
+            return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        },
+
+        _deltaBadge(current, previous, opts = {}) {
+            // opts.invert = true → aumento é ruim (ex: rupturas)
+            if (current == null || previous == null || previous === 0) return '';
+            const delta   = current - previous;
+            const pct     = (delta / Math.abs(previous)) * 100;
+            const arrow   = delta > 0 ? '▲' : delta < 0 ? '▼' : '';
+            const isGood  = opts.invert ? (delta < 0) : (delta > 0);
+            const isBad   = opts.invert ? (delta > 0) : (delta < 0);
+            const cls     = delta === 0 ? 'mob-home-delta--neutral'
+                          : isGood       ? 'mob-home-delta--good'
+                          : isBad        ? 'mob-home-delta--bad'
+                          : 'mob-home-delta--neutral';
+            return `<span class="mob-home-delta ${cls}">${arrow} ${Math.abs(pct).toFixed(0)}%</span>`;
+        },
+
+        _materialKpi(row) {
+            return this._kpisByMaterial[row.label] || null;
+        },
+
+        // ── Layout: Níveis (saldo + barra de progresso) ─────────────────────
+        _renderHeroCardLevels(row, sev) {
+            const fmt = v => this._fmtNum(v);
+            const target = row.reorderPoint != null ? row.reorderPoint : row.maxStock;
+            const pct = target > 0 ? Math.min(100, Math.max(0, (row.currentStock / target) * 100)) : 0;
+            const eyebrow = sev === 'critical' ? 'Atenção crítica'
+                          : sev === 'warning'  ? 'Em alerta'
+                          : 'Saudável';
+            const parts = [`${fmt(row.currentStock)} kg`];
+            if (target != null) parts.push(`${pct.toFixed(0)}% do ponto`);
+            if (row.need > 0) parts.push(`falta ${fmt(row.need)}`);
+            const progressLabel = target != null
+                ? `${fmt(row.currentStock)} / ${fmt(target)} kg`
+                : `${fmt(row.currentStock)} kg`;
+            const body = `
+                <div class="mob-home-hero-meta">${parts.join(' · ')}</div>
+                <div class="mob-home-hero-progress">
+                    <div class="mob-home-hero-progress-track">
+                        <div class="mob-home-hero-progress-fill" style="width:${pct}%"></div>
+                    </div>
+                    <div class="mob-home-hero-progress-label">${progressLabel}</div>
+                </div>`;
+            return this._heroShell(row, sev, eyebrow, body);
+        },
+
+        // ── Layout: Monitor (sparkline 30d + saldo atual) ───────────────────
+        _renderHeroCardMonitor(row, sev) {
+            const series = this._monitorByMaterial[row.label] || [];
+            const cur    = row.currentStock;
+            const sparkline = this._buildSparkline(series.map(p => p.balance), 280, 60);
+            const body = `
+                <div class="mob-home-hero-stat">
+                    <span class="mob-home-hero-stat-value">${this._fmtNum(cur)}</span>
+                    <span class="mob-home-hero-stat-unit">kg agora</span>
+                </div>
+                <div class="mob-home-hero-spark" aria-hidden="true">${sparkline}</div>
+                <div class="mob-home-hero-meta">saldo dos últimos 30 dias</div>`;
+            return this._heroShell(row, sev, 'Monitor', body);
+        },
+
+        // ── Layout: Rupturas (% + delta) ────────────────────────────────────
+        _renderHeroCardStockout(row, sev) {
+            const k = this._materialKpi(row);
+            const cur = k?.stockout?.current;
+            const prv = k?.stockout?.previous;
+            const valTxt = cur == null ? '—' : `${this._fmtNum(cur, 1)}%`;
+            const delta = this._deltaBadge(cur, prv, { invert: true });
+            const body = `
+                <div class="mob-home-hero-stat">
+                    <span class="mob-home-hero-stat-value">${valTxt}</span>
+                    ${delta}
+                </div>
+                <div class="mob-home-hero-meta">% de dias com saldo zero · últimos 30 dias</div>`;
+            return this._heroShell(row, sev, 'Rupturas', body);
+        },
+
+        // ── Layout: Estoque Médio (kg + delta) ──────────────────────────────
+        _renderHeroCardAvgStock(row, sev) {
+            const k = this._materialKpi(row);
+            const cur = k?.avg_stock?.current;
+            const prv = k?.avg_stock?.previous;
+            const valTxt = cur == null ? '—' : `${this._fmtNum(cur)} kg`;
+            const delta = this._deltaBadge(cur, prv);
+            const body = `
+                <div class="mob-home-hero-stat">
+                    <span class="mob-home-hero-stat-value">${valTxt}</span>
+                    ${delta}
+                </div>
+                <div class="mob-home-hero-meta">média ponderada · últimos 30 dias</div>`;
+            return this._heroShell(row, sev, 'Estoque Médio', body);
+        },
+
+        // ── Layout: Cobertura (dias) ────────────────────────────────────────
+        _renderHeroCardCoverage(row, sev) {
+            const k = this._materialKpi(row);
+            const cur = k?.coverage?.current;
+            const valTxt = cur == null ? '—' : `${this._fmtNum(cur, 1)}`;
+            const unit   = cur == null ? '' : (Math.abs(cur - 1) < 0.05 ? 'dia' : 'dias');
+            const body = `
+                <div class="mob-home-hero-stat">
+                    <span class="mob-home-hero-stat-value">${valTxt}</span>
+                    ${unit ? `<span class="mob-home-hero-stat-unit">${unit}</span>` : ''}
+                </div>
+                <div class="mob-home-hero-meta">estoque médio / consumo médio diário</div>`;
+            return this._heroShell(row, sev, 'Cobertura', body);
+        },
+
+        _buildSparkline(values, w, h) {
+            if (!values || values.length < 2) {
+                return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}"><line x1="0" y1="${h/2}" x2="${w}" y2="${h/2}" stroke="var(--wcm-border-strong)" stroke-width="1" stroke-dasharray="3 3"/></svg>`;
+            }
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const range = max - min || 1;
+            const stepX = w / (values.length - 1);
+            const points = values.map((v, i) => {
+                const x = i * stepX;
+                const y = h - ((v - min) / range) * (h - 4) - 2;
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
+            const lastX = (values.length - 1) * stepX;
+            const lastY = h - ((values[values.length - 1] - min) / range) * (h - 4) - 2;
+            const fillPath = `M0,${h} L${points.replaceAll(' ', ' L')} L${lastX.toFixed(1)},${h} Z`;
+            return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="sparkFill" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stop-color="var(--wcm-accent)" stop-opacity="0.35"/>
+                        <stop offset="100%" stop-color="var(--wcm-accent)" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
+                <path d="${fillPath}" fill="url(#sparkFill)"/>
+                <polyline points="${points}" fill="none" stroke="var(--wcm-accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="3" fill="var(--wcm-accent)"/>
+            </svg>`;
         },
 
         _bindHeroScroll() {
@@ -661,6 +821,8 @@ Object.assign(MobApp, {
                 this._uniqueStockTotal = 0;
                 this._uniqueMaterialCount = 0;
                 this._leadTime30d = null;
+                this._kpisByMaterial = {};
+                this._monitorByMaterial = {};
                 this._renderHero();
                 this._renderKpis();
                 return;
@@ -671,6 +833,8 @@ Object.assign(MobApp, {
                 this._uniqueStockTotal = 0;
                 this._uniqueMaterialCount = 0;
                 this._leadTime30d = null;
+                this._kpisByMaterial = {};
+                this._monitorByMaterial = {};
                 this._renderHero();
                 this._renderKpis();
                 return;
@@ -688,13 +852,18 @@ Object.assign(MobApp, {
             const directNames = matItems.map(i => i.material).filter(Boolean);
             const allNames    = [...new Set([...directNames, ...groupMemberNames.flat()])];
 
-            const [stocksMap, openOrdersMap, snapshot] = await Promise.all([
+            const matQuery = encodeURIComponent(allNames.join(','));
+            const [stocksMap, openOrdersMap, snapshot, snapshotByMat, monitorByMat] = await Promise.all([
                 this._fetchCurrentStocks(allNames),
                 this._fetchOpenOrders(allNames),
                 apiCall(`${API}/kpis/snapshot?policy_id=${encodeURIComponent(this._selectedPolicyId)}`).catch(() => null),
+                allNames.length ? apiCall(`${API}/kpis/snapshot-by-material?materials=${matQuery}`).catch(() => null) : null,
+                this._fetchMonitor30d(allNames),
             ]);
 
             this._leadTime30d = snapshot?.kpis?.lead_time?.current ?? null;
+            this._kpisByMaterial = snapshotByMat?.materials || {};
+            this._monitorByMaterial = monitorByMat || {};
 
             // Total único de saldo (evita dupla contagem quando material é item direto E membro de grupo)
             this._uniqueMaterialCount = allNames.length;
@@ -787,6 +956,29 @@ Object.assign(MobApp, {
             return result;
         },
 
+        async _fetchMonitor30d(materialNames) {
+            const result = {};
+            if (!materialNames || !materialNames.length) return result;
+            const today    = this._formatDate(new Date());
+            const start30  = this._formatDate(new Date(Date.now() - 30 * 86400000));
+            const locId    = this._selectedLocationId || '';
+            await Promise.all(materialNames.map(async material => {
+                try {
+                    const params = { material, startDate: start30, endDate: today };
+                    if (locId) params.location = locId;
+                    const q    = new URLSearchParams(params);
+                    const rows = await apiCall(`${API}/stock-monitor?${q.toString()}`);
+                    result[material] = (rows || []).map(r => ({
+                        date: r.date,
+                        balance: Number(r.balance || 0),
+                    }));
+                } catch {
+                    result[material] = [];
+                }
+            }));
+            return result;
+        },
+
         async _fetchLeadTime(materialName) {
             if (Object.prototype.hasOwnProperty.call(this._leadTimeCache, materialName)) {
                 return this._leadTimeCache[materialName];
@@ -838,9 +1030,22 @@ Object.assign(MobApp, {
         },
 
         _updateWeekLabel() {
-            const days = this._getWeekDays();
-            const el   = document.getElementById('mobHomeWeekRange');
-            if (el) el.textContent = `${this._formatDatePtBr(days[0])} – ${this._formatDatePtBr(days[6])}`;
+            const days  = this._getWeekDays();
+            const range = document.getElementById('mobHomeWeekRange');
+            const badge = document.getElementById('mobHomeWeekBadge');
+
+            if (range) range.textContent = this._formatRangeLong(days[0], days[6]);
+
+            const today     = this._startOfWeek(new Date());
+            const diffWeeks = Math.round((today - this.weekStart) / (7 * 86400000));
+            if (badge) badge.classList.toggle('mob-home-week-badge--current', diffWeeks === 0);
+        },
+
+        /** Formata um intervalo como "3 de Maio – 9 de Maio" (mês capitalizado). */
+        _formatRangeLong(start, end) {
+            const fmt = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long' });
+            const cap = s => s.replace(/\bde\s+([a-zà-ú])/i, (_, c) => `de ${c.toUpperCase()}`);
+            return `${cap(fmt.format(start))} – ${cap(fmt.format(end))}`;
         },
 
         _formatTooltipValue(v) {

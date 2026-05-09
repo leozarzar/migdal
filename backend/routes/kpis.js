@@ -502,6 +502,84 @@ router.get('/snapshot', async (req, res) => {
     }
 });
 
+// ── Rota snapshot por material ───────────────────────────────────────────────
+
+/**
+ * GET /kpis/snapshot-by-material?materials=A,B,C
+ * Retorna stockout, avg_stock e coverage por material individual,
+ * para a janela atual (D-30 → D-1) e anterior (D-60 → D-31).
+ *
+ * Resposta:
+ * {
+ *   current_period: { start, end },
+ *   prev_period:    { start, end },
+ *   materials: {
+ *     "<nome>": {
+ *       stockout:  { current: number|null, previous: number|null },
+ *       avg_stock: { current: number|null, previous: number|null },
+ *       coverage:  { current: number|null, previous: number|null }
+ *     }
+ *   }
+ * }
+ */
+router.get('/snapshot-by-material', async (req, res) => {
+    const raw = (req.query.materials || '').toString().trim();
+    if (!raw) return res.status(400).json({ success: false, message: 'materials é obrigatório' });
+
+    const materials = raw.split(',').map(s => s.trim()).filter(Boolean);
+    if (!materials.length) return res.json({ materials: {} });
+
+    const now   = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const d = n => new Date(now - n * 86400000).toISOString().slice(0, 10);
+    const currEnd   = d(1);
+    const currStart = d(30);
+    const prevEnd   = d(31);
+    const prevStart = d(60);
+    const PERIOD_DAYS = 30;
+
+    const user = req.user || {};
+    const userLocs = (!user.isAdmin && user.locationIds && user.locationIds.length > 0) ? user.locationIds : null;
+
+    try {
+        const units = await fetchUnits(prevStart, currEnd, materials, userLocs);
+
+        const byMaterial = {};
+        for (const u of units) {
+            if (!u.material) continue;
+            (byMaterial[u.material] = byMaterial[u.material] || []).push(u);
+        }
+
+        const pair = (cur, prv) => ({ current: cur, previous: prv });
+        const result = {};
+        for (const mat of materials) {
+            const matUnits = byMaterial[mat] || [];
+            result[mat] = {
+                stockout: pair(
+                    computeStockoutPeriod(matUnits, currStart, currEnd, PERIOD_DAYS, today, [mat]),
+                    computeStockoutPeriod(matUnits, prevStart, prevEnd, PERIOD_DAYS, today, [mat])
+                ),
+                avg_stock: pair(
+                    computeAvgStockPeriod(matUnits, currStart, currEnd, PERIOD_DAYS, today),
+                    computeAvgStockPeriod(matUnits, prevStart, prevEnd, PERIOD_DAYS, today)
+                ),
+                coverage: pair(
+                    computeCoveragePeriod(matUnits, currStart, currEnd, PERIOD_DAYS, today),
+                    computeCoveragePeriod(matUnits, prevStart, prevEnd, PERIOD_DAYS, today)
+                ),
+            };
+        }
+
+        res.json({
+            current_period: { start: currStart, end: currEnd },
+            prev_period:    { start: prevStart, end: prevEnd },
+            materials: result,
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Erro ao calcular snapshot por material', error: err.message });
+    }
+});
+
 // ── Rota principal ───────────────────────────────────────────────────────────
 
 const VALID_KPIS = new Set(['turnover', 'stockout', 'coverage', 'accuracy', 'avg_stock', 'lead_time']);

@@ -702,13 +702,20 @@ const AppState = {
 
     const name    = localStorage.getItem('wcm.auth.name')  || '';
     const email   = localStorage.getItem('wcm.auth.email') || '';
-    const nameEl   = document.getElementById('sidebarUserName');
-    const emailEl  = document.getElementById('sidebarUserEmail');
-    const avatarEl = document.getElementById('sidebarUserAvatar');
-    const display  = name || email;
-    if (nameEl)   nameEl.textContent   = name || email;
-    if (emailEl)  emailEl.textContent  = name ? email : '';
-    if (avatarEl) avatarEl.textContent = display.charAt(0).toUpperCase();
+    const nameEl     = document.getElementById('sidebarUserName');
+    const emailEl    = document.getElementById('sidebarUserEmail');
+    const initialsEl = document.getElementById('sidebarUserAvatarInitials');
+    const imgEl      = document.getElementById('sidebarUserAvatarImg');
+    const display    = name || email;
+    const avatarSrc  = (window.AppUser && window.AppUser.avatar) || null;
+    if (nameEl)     nameEl.textContent     = name || email;
+    if (emailEl)    emailEl.textContent    = name ? email : '';
+    if (initialsEl) initialsEl.textContent = display.charAt(0).toUpperCase();
+    if (imgEl) {
+        if (avatarSrc) { imgEl.src = avatarSrc; imgEl.hidden = false; }
+        else           { imgEl.removeAttribute('src'); imgEl.hidden = true; }
+    }
+    if (initialsEl) initialsEl.style.display = avatarSrc ? 'none' : '';
 
     // ── Restauração de abas e roteamento ──────────────────────
     const restored = _restoreTabs();

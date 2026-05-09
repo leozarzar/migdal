@@ -34,6 +34,8 @@ db.run(`CREATE TABLE IF NOT EXISTS users (
     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
 
+db.run(`ALTER TABLE users ADD COLUMN avatar TEXT`, () => {});
+
 db.run(`CREATE TABLE IF NOT EXISTS sessions (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id    INTEGER NOT NULL,
@@ -180,7 +182,7 @@ router.get('/verify', (req, res) => {
     }
 
     db.get(
-        `SELECT s.token, s.user_id, u.email, u.name, u.role_id,
+        `SELECT s.token, s.user_id, u.email, u.name, u.avatar, u.role_id,
                 r.name AS role_name, r.is_admin
          FROM sessions s
          JOIN users u ON s.user_id = u.id
@@ -195,11 +197,11 @@ router.get('/verify', (req, res) => {
                 return res.status(401).json({ success: false, message: 'Sessão inválida ou expirada.' });
             }
 
-            // Helper: busca locationIds do usuário e envia resposta
+            // Helper: busca locationIds pelo papel do usuário
             function sendWithLocations(userObj, permissions) {
                 db.all(
-                    `SELECT location_id FROM user_locations WHERE user_id = ?`,
-                    [session.user_id],
+                    `SELECT location_id FROM role_locations WHERE role_id = ?`,
+                    [session.role_id],
                     (locErr, locRows) => {
                         userObj.locationIds = (locRows || []).map(r => r.location_id);
                         res.json({
@@ -216,7 +218,7 @@ router.get('/verify', (req, res) => {
             // Se admin, retorna direto sem buscar permissões granulares
             if (session.is_admin) {
                 return sendWithLocations(
-                    { id: session.user_id, name: session.name, role: session.role_name, isAdmin: true },
+                    { id: session.user_id, name: session.name, email: session.email, avatar: session.avatar || null, role: session.role_name, isAdmin: true },
                     []
                 );
             }
@@ -224,7 +226,7 @@ router.get('/verify', (req, res) => {
             // Buscar permissões granulares do papel
             if (!session.role_id) {
                 return sendWithLocations(
-                    { id: session.user_id, name: session.name, role: null, isAdmin: false },
+                    { id: session.user_id, name: session.name, email: session.email, avatar: session.avatar || null, role: null, isAdmin: false },
                     []
                 );
             }
@@ -242,13 +244,67 @@ router.get('/verify', (req, res) => {
                         actions: JSON.parse(p.actions || '[]')
                     }));
                     sendWithLocations(
-                        { id: session.user_id, name: session.name, role: session.role_name, isAdmin: false },
+                        { id: session.user_id, name: session.name, email: session.email, avatar: session.avatar || null, role: session.role_name, isAdmin: false },
                         parsed
                     );
                 }
             );
         }
     );
+});
+
+// ── Helper: resolve usuário a partir do header x-auth-token ───────────────
+
+function authenticate(req, res, next) {
+    const token = req.headers['x-auth-token'];
+    if (!token) return res.status(401).json({ success: false, message: 'Token ausente.' });
+
+    db.get(
+        `SELECT s.user_id FROM sessions s
+         WHERE s.token = ? AND s.expires_at > datetime('now')`,
+        [token],
+        (err, session) => {
+            if (err || !session) {
+                return res.status(401).json({ success: false, message: 'Sessão inválida ou expirada.' });
+            }
+            req.userId = session.user_id;
+            next();
+        }
+    );
+}
+
+// ── POST /auth/avatar ─────────────────────────────────────────────────────
+// Body: { avatar: "data:image/...;base64,..." }   (até ~3 MB recomendado)
+
+const AVATAR_DATA_URL_RE = /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+const MAX_AVATAR_BYTES = 3 * 1024 * 1024; // 3 MB
+
+router.post('/avatar', authenticate, (req, res) => {
+    const avatar = (req.body && req.body.avatar) || '';
+    if (typeof avatar !== 'string' || !AVATAR_DATA_URL_RE.test(avatar)) {
+        return res.status(400).json({ success: false, message: 'Imagem inválida.' });
+    }
+    if (Buffer.byteLength(avatar, 'utf8') > MAX_AVATAR_BYTES) {
+        return res.status(413).json({ success: false, message: 'Imagem muito grande.' });
+    }
+
+    db.run('UPDATE users SET avatar = ? WHERE id = ?', [avatar, req.userId], (err) => {
+        if (err) {
+            return res.status(500).json({ success: false, message: 'Erro ao salvar foto.', error: err.message });
+        }
+        res.json({ success: true, avatar });
+    });
+});
+
+// ── DELETE /auth/avatar ───────────────────────────────────────────────────
+
+router.delete('/avatar', authenticate, (req, res) => {
+    db.run('UPDATE users SET avatar = NULL WHERE id = ?', [req.userId], (err) => {
+        if (err) {
+            return res.status(500).json({ success: false, message: 'Erro ao remover foto.', error: err.message });
+        }
+        res.json({ success: true });
+    });
 });
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────

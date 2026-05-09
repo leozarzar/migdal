@@ -47,7 +47,7 @@ const companyRoutes          = require("./routes/company");           // Company
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
 // ── Static Files ──────────────────────────────────────────────────────────
 
@@ -128,12 +128,10 @@ app.use((req, res, next) => {
                 roleId: session.role_id,
                 isAdmin: !!session.is_admin
             };
-            // Carregar localizações do usuário (user_locations) + localizações do papel (role_locations)
+            // Carregar localizações pelo papel do usuário
             db.all(
-                `SELECT location_id FROM user_locations WHERE user_id = ?
-                 UNION
-                 SELECT location_id FROM role_locations WHERE role_id = ?`,
-                [session.user_id, session.role_id],
+                `SELECT location_id FROM role_locations WHERE role_id = ?`,
+                [session.role_id],
                 (locErr, locRows) => {
                     req.user.locationIds = (locRows || []).map(r => r.location_id);
                     next();

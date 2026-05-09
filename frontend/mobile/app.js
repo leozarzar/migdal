@@ -27,10 +27,12 @@ const MobApp = {
 
     /** Soma das quantidades por recebimento (chave: receipt_id) */
     _receiptItemTotals: {},
-    /** \u00cdndice do item sendo editado inline no formul\u00e1rio (null = nenhum) */
-    _editingItemIndex: null,
+
     /** Tela anterior (para o botão voltar) */
     _previousScreen: 'home',
+
+    /** Tela atualmente ativa */
+    _currentScreen: 'home',
 
     // ── Inicialização ────────────────────────────────────────────────────────
 
@@ -81,25 +83,14 @@ const MobApp = {
                 apiCall(API + '/operators'),
             ]);
 
-            _fillSelect('mobSupplier', suppliers, 'name', 'Selecione...');
-            _fillSelect('mobListSupplierFilter', suppliers, 'name', 'Fornecedor');
-            _fillSelect('mobItemMaterial', materials, 'name', 'Selecione...');
+            // Popula os selects do formulário de recebimento (presentes no DOM desde o início)
+            _fillSelect('rcpSupplier', suppliers, 'name', 'Selecione...');
+            _fillSelect('rcpSheetMaterial', materials, 'name', 'Selecione...');
             this._materialsCache = materials || [];
-            // Atualiza visibilidade do campo código ao trocar material
-            const matEl = document.getElementById('mobItemMaterial');
-            if (matEl) matEl.addEventListener('change', () => MobApp._onMobMaterialChange());
-            _fillSelect('mobItemOperator', operators, 'name', 'Selecione...');
-
-            {
-                const locations = await apiCall(API + '/locations');
-                const filtered = filterUserLocations(locations || []);
-                const locEl = document.getElementById('mobLocation');
-                if (locEl) {
-                    locEl.innerHTML = '<option value="">Selecione...</option>'
-                        + filtered.map(l => `<option value="${l.id}">${_esc(l.name)}</option>`).join('');
-                }
-                document.getElementById('fieldLocation').style.display = '';
-            }
+            // Listener de mudança de material no bottom sheet
+            const sheetMatEl = document.getElementById('rcpSheetMaterial');
+            if (sheetMatEl) sheetMatEl.addEventListener('change', () => MobApp.onSheetMaterialChange());
+            _fillSelect('rcpSheetOperator', operators, 'name', 'Selecione...');
         } catch {
             this._toast('Erro ao carregar dados do servidor', 'error');
         }
@@ -165,7 +156,7 @@ const MobApp = {
     _toplevelScreens: new Set(['home', 'list', 'stock-list', 'orders', 'more', 'profile']),
 
     /** Telas com layout temático (escondem o header legado). */
-    _themedScreens: new Set(['home', 'profile', 'orders', 'more']),
+    _themedScreens: new Set(['home', 'profile', 'orders', 'more', 'list', 'form']),
 
     /**
      * Renderiza/atualiza o avatar e os campos do perfil a partir do AppUser.
@@ -193,7 +184,111 @@ const MobApp = {
         if (profileName)  profileName.textContent  = name  || 'Usuário';
         if (profileEmail) profileEmail.textContent = email || '—';
 
+        // Renderiza foto (se houver) tanto no avatar da home quanto no do perfil
+        const avatar = (user && user.avatar) || null;
+        const homeImg    = document.getElementById('mobHomeAvatarImg');
+        const profileImg = document.getElementById('mobProfileAvatarImg');
+        const removeBtn  = document.getElementById('mobProfileAvatarRemove');
+        const hasAvatar  = !!avatar;
+        [homeImg, profileImg].forEach(img => {
+            if (!img) return;
+            if (hasAvatar) { img.src = avatar; img.hidden = false; }
+            else           { img.removeAttribute('src'); img.hidden = true; }
+        });
+        if (homeAvatar)  homeAvatar.style.display  = hasAvatar ? 'none' : '';
+        if (profileInit) profileInit.style.display = hasAvatar ? 'none' : '';
+        if (removeBtn)   removeBtn.hidden          = !hasAvatar;
+
         this._updateThemeChrome();
+    },
+
+    /**
+     * Abre o seletor de arquivo, redimensiona a imagem para 256×256 e envia
+     * ao servidor. A foto fica disponível no avatar da home, do perfil e
+     * também na sidebar do desktop (lida via /auth/verify).
+     */
+    pickAvatar() {
+        const input = document.getElementById('mobProfileAvatarInput');
+        if (!input) return;
+        input.value = '';
+        input.onchange = async () => {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            try {
+                const dataUrl = await this._resizeImageToSquare(file, 256);
+                await this._uploadAvatar(dataUrl);
+            } catch (e) {
+                this._toast(e && e.message ? e.message : 'Erro ao processar imagem', 'error');
+            }
+        };
+        input.click();
+    },
+
+    async removeAvatar() {
+        try {
+            const token = localStorage.getItem('wcm.auth.token');
+            const res = await fetch(`${API}/auth/avatar`, {
+                method: 'DELETE',
+                headers: { 'x-auth-token': token }
+            });
+            if (!res.ok) throw new Error();
+            if (window.AppUser) window.AppUser.avatar = null;
+            this._renderUserChrome();
+            this._toast('Foto removida', 'success');
+        } catch {
+            this._toast('Erro ao remover foto', 'error');
+        }
+    },
+
+    async _uploadAvatar(dataUrl) {
+        const token = localStorage.getItem('wcm.auth.token');
+        const res = await fetch(`${API}/auth/avatar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-auth-token': token
+            },
+            body: JSON.stringify({ avatar: dataUrl })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || 'Erro ao enviar foto');
+        }
+        const data = await res.json();
+        if (window.AppUser) window.AppUser.avatar = data.avatar;
+        else window.AppUser = { avatar: data.avatar };
+        this._renderUserChrome();
+        this._toast('Foto atualizada', 'success');
+    },
+
+    /**
+     * Carrega o arquivo, recorta o quadrado central e gera um JPEG de `size` px.
+     * Retorna uma data URL pronta para envio ao servidor.
+     */
+    _resizeImageToSquare(file, size) {
+        return new Promise((resolve, reject) => {
+            if (!file.type.startsWith('image/')) {
+                return reject(new Error('Selecione um arquivo de imagem'));
+            }
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+            reader.onload = () => {
+                const img = new Image();
+                img.onerror = () => reject(new Error('Imagem inválida'));
+                img.onload = () => {
+                    const min = Math.min(img.width, img.height);
+                    const sx = (img.width  - min) / 2;
+                    const sy = (img.height - min) / 2;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = canvas.height = size;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+                    resolve(canvas.toDataURL('image/jpeg', 0.85));
+                };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        });
     },
 
     /** Atualiza textos/estado relacionados ao tema (label e badge no perfil). */
@@ -230,6 +325,7 @@ const MobApp = {
             if (el) el.style.display = (screen === key) ? '' : 'none';
         });
 
+        this._currentScreen = screen;
         document.body.classList.toggle('mob-on-toplevel', this._toplevelScreens.has(screen));
         document.body.classList.toggle('mob-on-themed',   this._themedScreens.has(screen));
         this._syncBottomNav(screen);
@@ -254,10 +350,10 @@ const MobApp = {
             this.loadReceipts();
         } else if (screen === 'form') {
             this._editingReceipt = null;
-            this._editingItemIndex = null;
             this._previousScreen = 'list';
-            document.getElementById('mobHeaderSubtitle').textContent = 'Novo Recebimento';
-            document.getElementById('mobSaveBtn').textContent = 'Salvar Recebimento';
+            const rcpFormTitle = document.getElementById('rcpFormTitle');
+            if (rcpFormTitle) rcpFormTitle.textContent = 'Novo Recebimento';
+            document.getElementById('rcpSaveBtn').textContent = 'Salvar Recebimento';
             this._resetReceiptForm();
         } else if (screen === 'stock-list') {
             this._previousScreen = 'home';
@@ -276,6 +372,16 @@ const MobApp = {
         if (this._stockDetailMaterial) {
             this._stockDetailMaterial = null;
             this.showScreen('stock-list');
+            return;
+        }
+        // Guard para alterações não salvas no formulário de recebimento
+        if (this._currentScreen === 'form' && this._hasUnsavedChanges && this._hasUnsavedChanges()) {
+            this._mobConfirm(
+                'Sair sem salvar?',
+                '<p>As alterações não salvas serão perdidas.</p>'
+            ).then(ok => {
+                if (ok) this.showScreen(this._previousScreen || 'home');
+            });
             return;
         }
         this.showScreen(this._previousScreen || 'home');
