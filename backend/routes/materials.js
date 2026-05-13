@@ -93,9 +93,13 @@ db.run(`
  * Query params:
  *   hasMovements=1  — retorna apenas materiais que possuem movimentações em stock_movements
  *   location_id=N   — (combinado com hasMovements) restringe às movimentações da localização
+ *   page=N, limit=M — paginação server-side; resposta: { data, total }
+ *   search=X        — filtro por nome (LIKE)
+ *   sort_by=col     — coluna de ordenação (whitelist: name, unit_of_measure, tracking_mode)
+ *   sort_dir=asc|desc
  */
 router.get("/", (req, res) => {
-    const { hasMovements, location_id } = req.query;
+    const { hasMovements, location_id, page, limit, search, sort_by, sort_dir } = req.query;
     const user = req.user || {};
 
     if (hasMovements === '1') {
@@ -117,32 +121,55 @@ router.get("/", (req, res) => {
         return;
     }
 
-    // Admin: all materials
+    const paginated = page != null || limit != null;
+    const pageNum   = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum  = Math.max(1, parseInt(limit, 10) || 13);
+    const offset    = (pageNum - 1) * limitNum;
+
+    const SORT_WHITELIST = { name: 'name', unit_of_measure: 'unit_of_measure', tracking_mode: 'tracking_mode' };
+    const sortCol = SORT_WHITELIST[sort_by] || 'name';
+    const sortDirSafe = sort_dir === 'desc' ? 'DESC' : 'ASC';
+
+    // Montar cláusula WHERE e params conforme permissão do usuário
+    let join = '';
+    let where = 'WHERE 1=1';
+    const params = [];
+
     if (user.isAdmin) {
-        db.all("SELECT * FROM materials ORDER BY name", [], (err, rows) => {
+        // sem restrição de localização
+    } else {
+        const userLocs = user.locationIds || [];
+        if (userLocs.length === 0) {
+            return paginated ? res.json({ data: [], total: 0 }) : res.json([]);
+        }
+        join  = `INNER JOIN material_locations ml ON ml.material_id = m.id`;
+        where = `WHERE ml.location_id IN (${userLocs.map(() => '?').join(',')})`;
+        params.push(...userLocs);
+    }
+
+    if (search) {
+        where += ` AND m.name LIKE ?`;
+        params.push(`%${search}%`);
+    }
+
+    const distinct = user.isAdmin ? '' : 'DISTINCT';
+    const dataSql  = `SELECT ${distinct} m.* FROM materials m ${join} ${where} ORDER BY ${sortCol} ${sortDirSafe}${paginated ? ' LIMIT ? OFFSET ?' : ''}`;
+
+    if (paginated) {
+        const countSql = `SELECT COUNT(${distinct} m.id) as total FROM materials m ${join} ${where}`;
+        db.get(countSql, params, (err, countRow) => {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar materiais", error: err.message });
+            db.all(dataSql, [...params, limitNum, offset], (err2, rows) => {
+                if (err2) return res.status(500).json({ success: false, message: "Erro ao carregar materiais", error: err2.message });
+                res.json({ data: rows || [], total: countRow?.total || 0 });
+            });
+        });
+    } else {
+        db.all(dataSql, params, (err, rows) => {
             if (err) return res.status(500).json({ success: false, message: "Erro ao carregar materiais", error: err.message });
             res.json(rows || []);
         });
-        return;
     }
-
-    // Non-admin: location-scoped listing
-    const userLocs = user.locationIds || [];
-    if (userLocs.length === 0) {
-        return res.json([]);
-    }
-    const placeholders = userLocs.map(() => '?').join(',');
-    db.all(
-        `SELECT DISTINCT m.* FROM materials m
-         INNER JOIN material_locations ml ON ml.material_id = m.id
-         WHERE ml.location_id IN (${placeholders})
-         ORDER BY m.name`,
-        userLocs,
-        (err, rows) => {
-            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar materiais", error: err.message });
-            res.json(rows || []);
-        }
-    );
 });
 
 /**

@@ -11,7 +11,6 @@ const Orders = {
     _supplierSelect: null,
     _dataTable: null,
     _newBtn: null,
-    _allOrders: [],
 
     // ── Ciclo de Vida ──
 
@@ -20,7 +19,6 @@ const Orders = {
         this._supplierSelect?.destroy(); this._supplierSelect = null;
         this._dataTable?.destroy(); this._dataTable = null;
         this._newBtn?.destroy(); this._newBtn = null;
-        this._allOrders = [];
         return `
         <div class="orders-container">
             <div class="orders-filters">
@@ -44,7 +42,7 @@ const Orders = {
                 searchable: true,
                 clearable: true,
                 sections: [{ key: 'supplier', items: [] }],
-                onChange: () => this._applyFilter(),
+                onChange: () => this._fetchPage(1),
             });
             this._supplierSelect.mount(document.getElementById('ordersSupplierContainer'));
         }
@@ -98,9 +96,10 @@ const Orders = {
                         key: 'diff_pct', header: 'Dif %',
                         render: r => {
                             if (!r.received_qty || !r.total_qty) return '';
-                            const sign = r.diff_pct >= 0 ? '+' : '';
-                            const color = r.diff_pct >= 0 ? '#2e7d32' : '#c62828';
-                            return `<span style="color:${color};font-weight:600">${sign}${r.diff_pct}%</span>`;
+                            const diffPct = Math.round(((r.received_qty / r.total_qty) - 1) * 100);
+                            const sign = diffPct >= 0 ? '+' : '';
+                            const color = diffPct >= 0 ? '#2e7d32' : '#c62828';
+                            return `<span style="color:${color};font-weight:600">${sign}${diffPct}%</span>`;
                         },
                     },
                     {
@@ -110,6 +109,7 @@ const Orders = {
                 ],
                 getRowKey: r => r.id,
                 pageSize: 13,
+                onPageChange: (page, pageSize, sortKey, sortDir) => this._fetchPage(page, sortKey, sortDir),
                 actions: [
                     {
                         label: 'Excluir',
@@ -126,31 +126,18 @@ const Orders = {
             this._dataTable.mount(document.getElementById('ordersTableContainer'));
         }
 
+        // Carregar opções de fornecedor e primeira página em paralelo
         this._dataTable.setLoading(true);
-
         try {
-            const [orders, receipts] = await Promise.all([
-                apiCall(API + '/orders'),
-                apiCall(API + '/receipts'),
-            ]);
-
-            const enriched = await Promise.all(orders.map(o => this._enrichOrder(o, receipts)));
-            this._allOrders = enriched;
-
-            const suppliers = [...new Set(orders.map(o => o.supplier).filter(Boolean))]
-                .sort((a, b) => a.localeCompare(b));
-            this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
-
+            const suppliers = await apiCall(API + '/orders/suppliers');
+            this._supplierSelect.setItems('supplier', (suppliers || []).map(s => ({ value: s, label: s })));
             const saved = localStorage.getItem('wcm.orders.supplier');
             if (saved && this._supplierSelect.getValue() == null) {
                 this._supplierSelect.setValue(saved);
             }
+        } catch { /* dropdown fica vazio */ }
 
-            this._applyFilter();
-        } catch (error) {
-            alert('Erro ao carregar pedidos');
-            this._dataTable.setLoading(false);
-        }
+        await this._fetchPage(1);
     },
 
     async onTabFocus() { return this.load(); },
@@ -178,56 +165,24 @@ const Orders = {
 
     // ── Privado ──
 
-    async _enrichOrder(order, receipts) {
-        const [orderItems, orderBags] = await Promise.all([
-            apiCall(API + `/orders/items/${order.id}`),
-            apiCall(API + `/orders/${order.id}/stock-units`),
-        ]);
-
-        const totalQty = orderItems.reduce((sum, item) =>
-            sum + parseInt((item.group_id != null ? item.group_quantity : item.quantity) || 0, 10), 0);
-        const receivedQty = sumProperty(orderBags, 'weight');
-        const diffPct = totalQty > 0 ? Math.round(((receivedQty / totalQty) - 1) * 100) : 0;
-
-        const startDate = order.date ? new Date(order.date) : null;
-        let leadTime = '';
-        if (startDate) {
-            const linkedReceipts = receipts.filter(r => String(r.order_id) === String(order.id));
-            if (linkedReceipts.length > 0) {
-                const qtyByReceipt = {};
-                for (const bag of orderBags) {
-                    const rid = String(bag.receipt_id);
-                    qtyByReceipt[rid] = (qtyByReceipt[rid] || 0) + (bag.weight || 0);
-                }
-                let weightedSum = 0;
-                let totalQtyReceipts = 0;
-                for (const receipt of linkedReceipts) {
-                    const qty = qtyByReceipt[String(receipt.id)] || 0;
-                    const days = (new Date(receipt.date) - startDate) / (1000 * 60 * 60 * 24);
-                    weightedSum += days * qty;
-                    totalQtyReceipts += qty;
-                }
-                leadTime = totalQtyReceipts > 0
-                    ? (weightedSum / totalQtyReceipts).toFixed(1).replace('.0', '')
-                    : Math.round((new Date(linkedReceipts[0].date) - startDate) / (1000 * 60 * 60 * 24));
-            } else {
-                leadTime = Math.round((new Date() - startDate) / (1000 * 60 * 60 * 24));
-            }
-        }
-
-        return { ...order, total_qty: totalQty, received_qty: receivedQty, diff_pct: diffPct, lead_time: leadTime };
-    },
-
-    _applyFilter() {
+    async _fetchPage(page = 1, sortKey = '', sortDir = null) {
+        const params = new URLSearchParams({ page, limit: 13 });
         const supplier = this._supplierSelect?.getValue();
-        const filtered = supplier
-            ? this._allOrders.filter(o => o.supplier === supplier)
-            : this._allOrders;
-        this._dataTable?.setData(filtered);
-        if (supplier != null) {
+        if (supplier) {
+            params.set('supplier', supplier);
             localStorage.setItem('wcm.orders.supplier', String(supplier));
         } else {
             localStorage.removeItem('wcm.orders.supplier');
+        }
+        if (sortKey) { params.set('sort_by', sortKey); params.set('sort_dir', sortDir || 'asc'); }
+
+        this._dataTable.setLoading(true);
+        try {
+            const { data, total } = await apiCall(API + '/orders?' + params);
+            this._dataTable.setData(data || [], total || 0, page);
+        } catch {
+            alert('Erro ao carregar pedidos');
+            this._dataTable.setLoading(false);
         }
     },
 

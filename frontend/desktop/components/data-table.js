@@ -34,6 +34,7 @@
  * @param {boolean}  [config.loading=false]                  — Estado inicial de carregamento.
  * @param {string}   [config.emptyMessage]                   — Mensagem de tabela vazia.
  * @param {string}   [config.emptyIcon]                      — Nome do ícone Material Symbols para estado vazio.
+ * @param {function} [config.onPageChange]                   — Ativa modo server-side. Chamado com (page, pageSize, sortKey, sortDir) a cada mudança de página ou ordenação.
  *
  * @returns {{ mount, setData, setLoading, getSelected, clearSelection, destroy }}
  */
@@ -47,6 +48,7 @@ function createDataTable(config) {
     let _sortDir = null; // 'asc' | 'desc' | null
     let _selected = new Set();
     let _page    = 1;
+    let _total   = null; // total de registros no servidor (modo server-side)
 
     // ══ Config ══════════════════════════════════════════════════════════════
 
@@ -57,6 +59,7 @@ function createDataTable(config) {
     const _actions    = config.actions || [];
     const _emptyMsg   = config.emptyMessage || 'Nenhum registro encontrado';
     const _emptyIcon  = config.emptyIcon || 'table_rows';
+    const _serverSide = !!config.onPageChange;
 
     let _container = null;
     let _outsideClickHandler = null;
@@ -65,6 +68,7 @@ function createDataTable(config) {
     // ══ Computed ════════════════════════════════════════════════════════════
 
     function _getSorted() {
+        if (_serverSide) return _data; // servidor já ordenou
         if (!_sortDir || !_sortKey) return _data;
         const col = _columns.find(c => c.key === _sortKey);
         return [..._data].sort((a, b) => {
@@ -77,12 +81,14 @@ function createDataTable(config) {
     }
 
     function _getPaginated(sorted) {
+        if (_serverSide) return sorted; // servidor já fatiou
         if (!_pageSize) return sorted;
         const start = (_page - 1) * _pageSize;
         return sorted.slice(start, start + _pageSize);
     }
 
     function _getTotalPages(sorted) {
+        if (_serverSide && _total !== null) return Math.max(1, Math.ceil(_total / _pageSize));
         if (!_pageSize) return 1;
         return Math.max(1, Math.ceil(sorted.length / _pageSize));
     }
@@ -214,7 +220,7 @@ function createDataTable(config) {
     }
 
     function _renderPagination(sorted) {
-        const total = sorted.length;
+        const total = _serverSide && _total !== null ? _total : sorted.length;
         if (!_pageSize) {
             if (_loading || total === 0) return '';
             return `<div class="dt-pagination">
@@ -225,7 +231,7 @@ function createDataTable(config) {
         if (totalPages <= 1) return '';
 
         const start = (_page - 1) * _pageSize + 1;
-        const end   = Math.min(_page * _pageSize, sorted.length);
+        const end   = Math.min(_page * _pageSize, total);
 
         const pages = [];
         for (let i = 1; i <= totalPages; i++) {
@@ -246,7 +252,7 @@ function createDataTable(config) {
 
         return `
         <div class="dt-pagination">
-            <span class="dt-pagination-info">${start}–${end} de ${sorted.length}</span>
+            <span class="dt-pagination-info">${start}–${end} de ${total}</span>
             <div class="dt-pagination-controls">
                 <button class="dt-page-btn dt-page-btn--nav" data-page-prev ${_page === 1 ? 'disabled' : ''} aria-label="Página anterior">
                     <span class="material-symbols-outlined">chevron_left</span>
@@ -300,7 +306,13 @@ function createDataTable(config) {
                     _sortKey = ''; _sortDir = null;
                 }
                 _page = 1;
-                _render();
+                if (_serverSide) {
+                    _loading = true;
+                    _render();
+                    config.onPageChange(_page, _pageSize, _sortKey, _sortDir);
+                } else {
+                    _render();
+                }
             };
         });
 
@@ -373,15 +385,41 @@ function createDataTable(config) {
         _container.querySelectorAll('[data-page]').forEach(btn => {
             btn.onclick = () => {
                 _page = parseInt(btn.getAttribute('data-page'), 10);
-                _render();
+                if (_serverSide) {
+                    _loading = true;
+                    _render();
+                    config.onPageChange(_page, _pageSize, _sortKey, _sortDir);
+                } else {
+                    _render();
+                }
             };
         });
         const prevBtn = _container.querySelector('[data-page-prev]');
-        if (prevBtn) prevBtn.onclick = () => { if (_page > 1) { _page--; _render(); } };
+        if (prevBtn) prevBtn.onclick = () => {
+            if (_page > 1) {
+                _page--;
+                if (_serverSide) {
+                    _loading = true;
+                    _render();
+                    config.onPageChange(_page, _pageSize, _sortKey, _sortDir);
+                } else {
+                    _render();
+                }
+            }
+        };
 
         const nextBtn = _container.querySelector('[data-page-next]');
         if (nextBtn) nextBtn.onclick = () => {
-            if (_page < _getTotalPages(_getSorted())) { _page++; _render(); }
+            if (_page < _getTotalPages(_getSorted())) {
+                _page++;
+                if (_serverSide) {
+                    _loading = true;
+                    _render();
+                    config.onPageChange(_page, _pageSize, _sortKey, _sortDir);
+                } else {
+                    _render();
+                }
+            }
         };
     }
 
@@ -460,11 +498,20 @@ function createDataTable(config) {
     /**
      * Substitui os dados e reseta seleção e página.
      * @param {Array} data
+     * @param {number} [total] — Total de registros no servidor (modo server-side).
+     * @param {number} [page]  — Página atual (modo server-side); reseta UI de paginação.
      */
-    function setData(data) {
+    function setData(data, total, page) {
         _data     = data || [];
         _loading  = false;
-        _page     = 1;
+        if (!_serverSide) {
+            _page = 1;
+        } else if (page !== undefined) {
+            _page = page;
+        }
+        if (total !== undefined) {
+            _total = total;
+        }
         _selected = new Set();
         _render();
     }

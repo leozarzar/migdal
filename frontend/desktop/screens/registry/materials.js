@@ -12,7 +12,6 @@ const Materials = {
     _dataTable: null,
     _newBtn: null,
     _importBtn: null,
-    _allMaterials: [],
     _searchQuery: '',
 
     // ── Ciclo de Vida ──
@@ -23,7 +22,6 @@ const Materials = {
         this._newBtn?.destroy();       this._newBtn = null;
         this._importBtn?.destroy();    this._importBtn = null;
         this._searchInput?.destroy();  this._searchInput = null;
-        this._allMaterials = [];
         this._searchQuery = '';
         return `
         <div class="materials-container">
@@ -59,6 +57,7 @@ const Materials = {
                 getRowKey: r => r.id,
                 pageSize: 13,
                 onRowClick: r => this.selectMaterial(r),
+                onPageChange: (page, pageSize, sortKey, sortDir) => this._fetchPage(page, sortKey, sortDir),
                 actions: [
                     {
                         label: 'Excluir', icon: 'delete', variant: 'destructive',
@@ -72,21 +71,33 @@ const Materials = {
             this._dataTable.mount(document.getElementById('materialsTableContainer'));
         }
 
-        this._dataTable.setLoading(true);
+        await this._fetchPage(1);
+    },
 
+    async onTabFocus() { return this.load(); },
+
+    // ── Busca e Paginação ──
+
+    async _fetchPage(page = 1, sortKey = '', sortDir = null) {
+        const params = new URLSearchParams({ page, limit: 13 });
+        if (this._searchQuery) params.set('search', this._searchQuery);
+        if (sortKey) { params.set('sort_by', sortKey); params.set('sort_dir', sortDir || 'asc'); }
+
+        this._dataTable.setLoading(true);
         try {
-            const materials = await apiCall(API + '/materials');
-            this._allMaterials = materials || [];
-            this._applyFilter();
+            const { data, total } = await apiCall(API + '/materials?' + params);
+            this._dataTable.setData(data || [], total || 0, page);
         } catch {
             alert('Erro ao carregar materiais');
             this._dataTable.setLoading(false);
         }
     },
 
-    async onTabFocus() { return this.load(); },
-
-    // ── Ações Públicas ──
+    _onSearch(val) {
+        this._searchQuery = val;
+        clearTimeout(this._searchTimer);
+        this._searchTimer = setTimeout(() => this._fetchPage(1), 1000);
+    },
 
     newMaterial() {
         this.selectedMaterial = null;
@@ -122,17 +133,6 @@ const Materials = {
     },
 
     // ── Privado ──
-
-    _onSearch(val) {
-        this._searchQuery = val;
-        this._applyFilter();
-    },
-
-    _applyFilter() {
-        const q = this._searchQuery.toLowerCase();
-        const filtered = q ? this._allMaterials.filter(r => r.name.toLowerCase().includes(q)) : this._allMaterials;
-        this._dataTable?.setData(filtered);
-    },
 
     _mountSearchInput() {
         if (this._searchInput) return;
@@ -256,8 +256,7 @@ const Materials = {
             });
             const row = document.querySelector(`.materials-import-row[data-material-id="${materialId}"]`);
             if (row) row.remove();
-            const materials = await apiCall(API + '/materials');
-            this._dataTable?.setData(materials || []);
+            await this._fetchPage(1);
         } catch (e) {
             alert(e.message || 'Erro ao vincular material');
         }

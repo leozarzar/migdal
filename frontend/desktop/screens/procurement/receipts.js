@@ -11,7 +11,6 @@ const Receipts = {
     _supplierSelect: null,
     _dataTable: null,
     _newBtn: null,
-    _allReceipts: [],
 
     // ── Ciclo de Vida ──
 
@@ -20,7 +19,6 @@ const Receipts = {
         this._supplierSelect?.destroy(); this._supplierSelect = null;
         this._dataTable?.destroy(); this._dataTable = null;
         this._newBtn?.destroy(); this._newBtn = null;
-        this._allReceipts = [];
         return `
         <div class="receipts-container">
             <div class="receipts-filters">
@@ -44,7 +42,7 @@ const Receipts = {
                 searchable: true,
                 clearable: true,
                 sections: [{ key: 'supplier', items: [] }],
-                onChange: () => this._applyFilter(),
+                onChange: () => this._fetchPage(1),
             });
             this._supplierSelect.mount(document.getElementById('receiptsSupplierContainer'));
         }
@@ -81,6 +79,7 @@ const Receipts = {
                 ],
                 getRowKey: r => r.id,
                 pageSize: 13,
+                onPageChange: (page, pageSize, sortKey, sortDir) => this._fetchPage(page, sortKey, sortDir),
                 actions: [
                     {
                         label: 'Excluir',
@@ -100,33 +99,15 @@ const Receipts = {
         this._dataTable.setLoading(true);
 
         try {
-            const receipts = await apiCall(API + "/receipts");
-
-            const receiptsWithQty = await Promise.all(receipts.map(async r => {
-                try {
-                    const items = await apiCall(API + `/receipts/items/${r.id}`);
-                    return { ...r, total_qty: sumProperty(items, "weight") };
-                } catch {
-                    return { ...r, total_qty: 0 };
-                }
-            }));
-
-            this._allReceipts = receiptsWithQty;
-
-            const suppliers = [...new Set(receipts.map(r => r.supplier).filter(Boolean))]
-                .sort((a, b) => a.localeCompare(b));
-            this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
-
+            const suppliers = await apiCall(API + "/receipts/suppliers");
+            this._supplierSelect.setItems('supplier', (suppliers || []).map(s => ({ value: s, label: s })));
             const saved = localStorage.getItem('wcm.receipts.supplier');
             if (saved && this._supplierSelect.getValue() == null) {
                 this._supplierSelect.setValue(saved);
             }
+        } catch { /* dropdown fica vazio */ }
 
-            this._applyFilter();
-        } catch (error) {
-            alert("Erro ao carregar recebimentos");
-            this._dataTable.setLoading(false);
-        }
+        await this._fetchPage(1);
     },
 
     async onTabFocus() { return this.load(); },
@@ -155,9 +136,7 @@ const Receipts = {
     async openOrder(event, orderId) {
         event.stopPropagation();
         try {
-            const orders = await apiCall(`${API}/orders`);
-            const order = (orders || []).find(o => String(o.id) === String(orderId));
-            if (!order) throw new Error('não encontrado');
+            const order = await apiCall(`${API}/orders/${orderId}`);
             Orders.selectedOrder = order;
             showScreen('order-details');
         } catch {
@@ -167,16 +146,24 @@ const Receipts = {
 
     // ── Privado ──
 
-    _applyFilter() {
+    async _fetchPage(page = 1, sortKey = '', sortDir = null) {
+        const params = new URLSearchParams({ page, limit: 13 });
         const supplier = this._supplierSelect?.getValue();
-        const filtered = supplier
-            ? this._allReceipts.filter(r => r.supplier === supplier)
-            : this._allReceipts;
-        this._dataTable?.setData(filtered);
-        if (supplier != null) {
+        if (supplier) {
+            params.set('supplier', supplier);
             localStorage.setItem('wcm.receipts.supplier', String(supplier));
         } else {
             localStorage.removeItem('wcm.receipts.supplier');
+        }
+        if (sortKey) { params.set('sort_by', sortKey); params.set('sort_dir', sortDir || 'asc'); }
+
+        this._dataTable.setLoading(true);
+        try {
+            const { data, total } = await apiCall(API + '/receipts?' + params);
+            this._dataTable.setData(data || [], total || 0, page);
+        } catch {
+            alert('Erro ao carregar recebimentos');
+            this._dataTable.setLoading(false);
         }
     },
 

@@ -47,18 +47,103 @@ db.run(`ALTER TABLE order_items ADD COLUMN group_quantity REAL`, () => {});
 // ── GET Endpoints ─────────────────────────────────────────────────────────
 
 /**
- * GET /orders - Lista todos os pedidos ordenados por data
+ * GET /orders - Lista todos os pedidos ordenados por data.
+ * Query params: page, limit, supplier
+ *   Quando page/limit presentes: retorna { data, total }
+ *   Inclui total_qty (order_items) e received_qty (stock_units) calculados via subquery.
  */
 router.get("/", (req, res) => {
-    db.all("SELECT * FROM orders ORDER BY date DESC, id DESC", [], (err, rows) => {
-        if (err) {
-            return res.status(500).json({
-                success: false,
-                message: "Erro ao carregar pedidos",
-                error: err.message
+    const { page, limit, supplier } = req.query;
+
+    const paginated = page != null || limit != null;
+    const pageNum   = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum  = Math.max(1, parseInt(limit, 10) || 13);
+    const offset    = (pageNum - 1) * limitNum;
+
+    let where = 'WHERE 1=1';
+    const params = [];
+    if (supplier) {
+        where += ` AND o.supplier = ?`;
+        params.push(supplier);
+    }
+
+    const selectEnriched = `
+        SELECT
+            o.*,
+            COALESCE((
+                SELECT SUM(CASE WHEN oi.group_id IS NOT NULL THEN oi.group_quantity ELSE oi.quantity END)
+                FROM order_items oi WHERE oi.order_id = o.id
+            ), 0) as total_qty,
+            COALESCE((
+                SELECT SUM(su.weight)
+                FROM stock_units su
+                INNER JOIN receipts r ON su.receipt_id = r.id
+                WHERE CAST(r.order_id AS INTEGER) = o.id
+            ), 0) as received_qty,
+            (
+                SELECT ROUND(AVG(julianday(r.date) - julianday(o.date)))
+                FROM receipts r WHERE CAST(r.order_id AS INTEGER) = o.id
+            ) as lead_time
+        FROM orders o
+    `;
+
+    const dataSql = `${selectEnriched} ${where} ORDER BY o.date DESC, o.id DESC${paginated ? ' LIMIT ? OFFSET ?' : ''}`;
+
+    if (paginated) {
+        const countSql = `SELECT COUNT(*) as total FROM orders o ${where}`;
+        db.get(countSql, params, (err, countRow) => {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar pedidos", error: err.message });
+            db.all(dataSql, [...params, limitNum, offset], (err2, rows) => {
+                if (err2) return res.status(500).json({ success: false, message: "Erro ao carregar pedidos", error: err2.message });
+                res.json({ data: rows || [], total: countRow?.total || 0 });
             });
-        }
-        res.json(rows || []);
+        });
+    } else {
+        db.all(dataSql, params, (err, rows) => {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar pedidos", error: err.message });
+            res.json(rows || []);
+        });
+    }
+});
+
+/**
+ * GET /orders/suppliers - Lista distinta de fornecedores em pedidos (para filtro).
+ */
+router.get("/suppliers", (req, res) => {
+    db.all("SELECT DISTINCT supplier FROM orders WHERE supplier IS NOT NULL AND supplier != '' ORDER BY supplier", [], (err, rows) => {
+        if (err) return res.status(500).json({ success: false, message: "Erro ao carregar fornecedores", error: err.message });
+        res.json((rows || []).map(r => r.supplier));
+    });
+});
+
+/**
+ * GET /orders/:id - Retorna um pedido pelo ID (com dados enriquecidos).
+ */
+router.get("/:id", (req, res) => {
+    const { id } = req.params;
+    const selectEnriched = `
+        SELECT
+            o.*,
+            COALESCE((
+                SELECT SUM(CASE WHEN oi.group_id IS NOT NULL THEN oi.group_quantity ELSE oi.quantity END)
+                FROM order_items oi WHERE oi.order_id = o.id
+            ), 0) as total_qty,
+            COALESCE((
+                SELECT SUM(su.weight)
+                FROM stock_units su
+                INNER JOIN receipts r ON su.receipt_id = r.id
+                WHERE CAST(r.order_id AS INTEGER) = o.id
+            ), 0) as received_qty,
+            (
+                SELECT ROUND(AVG(julianday(r.date) - julianday(o.date)))
+                FROM receipts r WHERE CAST(r.order_id AS INTEGER) = o.id
+            ) as lead_time
+        FROM orders o
+    `;
+    db.get(`${selectEnriched} WHERE o.id = ?`, [id], (err, row) => {
+        if (err) return res.status(500).json({ success: false, message: "Erro ao carregar pedido", error: err.message });
+        if (!row) return res.status(404).json({ success: false, message: "Pedido não encontrado" });
+        res.json(row);
     });
 });
 

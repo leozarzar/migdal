@@ -181,6 +181,7 @@ const StockMovements = {
             ],
             getRowKey: row => row.id,
             pageSize: 13,
+            onPageChange: (page) => this._fetchAndRender(page),
             actions: canDelete ? [
                 {
                     label: 'Excluir', icon: 'delete', variant: 'destructive',
@@ -551,8 +552,8 @@ const StockMovements = {
         this._materialSelect.setItems('material', this._materials.map(m => ({ value: m.id, label: m.name })));
     },
 
-    async _fetchAndRender() {
-        const params = new URLSearchParams();
+    async _fetchAndRender(page = 1) {
+        const params = new URLSearchParams({ page, limit: 13 });
         const selectedMaterial = this._materialSelect?.getValue();
         const locationId = AppState.getLocationFilter();
 
@@ -564,10 +565,9 @@ const StockMovements = {
 
         this._dataTable?.setLoading(true);
         try {
-            this._data = await apiCall(API + '/stock-movements?' + params.toString()) || [];
-        } catch (e) { alert(e.message); this._dataTable?.setLoading(false); return; }
-
-        this._dataTable?.setData(this._data);
+            const { data, total } = await apiCall(API + '/stock-movements?' + params.toString());
+            this._dataTable?.setData(data || [], total || 0, page);
+        } catch (e) { alert(e.message); this._dataTable?.setLoading(false); }
     },
 
     _formatReason(reason) {

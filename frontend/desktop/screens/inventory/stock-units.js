@@ -83,7 +83,7 @@ const StockUnits = {
                     id: 'search',
                     placeholder: 'Buscar',
                     icon: 'Search',
-                    onInput: () => StockUnits.load(),
+                    onInput: () => { clearTimeout(StockUnits._searchTimer); StockUnits._searchTimer = setTimeout(() => StockUnits._fetchPage(1), 1000); },
                 });
                 mount.appendChild(this._searchInput.el);
             }
@@ -165,6 +165,7 @@ const StockUnits = {
                 ],
                 getRowKey: r => r.tracking_mode === 'simple' ? `simple-${r.material_id}` : String(r.id),
                 pageSize: 13,
+                onPageChange: (page) => this._fetchPage(page),
                 onRowClick: r => StockUnits.selectStockUnit(r),
                 actions: [
                     {
@@ -205,43 +206,31 @@ const StockUnits = {
             this._dataTable.mount(document.getElementById('stockUnitsTableContainer'));
         }
 
-        this._dataTable.setLoading(true);
+        const isFirstLoad = !this._materialSelect;
+        await this._populateFilters();
 
-        try {
-            const stockUnits = await apiCall(API + '/stock-units') || [];
-
-            const isFirstLoad = !this._materialSelect;
-            this._populateFilters(stockUnits);
-
-            if (isFirstLoad) {
-                this._filterStatus = localStorage.getItem('wcm.stockUnits.status') || '';
-                const presetMaterial = this._presetMaterial || '';
-                this._presetMaterial = null;
-                const savedMaterial = presetMaterial || localStorage.getItem('wcm.stockUnits.material') || '';
-                const savedSupplier = localStorage.getItem('wcm.stockUnits.supplier') || '';
-                const searchEl = document.getElementById('search');
-                if (searchEl) searchEl.value = localStorage.getItem('wcm.stockUnits.search') || '';
-                if (presetMaterial) {
-                    this._filterStatus = 'IN_STOCK';
-                    localStorage.setItem('wcm.stockUnits.material', presetMaterial);
-                }
-                if (savedMaterial) this._materialSelect.setValue(savedMaterial);
-                if (savedSupplier) this._supplierSelect.setValue(savedSupplier);
+        if (isFirstLoad) {
+            this._filterStatus = localStorage.getItem('wcm.stockUnits.status') || '';
+            const presetMaterial = this._presetMaterial || '';
+            this._presetMaterial = null;
+            const savedMaterial = presetMaterial || localStorage.getItem('wcm.stockUnits.material') || '';
+            const savedSupplier = localStorage.getItem('wcm.stockUnits.supplier') || '';
+            const searchEl = document.getElementById('search');
+            if (searchEl) searchEl.value = localStorage.getItem('wcm.stockUnits.search') || '';
+            if (presetMaterial) {
+                this._filterStatus = 'IN_STOCK';
+                localStorage.setItem('wcm.stockUnits.material', presetMaterial);
             }
-
-            localStorage.setItem('wcm.stockUnits.search', document.getElementById('search')?.value || '');
-            this._updateStatusPills();
-
-            const filters = this._getFilters();
-            const filtered = stockUnits.filter(bag => this._matchesFilters(bag, filters));
-
-            this._dataTable.setData(filtered);
-            this._updateSelectedFilterBtn();
-            this._updateBatchBar();
-        } catch {
-            alert('Erro ao carregar estoque');
-            this._dataTable.setLoading(false);
+            if (savedMaterial) this._materialSelect?.setValue(savedMaterial);
+            if (savedSupplier) this._supplierSelect?.setValue(savedSupplier);
         }
+
+        localStorage.setItem('wcm.stockUnits.search', document.getElementById('search')?.value || '');
+        this._updateStatusPills();
+        this._updateSelectedFilterBtn();
+        this._updateBatchBar();
+
+        await this._fetchPage(1);
     },
 
     async onTabFocus() { return this.load(); },
@@ -302,8 +291,8 @@ const StockUnits = {
 
     openExitDialog(event, id) {
         if (event) event.stopPropagation();
-        apiCall(API + '/stock-units').then(stockUnits => {
-            const bag = (stockUnits || []).find(b => String(b.id) === String(id));
+        apiCall(API + `/stock-units?ids=${id}&page=1&limit=1`).then(({ data }) => {
+            const bag = data?.[0];
             if (!bag) { alert('Unidade não encontrada'); return; }
             this._exitBag = bag;
 
@@ -362,10 +351,10 @@ const StockUnits = {
     openReturnDialog(event, id) {
         if (event) event.stopPropagation();
         Promise.all([
-            apiCall(API + '/stock-units'),
+            apiCall(API + `/stock-units?ids=${id}&page=1&limit=1`),
             apiCall(`${API}/stock-movements?lot_id=${id}&type=exit`),
-        ]).then(([stockUnits, exits]) => {
-            const bag = (stockUnits || []).find(b => String(b.id) === String(id));
+        ]).then(([{ data: stockUnits }, exits]) => {
+            const bag = stockUnits?.[0];
             if (!bag) { alert('Unidade não encontrada'); return; }
 
             const exitRows = exits || [];
@@ -432,8 +421,8 @@ const StockUnits = {
         const canEditReceipts = hasPermission('procurement', 'receipts', 'edit');
         if (!canDeleteLot) return;
 
-        const stockUnits = await apiCall(API + '/stock-units').catch(() => []);
-        const bag = (stockUnits || []).find(b => String(b.id) === String(id));
+        const { data: stockUnits } = await apiCall(API + `/stock-units?ids=${id}&page=1&limit=1`).catch(() => ({ data: [] }));
+        const bag = stockUnits?.[0];
         const receiptId = bag?.receipt_id || null;
 
         this._deleteDialog?.destroy();
@@ -470,11 +459,8 @@ const StockUnits = {
 
     // ── Filtros ──
 
-    _populateFilters(bags) {
+    async _populateFilters() {
         const activeLoc = AppState.getLocationFilter();
-        const visibleBags = activeLoc ? bags.filter(b => String(b.location_id) === String(activeLoc)) : bags;
-        const materials = [...new Set(visibleBags.map(b => b.material).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-        const suppliers = [...new Set(visibleBags.map(b => b.supplier).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
         if (!this._materialSelect) {
             this._materialSelect = createSelect({
@@ -484,7 +470,7 @@ const StockUnits = {
                 sections: [{ key: 'material', items: [] }],
                 onChange: (value) => {
                     localStorage.setItem('wcm.stockUnits.material', value != null ? String(value) : '');
-                    StockUnits.load();
+                    StockUnits._fetchPage(1);
                 }
             });
             this._materialSelect.mount(document.getElementById('stockUnitsMaterialContainer'));
@@ -498,50 +484,44 @@ const StockUnits = {
                 sections: [{ key: 'supplier', items: [] }],
                 onChange: (value) => {
                     localStorage.setItem('wcm.stockUnits.supplier', value != null ? String(value) : '');
-                    StockUnits.load();
+                    StockUnits._fetchPage(1);
                 }
             });
             this._supplierSelect.mount(document.getElementById('stockUnitsSupplierContainer'));
         }
 
-        this._materialSelect.setItems('material', materials.map(m => ({ value: m, label: m })));
-        this._supplierSelect.setItems('supplier', suppliers.map(s => ({ value: s, label: s })));
+        const q = new URLSearchParams();
+        if (activeLoc) q.set('location_id', activeLoc);
+        try {
+            const { materials, suppliers } = await apiCall(API + '/stock-units/filter-options?' + q);
+            this._materialSelect.setItems('material', (materials || []).map(m => ({ value: m, label: m })));
+            this._supplierSelect.setItems('supplier', (suppliers || []).map(s => ({ value: s, label: s })));
+        } catch { /* dropdowns ficam vazios */ }
     },
 
-    _getFilters() {
-        const materialSel = this._materialSelect?.getValue();
-        const supplierSel = this._supplierSelect?.getValue();
-        return {
-            status: this._filterStatus || null,
-            material: materialSel != null ? String(materialSel) : null,
-            supplier: supplierSel != null ? String(supplierSel) : null,
-            search: document.getElementById('search')?.value.toLowerCase() || null,
-            onlySelected: this._showOnlySelected,
-            location: AppState.getLocationFilter() || null,
-        };
-    },
-
-    _matchesFilters(bag, filters) {
-        if (filters.onlySelected && !this._selectedIds.has(String(bag.id))) return false;
-        if (filters.status === 'IN_STOCK' && bag.status !== 'IN_STOCK' && bag.status !== 'PARTIAL') return false;
-        if (filters.status && filters.status !== 'IN_STOCK' && bag.status !== filters.status) return false;
-        if (filters.material && bag.material !== filters.material) return false;
-        if (filters.supplier && bag.supplier !== filters.supplier) return false;
-        if (filters.location && String(bag.location_id) !== String(filters.location)) return false;
-
-        if (filters.search) {
-            const searchText = [
-                this._codeFor(bag),
-                bag.old_id ?? '',
-                bag.material ?? '',
-                bag.supplier ?? '',
-                bag.operator ?? '',
-                bag.notes ?? ''
-            ].join('-').toLowerCase();
-            if (!searchText.includes(filters.search)) return false;
+    async _fetchPage(page = 1) {
+        const params = new URLSearchParams({ page, limit: 13 });
+        const locationId = AppState.getLocationFilter();
+        if (locationId) params.set('location_id', locationId);
+        if (this._filterStatus) params.set('status', this._filterStatus);
+        const material = this._materialSelect?.getValue();
+        if (material) params.set('material', String(material));
+        const supplier = this._supplierSelect?.getValue();
+        if (supplier) params.set('supplier', String(supplier));
+        const searchVal = document.getElementById('search')?.value || '';
+        if (searchVal) params.set('search', searchVal);
+        if (this._showOnlySelected && this._selectedIds.size > 0) {
+            params.set('ids', [...this._selectedIds].join(','));
         }
 
-        return true;
+        this._dataTable.setLoading(true);
+        try {
+            const { data, total } = await apiCall(API + '/stock-units?' + params);
+            this._dataTable.setData(data || [], total || 0, page);
+        } catch {
+            alert('Erro ao carregar estoque');
+            this._dataTable.setLoading(false);
+        }
     },
 
     // ── Seleção em lote ──
@@ -587,13 +567,14 @@ const StockUnits = {
         if (checkAll) checkAll.checked = false;
         this._updateBatchBar();
         this._updateSelectedFilterBtn();
-        this.load();
+        this._fetchPage(1);
     },
 
     _setStatus(value) {
         this._filterStatus = value;
         localStorage.setItem('wcm.stockUnits.status', value);
-        this.load();
+        this._updateStatusPills();
+        this._fetchPage(1);
     },
 
     _updateStatusPills() {
@@ -605,7 +586,7 @@ const StockUnits = {
     _toggleShowSelected() {
         this._showOnlySelected = !this._showOnlySelected;
         this._updateSelectedFilterBtn();
-        this.load();
+        this._fetchPage(1);
     },
 
     _updateSelectedFilterBtn() {
@@ -681,7 +662,7 @@ const StockUnits = {
 
     _clearAndReload() {
         this._clearForm();
-        this.load();
+        this._fetchPage(1);
     },
 
     async _updateStockUnitStatus(id, action) {
@@ -796,8 +777,8 @@ const StockUnits = {
 
     openPartialExit(event, id) {
         if (event) event.stopPropagation();
-        apiCall(API + '/stock-units').then(async stockUnits => {
-            const bag = (stockUnits || []).find(b => String(b.id) === String(id));
+        apiCall(API + `/stock-units?ids=${id}&page=1&limit=1`).then(async ({ data: stockUnits }) => {
+            const bag = stockUnits?.[0];
             if (!bag) { alert('Unidade não encontrada'); return; }
             try {
                 const mat = await apiCall(API + `/materials/${bag.material_id}`);

@@ -49,34 +49,61 @@ db.run(`
  * GET /suppliers - Lista fornecedores visíveis ao usuário.
  * Non-admin: apenas fornecedores vinculados às localizações do usuário.
  * Admin: todos os fornecedores.
+ * Query params: page, limit, search, sort_by, sort_dir
+ *   Quando page/limit presentes: retorna { data, total }
  */
 router.get("/", (req, res) => {
+    const { page, limit, search, sort_by, sort_dir } = req.query;
     const user = req.user || {};
 
+    const paginated = page != null || limit != null;
+    const pageNum   = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum  = Math.max(1, parseInt(limit, 10) || 13);
+    const offset    = (pageNum - 1) * limitNum;
+
+    const SORT_WHITELIST = { name: 'name' };
+    const sortCol = SORT_WHITELIST[sort_by] || 'name';
+    const sortDirSafe = sort_dir === 'desc' ? 'DESC' : 'ASC';
+
+    let join = '';
+    let where = 'WHERE 1=1';
+    const params = [];
+
     if (user.isAdmin) {
-        db.all("SELECT * FROM suppliers ORDER BY name", [], (err, rows) => {
+        // sem restrição de localização
+    } else {
+        const userLocs = user.locationIds || [];
+        if (userLocs.length === 0) {
+            return paginated ? res.json({ data: [], total: 0 }) : res.json([]);
+        }
+        join  = `INNER JOIN supplier_locations sl ON sl.supplier_id = s.id`;
+        where = `WHERE sl.location_id IN (${userLocs.map(() => '?').join(',')})`;
+        params.push(...userLocs);
+    }
+
+    if (search) {
+        where += ` AND s.name LIKE ?`;
+        params.push(`%${search}%`);
+    }
+
+    const distinct = user.isAdmin ? '' : 'DISTINCT';
+    const dataSql  = `SELECT ${distinct} s.* FROM suppliers s ${join} ${where} ORDER BY ${sortCol} ${sortDirSafe}${paginated ? ' LIMIT ? OFFSET ?' : ''}`;
+
+    if (paginated) {
+        const countSql = `SELECT COUNT(${distinct} s.id) as total FROM suppliers s ${join} ${where}`;
+        db.get(countSql, params, (err, countRow) => {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar fornecedores", error: err.message });
+            db.all(dataSql, [...params, limitNum, offset], (err2, rows) => {
+                if (err2) return res.status(500).json({ success: false, message: "Erro ao carregar fornecedores", error: err2.message });
+                res.json({ data: rows || [], total: countRow?.total || 0 });
+            });
+        });
+    } else {
+        db.all(dataSql, params, (err, rows) => {
             if (err) return res.status(500).json({ success: false, message: "Erro ao carregar fornecedores", error: err.message });
             res.json(rows || []);
         });
-        return;
     }
-
-    const userLocs = user.locationIds || [];
-    if (userLocs.length === 0) {
-        return res.json([]);
-    }
-    const placeholders = userLocs.map(() => '?').join(',');
-    db.all(
-        `SELECT DISTINCT s.* FROM suppliers s
-         INNER JOIN supplier_locations sl ON sl.supplier_id = s.id
-         WHERE sl.location_id IN (${placeholders})
-         ORDER BY s.name`,
-        userLocs,
-        (err, rows) => {
-            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar fornecedores", error: err.message });
-            res.json(rows || []);
-        }
-    );
 });
 
 /**

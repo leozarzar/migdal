@@ -14,7 +14,6 @@ const Suppliers = {
     _searchInput: null,
     _nameInput: null,
     _editingId: null,
-    _allSuppliers: [],
     _importDialog: null,
 
     // ── Ciclo de Vida ──
@@ -28,7 +27,6 @@ const Suppliers = {
         this._importDialog?.destroy(); this._importDialog = null;
         this._nameInput  = null;
         this._editingId  = null;
-        this._allSuppliers = [];
         return `
         <div class="suppliers-container">
             <div class="suppliers-filters">
@@ -50,7 +48,7 @@ const Suppliers = {
             this._searchInput = createInput({
                 placeholder: 'Buscar',
                 icon: 'Search',
-                onInput: () => this._applyFilter(),
+                onInput: () => { clearTimeout(this._searchTimer); this._searchTimer = setTimeout(() => this._fetchPage(1), 1000); },
             });
             document.getElementById('suppliersSearchContainer').appendChild(this._searchInput.el);
         }
@@ -64,6 +62,7 @@ const Suppliers = {
                 ],
                 getRowKey: r => r.id,
                 pageSize: 13,
+                onPageChange: (page, pageSize, sortKey, sortDir) => this._fetchPage(page, sortKey, sortDir),
                 actions: [
                     {
                         label: 'Editar', icon: 'edit',
@@ -82,18 +81,28 @@ const Suppliers = {
             this._dataTable.mount(document.getElementById('suppliersTableContainer'));
         }
 
-        this._dataTable.setLoading(true);
-
-        try {
-            this._allSuppliers = await apiCall(API + '/suppliers') || [];
-            this._applyFilter();
-        } catch (error) {
-            this._dataTable.setData([]);
-            alert('Erro ao carregar fornecedores');
-        }
+        await this._fetchPage(1);
     },
 
     async onTabFocus() { return this.load(); },
+
+    // ── Busca e Paginação ──
+
+    async _fetchPage(page = 1, sortKey = '', sortDir = null) {
+        const params = new URLSearchParams({ page, limit: 13 });
+        const q = this._searchInput?.getValue() ?? '';
+        if (q) params.set('search', q);
+        if (sortKey) { params.set('sort_by', sortKey); params.set('sort_dir', sortDir || 'asc'); }
+
+        this._dataTable.setLoading(true);
+        try {
+            const { data, total } = await apiCall(API + '/suppliers?' + params);
+            this._dataTable.setData(data || [], total || 0, page);
+        } catch (error) {
+            this._dataTable.setData([], 0);
+            alert('Erro ao carregar fornecedores');
+        }
+    },
 
     // ── Ações Públicas ──
 
@@ -248,8 +257,7 @@ const Suppliers = {
             });
             const row = document.querySelector(`.suppliers-import-row[data-supplier-id="${supplierId}"]`);
             if (row) row.remove();
-            this._allSuppliers = await apiCall(API + '/suppliers') || [];
-            this._applyFilter();
+            await this._fetchPage(1);
         } catch (e) {
             alert(e.message || 'Erro ao vincular fornecedor');
         }
@@ -303,14 +311,6 @@ const Suppliers = {
     },
 
     // ── Privado ──
-
-    _applyFilter() {
-        const q = this._searchInput?.getValue().toLowerCase() ?? '';
-        const filtered = q
-            ? this._allSuppliers.filter(r => r.name.toLowerCase().includes(q))
-            : this._allSuppliers;
-        this._dataTable?.setData(filtered);
-    },
 
     _createDialog() {
         const dlg = createDialog({

@@ -27,73 +27,65 @@ function dbAll(sql, params) {
 /**
  * GET /stock-movements
  * Lista movimentações com filtros opcionais.
- * Query params: material_id, lot_id, type (entry|exit), startDate, endDate, limit.
+ * Query params: material_id, lot_id, type (entry|exit), startDate, endDate, location_id, page, limit
+ *   Quando page/limit presentes: retorna { data, total }
  */
 router.get("/", (req, res) => {
-    const { material_id, lot_id, type, startDate, endDate, limit, location_id } = req.query;
+    const { material_id, lot_id, type, startDate, endDate, limit, location_id, page } = req.query;
     const user = req.user || {};
     const userLocs = (!user.isAdmin && user.locationIds && user.locationIds.length > 0) ? user.locationIds : null;
 
-    let sql = `
-        SELECT sm.*, m.name AS material_name, l.name AS location_name
-        FROM stock_movements sm
-        JOIN materials m ON m.id = sm.material_id
-        LEFT JOIN locations l ON l.id = sm.location_id
-        WHERE 1=1
-    `;
+    const paginated = page != null || (limit != null && !material_id && !lot_id);
+    const pageNum   = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum  = Math.max(1, parseInt(limit, 10) || 13);
+    const offset    = (pageNum - 1) * limitNum;
+
+    let where = 'WHERE 1=1';
     const params = [];
 
     if (location_id) {
         if (userLocs && !userLocs.includes(Number(location_id))) {
-            return res.json([]);
+            return paginated ? res.json({ data: [], total: 0 }) : res.json([]);
         }
-        sql += ` AND sm.location_id = ?`;
+        where += ` AND sm.location_id = ?`;
         params.push(location_id);
     } else if (userLocs) {
-        sql += ` AND sm.location_id IN (${userLocs.map(() => '?').join(',')})`;
+        where += ` AND sm.location_id IN (${userLocs.map(() => '?').join(',')})`;
         params.push(...userLocs);
     }
-    if (material_id) {
-        sql += ` AND sm.material_id = ?`;
-        params.push(material_id);
-    }
-    if (lot_id) {
-        sql += ` AND sm.lot_id = ?`;
-        params.push(lot_id);
-    }
-    if (type === 'entry' || type === 'exit') {
-        sql += ` AND sm.type = ?`;
-        params.push(type);
-    }
-    if (startDate) {
-        sql += ` AND sm.date >= ?`;
-        params.push(startDate);
-    }
-    if (endDate) {
-        sql += ` AND sm.date <= ?`;
-        params.push(endDate);
-    }
+    if (material_id) { where += ` AND sm.material_id = ?`; params.push(material_id); }
+    if (lot_id)       { where += ` AND sm.lot_id = ?`;       params.push(lot_id); }
+    if (type === 'entry' || type === 'exit') { where += ` AND sm.type = ?`; params.push(type); }
+    if (startDate)    { where += ` AND sm.date >= ?`;        params.push(startDate); }
+    if (endDate)      { where += ` AND sm.date <= ?`;        params.push(endDate); }
 
-    sql += ` ORDER BY sm.date DESC, sm.id DESC`;
+    const selectSql = `
+        SELECT sm.*, m.name AS material_name, l.name AS location_name
+        FROM stock_movements sm
+        JOIN materials m ON m.id = sm.material_id
+        LEFT JOIN locations l ON l.id = sm.location_id
+    `;
 
-    if (limit) {
-        const parsedLimit = parseInt(limit, 10);
-        if (parsedLimit > 0) {
-            sql += ` LIMIT ?`;
-            params.push(parsedLimit);
-        }
-    }
-
-    db.all(sql, params, (err, rows) => {
-        if (err) {
-            return res.status(500).json({
-                success: false,
-                message: "Erro ao carregar movimentações",
-                error: err.message
+    if (paginated) {
+        const countSql = `SELECT COUNT(*) as total FROM stock_movements sm JOIN materials m ON m.id = sm.material_id LEFT JOIN locations l ON l.id = sm.location_id ${where}`;
+        db.get(countSql, params, (err, countRow) => {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar movimentações", error: err.message });
+            db.all(`${selectSql} ${where} ORDER BY sm.date DESC, sm.id DESC LIMIT ? OFFSET ?`, [...params, limitNum, offset], (err2, rows) => {
+                if (err2) return res.status(500).json({ success: false, message: "Erro ao carregar movimentações", error: err2.message });
+                res.json({ data: rows || [], total: countRow?.total || 0 });
             });
+        });
+    } else {
+        let sql = `${selectSql} ${where} ORDER BY sm.date DESC, sm.id DESC`;
+        if (limit && !paginated) {
+            const parsedLimit = parseInt(limit, 10);
+            if (parsedLimit > 0) { sql += ` LIMIT ?`; params.push(parsedLimit); }
         }
-        res.json(rows || []);
-    });
+        db.all(sql, params, (err, rows) => {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar movimentações", error: err.message });
+            res.json(rows || []);
+        });
+    }
 });
 
 /**

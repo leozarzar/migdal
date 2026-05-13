@@ -36,18 +36,59 @@ db.run(`ALTER TABLE receipts ADD COLUMN location_id INTEGER`, () => {});
 // ── GET Endpoints ─────────────────────────────────────────────────────────
 
 /**
- * GET /receipts - Lista todos os recebimentos
+ * GET /receipts - Lista todos os recebimentos.
+ * Query params: page, limit, supplier
+ *   Quando page/limit presentes: retorna { data, total }
+ *   Inclui total_qty calculado via subquery em stock_units.
  */
 router.get("/", (req, res) => {
-    db.all("SELECT * FROM receipts ORDER BY date DESC, id DESC", [], (err, rows) => {
-        if (err) {
-            return res.status(500).json({
-                success: false,
-                message: "Erro ao carregar recebimentos",
-                error: err.message
+    const { page, limit, supplier } = req.query;
+
+    const paginated = page != null || limit != null;
+    const pageNum   = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum  = Math.max(1, parseInt(limit, 10) || 13);
+    const offset    = (pageNum - 1) * limitNum;
+
+    let where = 'WHERE 1=1';
+    const params = [];
+    if (supplier) {
+        where += ` AND r.supplier = ?`;
+        params.push(supplier);
+    }
+
+    const selectEnriched = `
+        SELECT
+            r.*,
+            COALESCE((SELECT SUM(su.weight) FROM stock_units su WHERE su.receipt_id = r.id), 0) as total_qty
+        FROM receipts r
+    `;
+
+    const dataSql = `${selectEnriched} ${where} ORDER BY r.date DESC, r.id DESC${paginated ? ' LIMIT ? OFFSET ?' : ''}`;
+
+    if (paginated) {
+        const countSql = `SELECT COUNT(*) as total FROM receipts r ${where}`;
+        db.get(countSql, params, (err, countRow) => {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar recebimentos", error: err.message });
+            db.all(dataSql, [...params, limitNum, offset], (err2, rows) => {
+                if (err2) return res.status(500).json({ success: false, message: "Erro ao carregar recebimentos", error: err2.message });
+                res.json({ data: rows || [], total: countRow?.total || 0 });
             });
-        }
-        res.json(rows);
+        });
+    } else {
+        db.all(dataSql, params, (err, rows) => {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar recebimentos", error: err.message });
+            res.json(rows || []);
+        });
+    }
+});
+
+/**
+ * GET /receipts/suppliers - Lista distinta de fornecedores em recebimentos (para filtro).
+ */
+router.get("/suppliers", (req, res) => {
+    db.all("SELECT DISTINCT supplier FROM receipts WHERE supplier IS NOT NULL AND supplier != '' ORDER BY supplier", [], (err, rows) => {
+        if (err) return res.status(500).json({ success: false, message: "Erro ao carregar fornecedores", error: err.message });
+        res.json((rows || []).map(r => r.supplier));
     });
 });
 

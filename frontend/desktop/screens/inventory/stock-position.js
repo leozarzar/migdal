@@ -6,7 +6,6 @@
 
 // ── Estado ──────────────────────────────────────────────────────
 const StockPosition = {
-    _data: [],
     _groupSelect: null,
     _exitDialog: null,
     _dataTable: null,
@@ -71,6 +70,7 @@ const StockPosition = {
                 ],
                 getRowKey: r => String(r.material_id),
                 pageSize: 13,
+                onPageChange: (page) => this._fetchPage(page),
                 onRowClick: r => {
                     if (r.tracking_mode === 'lots' && r.balance > 0) StockPosition.goToMaterial(r.material);
                 },
@@ -78,7 +78,7 @@ const StockPosition = {
                     {
                         label: 'Registrar Saída', icon: 'output',
                         hidden: r => r.tracking_mode !== 'simple' || r.balance <= 0,
-                        onClick: r => StockPosition.openExitDialog(null, r.material_id),
+                        onClick: r => StockPosition.openExitDialog(null, r),
                     },
                 ],
                 emptyMessage: 'Nenhum material encontrado.',
@@ -89,19 +89,8 @@ const StockPosition = {
 
         this._dataTable.setLoading(true);
 
-        try {
-            let url = API + '/stock-units/position';
-            const locationId = AppState.getLocationFilter();
-            if (locationId) url += '?location_id=' + encodeURIComponent(locationId);
-            this._data = await apiCall(url) || [];
-        } catch (e) {
-            alert(e.message);
-            this._dataTable.setLoading(false);
-            return;
-        }
-
         await this._populateGroupFilter();
-        this._renderTable();
+        await this._fetchPage(1);
     },
 
     async onTabFocus() { return this.load(); },
@@ -113,9 +102,8 @@ const StockPosition = {
         showScreen('stock-units');
     },
 
-    openExitDialog(event, materialId) {
+    openExitDialog(event, row) {
         if (event) event.stopPropagation();
-        const row = this._data.find(r => r.material_id === materialId);
         if (!row) return;
 
         this._exitDialog?.destroy();
@@ -189,13 +177,14 @@ const StockPosition = {
     _onSearch(value) {
         this._search = value;
         localStorage.setItem('wcm.stockPosition.search', value);
-        this._renderTable();
+        clearTimeout(this._searchTimer);
+        this._searchTimer = setTimeout(() => this._fetchPage(1), 1000);
     },
 
     _onGroupChange(groupId) {
         this._selectedGroup = groupId;
         localStorage.setItem('wcm.stockPosition.group', groupId);
-        this._renderTable();
+        this._fetchPage(1);
     },
 
     async _populateGroupFilter() {
@@ -222,27 +211,20 @@ const StockPosition = {
         if (this._selectedGroup) this._groupSelect.setValue(this._selectedGroup);
     },
 
-    _getFilteredData() {
-        return this._data.filter(row => {
-            if (this._selectedGroup && String(row.group_id) !== this._selectedGroup) return false;
-            if (this._search) {
-                const q = this._search.toLowerCase();
-                const haystack = [row.material, row.group_name].filter(Boolean).join(' ').toLowerCase();
-                if (!haystack.includes(q)) return false;
-            }
-            return true;
-        });
-    },
+    async _fetchPage(page = 1) {
+        const params = new URLSearchParams({ page, limit: 13 });
+        const locationId = AppState.getLocationFilter();
+        if (locationId) params.set('location_id', encodeURIComponent(locationId));
+        if (this._selectedGroup) params.set('group_id', this._selectedGroup);
+        if (this._search) params.set('search', this._search);
 
-    _renderTable() {
-        if (!this._dataTable) return;
-        const filtered = this._getFilteredData();
-
-        const units = Array.from(new Set(filtered.map(r => r.unit).filter(Boolean)));
-        const totalBalance = filtered.reduce((s, r) => s + r.balance, 0);
-        const totalLots = filtered.reduce((s, r) => s + r.lots_in_stock, 0);
-        const materialsWithStock = filtered.filter(r => r.balance > 0).length;
-
-        this._dataTable.setData(filtered);
+        this._dataTable?.setLoading(true);
+        try {
+            const { data, total } = await apiCall(API + '/stock-units/position?' + params);
+            this._dataTable?.setData(data || [], total || 0, page);
+        } catch (e) {
+            alert(e.message);
+            this._dataTable?.setLoading(false);
+        }
     },
 };

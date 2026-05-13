@@ -188,13 +188,13 @@ app.use("/company", withPermissions(companyRoutes, 'admin', 'admin-company'));
 cron.schedule("0 7 * * 1", () => {
     console.log("[cron] Gerando relatório semanal...");
     const http = require("http");
-    const req  = http.request({ hostname: "localhost", port: 3001, path: "/weekly-report/generate", method: "POST" });
+    const req  = http.request({ hostname: "localhost", port: 3000, path: "/weekly-report/generate", method: "POST" });
     req.on("error", err => console.error("[cron] Erro ao gerar relatório:", err.message));
     req.end();
 }, { timezone: "America/Sao_Paulo" });
 // ── Server Startup ────────────────────────────────────────────────────────
 
-app.listen(3001, () => {
+app.listen(3000, () => {
     const { networkInterfaces } = require("os");
     const nets = networkInterfaces();
     const localIP = Object.values(nets)
@@ -203,10 +203,10 @@ app.listen(3001, () => {
 
     console.log("Server running on 3001");
     console.log("");
-    console.log("  Desktop  →  http://localhost:3001/app");
-    console.log("  Mobile   →  http://localhost:3001/mobile");
+    console.log("  Desktop  →  http://localhost:3000/app");
+    console.log("  Mobile   →  http://localhost:3000/mobile");
     console.log("");
-    console.log("  Desktop  →  http://" + localIP + ":3001/app");
-    console.log("  Mobile   →  http://" + localIP + ":3001/mobile");
+    console.log("  Desktop  →  http://" + localIP + ":3000/app");
+    console.log("  Mobile   →  http://" + localIP + ":3000/mobile");
     console.log("");
 });

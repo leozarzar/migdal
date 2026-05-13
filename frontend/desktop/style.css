@@ -118,10 +118,18 @@ body {
 }
 
 .logo {
-    padding: 15px;
-    font-weight: bold;
-    font-size: 18px;
+    height: 70px;
+    padding: 20px 26px 10px 26px;
     background: #16202b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo-img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
 }
 
 /* ── Filtro global de localização (sidebar) ── */

@@ -73,91 +73,165 @@ function _dbAll(sql, params) {
 
 /**
  * GET /stock-units - Lista todas as unidades de estoque.
- * O estado de cada lote (status, remaining_weight, date_out, deduction_type)
- * é calculado em tempo real a partir dos movimentos em stock_movements.
+ * Query params: page, limit, status (IN_STOCK|OUT_STOCK), material, supplier, search, location_id, ids
+ *   Quando page/limit presentes: retorna { data, total }
  */
 router.get("/", (req, res) => {
-    db.all(`
-        SELECT
-            b.*,
-            COALESCE(r.nature, "")                                           AS nature,
-            m.allow_partial_exit,
-            /* remaining = peso de entrada - total de saídas para este lote */
-            ROUND(
-                b.weight - COALESCE((
-                    SELECT SUM(x.quantity)
-                    FROM stock_movements x
-                    WHERE x.lot_id = b.id AND x.type = 'exit'
-                ), 0),
-            3)                                                               AS remaining_weight,
-            /* date_out = data da saída mais recente — só quando o lote está esgotado */
-            CASE WHEN ROUND(b.weight - COALESCE((
-                SELECT SUM(x.quantity)
-                FROM stock_movements x
-                WHERE x.lot_id = b.id AND x.type = 'exit'
-            ), 0), 3) <= 0 THEN (
-                SELECT MAX(x.date)
-                FROM stock_movements x
-                WHERE x.lot_id = b.id AND x.type = 'exit'
-            ) ELSE NULL END                                                  AS date_out,
-            /* deduction_type = motivo da saída mais recente */
-            CASE (
-                SELECT x.reason
-                FROM stock_movements x
-                WHERE x.lot_id = b.id AND x.type = 'exit'
-                ORDER BY x.date DESC, x.id DESC
-                LIMIT 1
-            )
-                WHEN 'adjustment' THEN 'ajuste'
-                ELSE 'uso'
-            END                                                              AS deduction_type,
-            /* status derivado do saldo calculado */
-            CASE
-                WHEN ROUND(b.weight - COALESCE((
-                    SELECT SUM(x.quantity)
-                    FROM stock_movements x
-                    WHERE x.lot_id = b.id AND x.type = 'exit'
-                ), 0), 3) <= 0              THEN 'OUT_STOCK'
-                WHEN COALESCE((
-                    SELECT SUM(x.quantity)
-                    FROM stock_movements x
-                    WHERE x.lot_id = b.id AND x.type = 'exit'
-                ), 0) > 0                   THEN 'PARTIAL'
-                ELSE                             'IN_STOCK'
-            END                                                              AS status
-        FROM stock_units b
-        LEFT JOIN receipts r ON b.receipt_id = r.id
-        LEFT JOIN materials m ON b.material_id = m.id
-        ORDER BY b.date_in DESC, b.receipt_id DESC, CAST(b.volume_id AS INTEGER) ASC
-    `, [], (err, rows) => {
-        if (err) {
-            return res.status(500).json({
-                success: false,
-                message: "Erro ao carregar estoque",
-                error: err.message
-            });
+    const { page, limit, status, material, supplier, search, location_id, ids } = req.query;
+
+    const paginated = page != null || limit != null;
+    const pageNum   = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum  = Math.max(1, parseInt(limit, 10) || 13);
+    const offset    = (pageNum - 1) * limitNum;
+
+    let where = 'WHERE 1=1';
+    const params = [];
+
+    if (location_id) {
+        where += ` AND location_id = ?`;
+        params.push(location_id);
+    }
+    if (status === 'IN_STOCK') {
+        where += ` AND computed_status != 'OUT_STOCK'`;
+    } else if (status === 'OUT_STOCK') {
+        where += ` AND computed_status = 'OUT_STOCK'`;
+    }
+    if (material) {
+        where += ` AND material = ?`;
+        params.push(material);
+    }
+    if (supplier) {
+        where += ` AND supplier = ?`;
+        params.push(supplier);
+    }
+    if (search) {
+        const s = `%${search}%`;
+        where += ` AND (material LIKE ? OR supplier LIKE ? OR operator LIKE ? OR old_id LIKE ?`
+               + ` OR (COALESCE(SUBSTR(nature,1,1),'') || CAST(receipt_id AS TEXT) || '-' || SUBSTR('000' || CAST(volume_id AS TEXT),-3,3)) LIKE ?)`;
+        params.push(s, s, s, s, s);
+    }
+    if (ids) {
+        const idList = ids.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+        if (idList.length === 0) {
+            return paginated ? res.json({ data: [], total: 0 }) : res.json([]);
         }
-        res.json(rows || []);
+        where += ` AND id IN (${idList.map(() => '?').join(',')})`;
+        params.push(...idList);
+    }
+
+    const cteSql = `
+        WITH computed AS (
+            SELECT
+                b.*,
+                COALESCE(r.nature, "")                                           AS nature,
+                m.allow_partial_exit,
+                ROUND(
+                    b.weight - COALESCE((
+                        SELECT SUM(x.quantity)
+                        FROM stock_movements x
+                        WHERE x.lot_id = b.id AND x.type = 'exit'
+                    ), 0),
+                3)                                                               AS remaining_weight,
+                CASE WHEN ROUND(b.weight - COALESCE((
+                    SELECT SUM(x.quantity)
+                    FROM stock_movements x
+                    WHERE x.lot_id = b.id AND x.type = 'exit'
+                ), 0), 3) <= 0 THEN (
+                    SELECT MAX(x.date)
+                    FROM stock_movements x
+                    WHERE x.lot_id = b.id AND x.type = 'exit'
+                ) ELSE NULL END                                                  AS date_out,
+                CASE (
+                    SELECT x.reason
+                    FROM stock_movements x
+                    WHERE x.lot_id = b.id AND x.type = 'exit'
+                    ORDER BY x.date DESC, x.id DESC
+                    LIMIT 1
+                )
+                    WHEN 'adjustment' THEN 'ajuste'
+                    ELSE 'uso'
+                END                                                              AS deduction_type,
+                CASE
+                    WHEN ROUND(b.weight - COALESCE((
+                        SELECT SUM(x.quantity)
+                        FROM stock_movements x
+                        WHERE x.lot_id = b.id AND x.type = 'exit'
+                    ), 0), 3) <= 0              THEN 'OUT_STOCK'
+                    WHEN COALESCE((
+                        SELECT SUM(x.quantity)
+                        FROM stock_movements x
+                        WHERE x.lot_id = b.id AND x.type = 'exit'
+                    ), 0) > 0                   THEN 'PARTIAL'
+                    ELSE                             'IN_STOCK'
+                END                                                              AS computed_status
+            FROM stock_units b
+            LEFT JOIN receipts r ON b.receipt_id = r.id
+            LEFT JOIN materials m ON b.material_id = m.id
+        )
+    `;
+
+    const orderSql = `ORDER BY date_in DESC, receipt_id DESC, CAST(volume_id AS INTEGER) ASC`;
+
+    if (paginated) {
+        db.get(`${cteSql} SELECT COUNT(*) as total FROM computed ${where}`, params, (err, countRow) => {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar estoque", error: err.message });
+            db.all(`${cteSql} SELECT * FROM computed ${where} ${orderSql} LIMIT ? OFFSET ?`, [...params, limitNum, offset], (err2, rows) => {
+                if (err2) return res.status(500).json({ success: false, message: "Erro ao carregar estoque", error: err2.message });
+                const data = (rows || []).map(r => ({ ...r, status: r.computed_status }));
+                res.json({ data, total: countRow?.total || 0 });
+            });
+        });
+    } else {
+        db.all(`${cteSql} SELECT * FROM computed ${where} ${orderSql}`, params, (err, rows) => {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar estoque", error: err.message });
+            res.json((rows || []).map(r => ({ ...r, status: r.computed_status })));
+        });
+    }
+});
+
+/**
+ * GET /stock-units/filter-options - Retorna materiais e fornecedores distintos (para dropdowns de filtro).
+ */
+router.get("/filter-options", (req, res) => {
+    const { location_id } = req.query;
+    let where = 'WHERE 1=1';
+    const params = [];
+    if (location_id) {
+        where += ' AND location_id = ?';
+        params.push(location_id);
+    }
+    db.all(`SELECT DISTINCT material FROM stock_units ${where} AND material IS NOT NULL AND material != '' ORDER BY material`, params, (err, matRows) => {
+        if (err) return res.status(500).json({ success: false, message: "Erro", error: err.message });
+        db.all(`SELECT DISTINCT supplier FROM stock_units ${where} AND supplier IS NOT NULL AND supplier != '' ORDER BY supplier`, params, (err2, supRows) => {
+            if (err2) return res.status(500).json({ success: false, message: "Erro", error: err2.message });
+            res.json({
+                materials: (matRows || []).map(r => r.material).filter(Boolean),
+                suppliers: (supRows || []).map(r => r.supplier).filter(Boolean),
+            });
+        });
     });
 });
 
 /**
  * GET /stock-units/position - Posição de estoque agregada por material.
- * Retorna saldo, contagem de lotes, entrada mais antiga e dados de grupo.
- * Combina materiais lot-tracked (via lot_id) e simple (via saldo de movimentações).
+ * Query params: location_id, page, limit, search, group_id
+ *   Quando page/limit presentes: retorna { data, total }
  */
 router.get("/position", (req, res) => {
-    const { location_id } = req.query;
+    const { location_id, page, limit, search, group_id } = req.query;
     const user = req.user || {};
     const userLocs = (!user.isAdmin && user.locationIds && user.locationIds.length > 0) ? user.locationIds : null;
 
-    // Determinar filtro de localização: parâmetro explícito ou restrição do usuário
+    const paginated = page != null || limit != null;
+    const pageNum   = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum  = Math.max(1, parseInt(limit, 10) || 13);
+    const offset    = (pageNum - 1) * limitNum;
+
     const locParams = [];
     let locFilter = '';
     if (location_id) {
-        // Se parâmetro explícito, verificar se o usuário tem acesso
         if (userLocs && !userLocs.includes(Number(location_id))) {
-            return res.json([]);
+            return paginated ? res.json({ data: [], total: 0 }) : res.json([]);
         }
         locFilter = ' AND e.location_id = ?';
         locParams.push(location_id);
@@ -167,109 +241,106 @@ router.get("/position", (req, res) => {
         locParams.push(...userLocs);
     }
 
-    // Filtro de vínculo: esconde materiais desvinculados com saldo zero quando há filtro de localização
     let linkedHaving = '';
-    let linkedHavingParams = [];
+    const linkedHavingParams = [];
     if (location_id) {
         linkedHaving = ' OR EXISTS (SELECT 1 FROM material_locations ml WHERE ml.material_id = m.id AND ml.location_id = ?)';
-        linkedHavingParams = [location_id];
+        linkedHavingParams.push(location_id);
     } else if (userLocs) {
         const ph = userLocs.map(() => '?').join(',');
         linkedHaving = ` OR EXISTS (SELECT 1 FROM material_locations ml WHERE ml.material_id = m.id AND ml.location_id IN (${ph}))`;
-        linkedHavingParams = [...userLocs];
+        linkedHavingParams.push(...userLocs);
     }
     const havingClause = linkedHaving ? `HAVING balance > 0${linkedHaving}` : '';
 
-    // Query 1: Materiais lot-tracked (lot_id não-nulo)
-    const lotSQL = `
-        WITH lot_balance AS (
+    let simpleLocFilter = '';
+    const simpleParams = [...locParams];
+    if (location_id) {
+        simpleLocFilter = ' AND sm.location_id = ?';
+    } else if (userLocs) {
+        const placeholders = userLocs.map(() => '?').join(',');
+        simpleLocFilter = ` AND sm.location_id IN (${placeholders})`;
+    }
+    const simpleHavingClause = havingClause.replace('balance > 0', "COALESCE(SUM(CASE WHEN sm.type = 'entry' THEN sm.quantity ELSE -sm.quantity END), 0) > 0");
+
+    // Outer WHERE (search / group_id)
+    let outerWhere = 'WHERE 1=1';
+    const filterParams = [];
+    if (group_id) {
+        outerWhere += ` AND group_id = ?`;
+        filterParams.push(group_id);
+    }
+    if (search) {
+        outerWhere += ` AND (material LIKE ? OR group_name LIKE ?)`;
+        const s = `%${search}%`;
+        filterParams.push(s, s);
+    }
+
+    const cteSql = `
+        WITH
+        lot_balance AS (
             SELECT e.lot_id, e.material_id, e.quantity AS entry_qty,
                    COALESCE(SUM(x.quantity), 0) AS exit_qty,
-                   e.date AS entry_date,
-                   MAX(x.date) AS last_exit_date
+                   e.date AS entry_date
             FROM stock_movements e
             LEFT JOIN stock_movements x ON x.lot_id = e.lot_id AND x.type = 'exit'
             WHERE e.type = 'entry' AND e.lot_id IS NOT NULL${locFilter}
             GROUP BY e.lot_id
+        ),
+        lot_position AS (
+            SELECT
+                m.name AS material, m.id AS material_id, m.color AS material_color,
+                m.tracking_mode, m.allow_partial_exit, m.unit_of_measure AS unit,
+                g.id AS group_id, g.name AS group_name,
+                COALESCE(SUM(lb.entry_qty - lb.exit_qty), 0) AS balance,
+                COUNT(CASE WHEN lb.exit_qty < lb.entry_qty THEN 1 END) AS lots_in_stock,
+                COUNT(*) AS lots_total,
+                MIN(CASE WHEN lb.exit_qty < lb.entry_qty THEN lb.entry_date END) AS oldest_entry
+            FROM lot_balance lb
+            JOIN materials m ON m.id = lb.material_id AND m.tracking_mode = 'lots'
+            LEFT JOIN groups g ON g.id = m.group_id
+            GROUP BY lb.material_id
+            ${havingClause}
+        ),
+        simple_position AS (
+            SELECT
+                m.name AS material, m.id AS material_id, m.color AS material_color,
+                m.tracking_mode, m.allow_partial_exit, m.unit_of_measure AS unit,
+                g.id AS group_id, g.name AS group_name,
+                COALESCE(SUM(CASE WHEN sm.type = 'entry' THEN sm.quantity ELSE -sm.quantity END), 0) AS balance,
+                0 AS lots_in_stock, 0 AS lots_total,
+                MIN(CASE WHEN sm.type = 'entry' THEN sm.date END) AS oldest_entry
+            FROM stock_movements sm
+            JOIN materials m ON m.id = sm.material_id AND m.tracking_mode = 'simple'
+            LEFT JOIN groups g ON g.id = m.group_id
+            WHERE 1=1${simpleLocFilter}
+            GROUP BY sm.material_id
+            ${simpleHavingClause}
+        ),
+        all_position AS (
+            SELECT * FROM lot_position
+            UNION ALL
+            SELECT * FROM simple_position
         )
-        SELECT
-            m.name                                                          AS material,
-            m.id                                                            AS material_id,
-            m.color                                                         AS material_color,
-            m.tracking_mode,
-            m.allow_partial_exit,
-            m.unit_of_measure                                               AS unit,
-            g.id                                                            AS group_id,
-            g.name                                                          AS group_name,
-            COALESCE(SUM(lb.entry_qty - lb.exit_qty), 0)                    AS balance,
-            COUNT(CASE WHEN lb.exit_qty < lb.entry_qty THEN 1 END)          AS lots_in_stock,
-            COUNT(*)                                                        AS lots_total,
-            MIN(CASE WHEN lb.exit_qty < lb.entry_qty THEN lb.entry_date END) AS oldest_entry
-        FROM lot_balance lb
-        JOIN materials m ON m.id = lb.material_id AND m.tracking_mode = 'lots'
-        LEFT JOIN groups g ON g.id = m.group_id
-        GROUP BY lb.material_id
-        ${havingClause}
-        ORDER BY m.name
     `;
 
-    // Query 2: Materiais simple (sem lot_id, saldo via entry/exit)
-    let simpleParams = [];
-    let simpleLocFilter = '';
-    let simpleHavingParams = [...linkedHavingParams];
-    if (location_id) {
-        simpleLocFilter = ' AND sm.location_id = ?';
-        simpleParams = [location_id];
-    } else if (userLocs) {
-        const placeholders = userLocs.map(() => '?').join(',');
-        simpleLocFilter = ` AND sm.location_id IN (${placeholders})`;
-        simpleParams = [...userLocs];
-    }
-    const simpleHavingClause = havingClause.replace('balance > 0', 'COALESCE(SUM(CASE WHEN sm.type = \'entry\' THEN sm.quantity ELSE -sm.quantity END), 0) > 0');
-    const simpleSQL = `
-        SELECT
-            m.name                                                          AS material,
-            m.id                                                            AS material_id,
-            m.color                                                         AS material_color,
-            m.tracking_mode,
-            m.allow_partial_exit,
-            m.unit_of_measure                                               AS unit,
-            g.id                                                            AS group_id,
-            g.name                                                          AS group_name,
-            COALESCE(SUM(CASE WHEN sm.type = 'entry' THEN sm.quantity ELSE -sm.quantity END), 0) AS balance,
-            0                                                               AS lots_in_stock,
-            0                                                               AS lots_total,
-            MIN(CASE WHEN sm.type = 'entry' THEN sm.date END)               AS oldest_entry
-        FROM stock_movements sm
-        JOIN materials m ON m.id = sm.material_id AND m.tracking_mode = 'simple'
-        LEFT JOIN groups g ON g.id = m.group_id
-        WHERE 1=1${simpleLocFilter}
-        GROUP BY sm.material_id
-        ${simpleHavingClause}
-        ORDER BY m.name
-    `;
+    // params order: locParams (lot_balance) + linkedHavingParams (lot_position HAVING) + simpleParams + linkedHavingParams (simple HAVING)
+    const baseParams = [...locParams, ...linkedHavingParams, ...simpleParams, ...linkedHavingParams];
 
-    db.all(lotSQL, [...locParams, ...linkedHavingParams], (err1, lotRows) => {
-        if (err1) {
-            return res.status(500).json({
-                success: false,
-                message: "Erro ao carregar posição de estoque.",
-                error: err1.message
+    if (paginated) {
+        db.get(`${cteSql} SELECT COUNT(*) as total FROM all_position ${outerWhere}`, [...baseParams, ...filterParams], (err, countRow) => {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar posição de estoque.", error: err.message });
+            db.all(`${cteSql} SELECT * FROM all_position ${outerWhere} ORDER BY material LIMIT ? OFFSET ?`, [...baseParams, ...filterParams, limitNum, offset], (err2, rows) => {
+                if (err2) return res.status(500).json({ success: false, message: "Erro ao carregar posição de estoque.", error: err2.message });
+                res.json({ data: rows || [], total: countRow?.total || 0 });
             });
-        }
-        db.all(simpleSQL, [...simpleParams, ...simpleHavingParams], (err2, simpleRows) => {
-            if (err2) {
-                return res.status(500).json({
-                    success: false,
-                    message: "Erro ao carregar posição de estoque.",
-                    error: err2.message
-                });
-            }
-            const merged = [...(lotRows || []), ...(simpleRows || [])];
-            merged.sort((a, b) => a.material.localeCompare(b.material));
-            res.json(merged);
         });
-    });
+    } else {
+        db.all(`${cteSql} SELECT * FROM all_position ${outerWhere} ORDER BY material`, [...baseParams, ...filterParams], (err, rows) => {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar posição de estoque.", error: err.message });
+            res.json(rows || []);
+        });
+    }
 });
 
 // ── POST Endpoints ────────────────────────────────────────────────────────
