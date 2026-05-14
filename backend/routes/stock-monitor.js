@@ -47,7 +47,7 @@ router.get("/", (req, res) => {
             SELECT DISTINCT sm.date AS date
             FROM stock_movements sm
             JOIN materials m ON m.id = sm.material_id
-            WHERE sm.date IS NOT NULL AND sm.date BETWEEN ? AND ? AND m.name = ?${locFilter}
+            WHERE sm.date IS NOT NULL AND sm.date BETWEEN ? AND ? AND m.name = ? AND sm.status NOT IN ('DRAFT', 'ABANDONED')${locFilter}
             UNION SELECT ?
             UNION SELECT ?
         )
@@ -61,7 +61,8 @@ router.get("/", (req, res) => {
                 FROM stock_movements sm2
                 JOIN materials m2 ON m2.id = sm2.material_id
                 WHERE m2.name = ?
-                  AND sm2.date <= d.date${locFilter.replace(/\bsm\b/g, 'sm2')}
+                  AND sm2.date <= d.date
+                  AND sm2.status NOT IN ('DRAFT', 'ABANDONED')${locFilter.replace(/\bsm\b/g, 'sm2')}
             ) AS balance
         FROM event_dates d
         WHERE d.date IS NOT NULL AND d.date BETWEEN ? AND ?

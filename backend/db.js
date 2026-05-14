@@ -207,6 +207,7 @@ db.serialize(() => {
 	db.run(`CREATE INDEX IF NOT EXISTS idx_movements_lot ON stock_movements (lot_id)`, () => {});
 	db.run(`ALTER TABLE stock_movements ADD COLUMN packaging_id INTEGER`, () => {});
 	db.run(`ALTER TABLE stock_movements ADD COLUMN packaging_count INTEGER`, () => {});
+	db.run(`ALTER TABLE stock_movements ADD COLUMN status TEXT DEFAULT 'CONFIRMED'`, () => {});
 
 	// ── App Settings ──────────────────────────────────────────────────────────
 

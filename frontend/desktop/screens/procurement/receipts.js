@@ -51,8 +51,11 @@ const Receipts = {
             this._dataTable = createDataTable({
                 columns: [
                     {
-                        key: 'code', header: 'ID', width: '90px',
-                        render: r => `<span class="code-badge">#${r.nature}${r.id}</span>`,
+                        key: 'code', header: 'ID', width: '110px',
+                        render: r => {
+                            const muted = r.status === 'DRAFT' || r.status === 'ABANDONED';
+                            return `<span class="code-badge${muted ? ' code-badge--muted' : ''}">#${r.nature || '---'}${r.id}</span>`;
+                        },
                     },
                     {
                         key: 'date', header: 'Data', sortable: true,
@@ -75,6 +78,14 @@ const Receipts = {
                         render: r => r.order_id
                             ? `<span class="code-badge receipts-order-link" onclick="Receipts.openOrder(event,${r.order_id})">#${r.order_id}</span>`
                             : '',
+                    },
+                    {
+                        key: 'status', header: 'Status', width: '110px',
+                        render: r => {
+                            if (r.status === 'DRAFT')     return `<span class="receipt-badge receipt-badge-draft">Rascunho</span>`;
+                            if (r.status === 'ABANDONED') return `<span class="receipt-badge receipt-badge-abandoned">Abandonado</span>`;
+                            return `<span class="receipt-badge receipt-badge-saved">Salvo</span>`;
+                        },
                     },
                 ],
                 getRowKey: r => r.id,

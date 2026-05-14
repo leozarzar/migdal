@@ -9,11 +9,14 @@ const ReceiptsDetails = {
     /** Lista de itens do recebimento atual */
     items: [],
 
-    /** Snapshot dos itens originais carregados do banco (para diff na edição) */
+    /** Snapshot dos itens originais carregados do banco (para diff na edição de COMPLETED) */
     _originalItems: [],
 
-    /** Indica se há alterações não salvas */
+    /** Indica se há alterações não salvas no cabeçalho (só usado para recebimentos COMPLETED) */
     _isDirty: false,
+
+    /** ID do recebimento DRAFT criado no servidor ao abrir a tela (null = editando existente) */
+    _draftReceiptId: null,
 
     /** Verifica se a tela está em modo somente leitura (sem permissão de edição) */
     _isReadOnly() {
@@ -21,18 +24,31 @@ const ReceiptsDetails = {
         return !hasPermission('procurement', 'receipts', 'edit');
     },
 
+    /** Retorna true se o recebimento atual é um rascunho (novo ou DRAFT da lista) */
+    _isDraft() {
+        return !!this._draftReceiptId || Receipts.selectedReceipt?.status === 'DRAFT';
+    },
+
+    /** Retorna o ID do recebimento atual (draft novo ou existente) */
+    _currentReceiptId() {
+        return this._draftReceiptId ?? Receipts.selectedReceipt?.id ?? null;
+    },
+
     /** Índice do item sendo editado inline (null = nenhum em edição) */
     _editingItemIndex: null,
 
-    /** Instâncias dos SearchSelects da tela */
+    /** Instâncias dos componentes de form */
     _supplierSelect: null,
     _materialSelect: null,
     _operatorSelect: null,
     _orderSelect: null,
     _locationSelect: null,
+    _natureToggle: null,
+    _datePicker: null,
 
     /** Instâncias dos componentes do dialog de item */
-    _itemDialog: null,
+    _itemsDialog: null,
+    _itemsDataTable: null,
     _dlgMaterialSelect: null,
     _dlgOperatorSelect: null,
 
@@ -42,34 +58,53 @@ const ReceiptsDetails = {
     /** Packagings do material selecionado no dialog */
     _dlgPackagings: [],
 
+    /** Quando true, canLeave() retorna true sem mostrar diálogo (usado por _exitScreen) */
+    _bypassLeaveCheck: false,
+
     // ── Ciclo de Vida ──
 
     /** Retorna o template HTML e carrega itens existentes (se editando) */
     async render() {
         this.items = [];
         this._originalItems = [];
-        this._supplierSelect?.destroy(); this._supplierSelect = null;
-        this._materialSelect?.destroy();  this._materialSelect = null;
-        this._operatorSelect?.destroy();  this._operatorSelect = null;
-        this._orderSelect?.destroy();     this._orderSelect = null;
-        this._locationSelect?.destroy();  this._locationSelect = null;
-        this._itemDialog?.destroy();      this._itemDialog = null;
-        this._dlgMaterialSelect?.destroy(); this._dlgMaterialSelect = null;
-        this._dlgOperatorSelect?.destroy(); this._dlgOperatorSelect = null;
+        this._draftReceiptId = null;
+        this._supplierSelect?.destroy();        this._supplierSelect = null;
+        this._materialSelect?.destroy();        this._materialSelect = null;
+        this._operatorSelect?.destroy();        this._operatorSelect = null;
+        this._orderSelect?.destroy();           this._orderSelect = null;
+        this._locationSelect?.destroy();        this._locationSelect = null;
+        this._natureToggle?.destroy();          this._natureToggle = null;
+        this._datePicker?.destroy();            this._datePicker = null;
+        this._itemsDialog?.destroy();           this._itemsDialog = null;
+        this._itemsDataTable?.destroy();        this._itemsDataTable = null;
+        this._dlgMaterialSelect?.destroy();     this._dlgMaterialSelect = null;
+        this._dlgOperatorSelect?.destroy();     this._dlgOperatorSelect = null;
 
         if (Receipts.selectedReceipt) {
             try {
                 const receiptItems = await apiCall(API + `/receipts/items/${Receipts.selectedReceipt.id}`);
-                this.items = receiptItems.map(i => ({
-                    _stockUnitId: i.id,
-                    _originalStatus: i.status,
-                    code: i.volume_id == null ? "" : Number(i.volume_id),
-                    material: i.material,
-                    quantity: i.weight,
-                    operator: i.operator || ""
-                }));
-                // Snapshot imutável para calcular o diff ao salvar
-                this._originalItems = [...this.items];
+                this.items = receiptItems.map(i => {
+                    if (i.item_type === 'movement') {
+                        return {
+                            _movementId: i.id,
+                            _originalStatus: null,
+                            code: "",
+                            material: i.material,
+                            quantity: i.quantity,
+                            operator: i.operator || "",
+                            tracking_mode: 'simple',
+                        };
+                    }
+                    return {
+                        _stockUnitId: i.id,
+                        _originalStatus: i.status,
+                        code: i.volume_id == null ? "" : Number(i.volume_id),
+                        material: i.material,
+                        quantity: i.weight,
+                        operator: i.operator || "",
+                    };
+                });
+                this._originalItems = this.items.filter(i => i._stockUnitId && i._originalStatus !== 'DRAFT');
             } catch (error) {
                 console.error("Erro ao carregar itens do recebimento:", error);
             }
@@ -77,52 +112,53 @@ const ReceiptsDetails = {
 
         return `
         <div class="receipts-details-container">
-            <!-- Header com Ações -->
-            <div class="receipt-header">
-                <h1>Recebimento <span id="receiptTitleCode"></span></h1>
-
-                <div class="receipt-meta">
-                    <span id="receiptMetaSupplier" style="display:none">Fornecedor: <span id="receiptSupplierName"></span>  |  </span>
-                    <span id="receiptMetaOrder" style="display:none">Pedido: <span id="receiptOrderNumber"></span>  |  </span>
-                    <span id="receiptMetaProduction" style="display:none">Produção  |  </span>
-                    <span>Quantidade: </span><span class="summary-value" id="receiptQty">0</span>
-                </div>
-            </div>
-
-            <!-- Cards de Informações -->
-            <div class="receipts-details-cards-row">
-
-                <!-- Card 1: Informações Básicas -->
-                <div class="details-card">
-                    <div class="card-header">
-                        <h2>Informações Básicas</h2>
+            <div class="rd-content">
+                <div class="rd-header">
+                    <h1>Recebimento <span id="receiptTitleCode"></span></h1>
+                    <div class="rd-meta">
+                        <span id="receiptMetaSupplier" style="display:none">Fornecedor: <span id="receiptSupplierName"></span>  |  </span>
+                        <span id="receiptMetaOrder" style="display:none">Pedido: <span id="receiptOrderNumber"></span>  |  </span>
+                        <span id="receiptMetaProduction" style="display:none">Produção  |  </span>
+                        <span>Quantidade: <span class="summary-value" id="receiptQty">0</span></span>
                     </div>
-                    <div class="card-content">
-                        <div class="form-group">
-                            <label for="receiptNature">Natureza <span class="required">*</span></label>
-                            <select id="receiptNature" onchange="ReceiptsDetails.updateReceiptCode(); ReceiptsDetails._updateHeaderFields()" class="form-control">
-                                <option value="">Selecione a natureza</option>
-                                <option value="C">Compra</option>
-                                <option value="S">Retorno de Serviço</option>
-                                <option value="P">Produção</option>
-                            </select>
+                </div>
+
+                <div class="rd-separator"></div>
+
+                <input type="hidden" id="receiptCode">
+                <input type="hidden" id="receiptNature">
+                <input type="hidden" id="receiptDate">
+
+                <div class="rd-section">
+                    <h2 class="rd-section-title">Informações Básicas</h2>
+                    <div class="rd-form-row">
+                        <div class="rd-form-label">
+                            <span class="rd-field-name">Natureza <span class="required" id="reqNature">*</span></span>
+                            <span class="rd-field-desc">Tipo de entrada no estoque</span>
                         </div>
-                        <input type="hidden" id="receiptCode">
-                        <div class="form-group">
-                            <label for="receiptLocation">Localização</label>
+                        <div class="rd-form-field">
+                            <div id="receiptNatureContainer"></div>
+                        </div>
+                    </div>
+                    <div class="rd-form-row">
+                        <div class="rd-form-label">
+                            <span class="rd-field-name">Localização</span>
+                            <span class="rd-field-desc">Destino no estoque</span>
+                        </div>
+                        <div class="rd-form-field">
                             <div id="receiptLocationContainer"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Card 2: Informações de Compra/Retorno -->
-                <div class="details-card" id="supplierPurchaseCard" style="display:none">
-                    <div class="card-header">
-                        <h2>Detalhes do Recebimento</h2>
-                    </div>
-                    <div class="card-content">
-                        <div class="form-group">
-                            <label for="receiptSupplier">Fornecedor <span class="required">*</span></label>
+                <div class="rd-section" id="sectionDetails">
+                    <h2 class="rd-section-title">Detalhes do Recebimento</h2>
+                    <div class="rd-form-row" id="rowSupplier">
+                        <div class="rd-form-label">
+                            <span class="rd-field-name">Fornecedor <span class="required" id="reqSupplier">*</span></span>
+                            <span class="rd-field-desc">Empresa fornecedora do material</span>
+                        </div>
+                        <div class="rd-form-field">
                             <div class="select-with-btn">
                                 <div id="receiptSupplierContainer"></div>
                                 <button class="btn-open-tab" onclick="openNewTab('suppliers')" title="Abrir cadastro de fornecedores em nova aba">
@@ -130,12 +166,22 @@ const ReceiptsDetails = {
                                 </button>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label for="receiptDate">Data Recebimento <span class="required">*</span></label>
-                            <input type="date" id="receiptDate" class="form-control" onchange="ReceiptsDetails._updateRequiredIndicators()">
+                    </div>
+                    <div class="rd-form-row" id="rowDate">
+                        <div class="rd-form-label">
+                            <span class="rd-field-name">Data Recebimento <span class="required" id="reqDate">*</span></span>
+                            <span class="rd-field-desc">Data em que o material chegou</span>
                         </div>
-                        <div class="form-group">
-                            <label for="receiptOrder">Pedido</label>
+                        <div class="rd-form-field">
+                            <div id="receiptDateContainer"></div>
+                        </div>
+                    </div>
+                    <div class="rd-form-row" id="rowOrder">
+                        <div class="rd-form-label">
+                            <span class="rd-field-name">Pedido</span>
+                            <span class="rd-field-desc">Pedido de compra vinculado</span>
+                        </div>
+                        <div class="rd-form-field">
                             <div class="select-with-btn">
                                 <div id="receiptOrderContainer"></div>
                                 <button class="btn-open-tab" onclick="openNewTab('orders')" title="Abrir cadastro de pedidos em nova aba">
@@ -146,50 +192,13 @@ const ReceiptsDetails = {
                     </div>
                 </div>
 
-                <!-- Card 3: Detalhes do Fornecimento -->
-                <div class="details-card" id="operatorProductionCard" style="display:none">
-                    <div class="card-header">
-                        <h2>Detalhes do Fornecimento</h2>
-                    </div>
-                    <div class="card-content">
-                        <div class="form-group">
-                            <label for="receiptDateProduction">Data Recebimento <span class="required">*</span></label>
-                            <input type="date" id="receiptDateProduction" class="form-control" onchange="ReceiptsDetails._updateRequiredIndicators()">
-                        </div>
-                    </div>
+                <div class="rd-section">
+                    <h2 class="rd-section-title">Itens do Recebimento</h2>
+                    <div id="rdItemsWidget"></div>
                 </div>
             </div>
 
-            <!-- Seção de Itens -->
-            <div class="receipts-details-items">
-                <div class="details-card">
-                    <div class="card-header">
-                        <h2>Itens do Recebimento</h2>
-                    </div>
-                    <div class="card-content">
-                        <!-- Botão para abrir dialog de adicionar item -->
-                        <div class="item-form-wrapper" id="receiptsDetailsAddWrapper">
-                            <button class="btn-add" onclick="ReceiptsDetails.openAddItemDialog()"><span class="material-symbols-outlined">playlist_add</span>Adicionar Item</button>
-                        </div>
-
-                        <!-- Tabela de Itens -->
-                        <div class="receipts-details-table-container">
-                            <table class="receipts-details-table">
-                                <thead>
-                                    <tr>
-                                        <th class="col-code">Código</th>
-                                        <th class="col-material">Material</th>
-                                        <th class="col-operator">Operador</th>
-                                        <th class="col-qty">Quantidade</th>
-                                        <th class="col-actions"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="receiptsItemsBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <div class="rd-action-bar" id="rdActionBar"></div>
         </div>
         `;
     },
@@ -199,6 +208,28 @@ const ReceiptsDetails = {
 
     /** Permite ao router verificar se pode navegar para outra tela */
     async canLeave() {
+        if (this._bypassLeaveCheck) { this._bypassLeaveCheck = false; return true; }
+        if (this._isDraft()) {
+            return new Promise(resolve => {
+                let resolved = false;
+                const done = (val) => { if (!resolved) { resolved = true; resolve(val); } };
+                const dlg = createDialog({
+                    title: 'Recebimento em rascunho',
+                    bodyHTML: '<p>O que deseja fazer com este recebimento?</p>',
+                    closeOnBackdrop: false,
+                    actions: [
+                        { label: 'Abandonar', variant: 'cancel', onClick: async () => {
+                            const id = this._currentReceiptId();
+                            if (id) await apiCall(API + `/receipts/${id}/abandon`, { method: 'PATCH' }).catch(() => {});
+                            done(true); dlg.close();
+                        }},
+                        { label: 'Manter Rascunho', variant: 'secondary', onClick: async () => { await this.saveHeaderOnly(); done(true); dlg.close(); } },
+                    ],
+                    onClose: () => done(false),
+                });
+                dlg.open();
+            });
+        }
         if (!this._isDirty) return true;
         return confirm('Você tem alterações não salvas. Deseja sair sem salvar?');
     },
@@ -206,7 +237,34 @@ const ReceiptsDetails = {
     /** Inicializa a tela: cria SearchSelects, popula dados e preenche campos do recebimento selecionado */
     async load() {
         this._isDirty = false;
-        this._setHeaderOptions();
+        this._renderActionBar();
+
+        // Toggle de natureza
+        this._natureToggle = createToggleGroup({
+            options: [
+                { value: 'C', label: 'Compra' },
+                { value: 'S', label: 'Retorno de Serviço' },
+                { value: 'P', label: 'Produção' },
+            ],
+            onChange: (value) => {
+                document.getElementById('receiptNature').value = value || '';
+                ReceiptsDetails.updateReceiptCode();
+                ReceiptsDetails._updateHeaderFields();
+                ReceiptsDetails._markDirty();
+            },
+        });
+        this._natureToggle.mount(document.getElementById('receiptNatureContainer'));
+
+        // DatePickers
+        this._datePicker = createDatePicker({
+            placeholder: 'Selecione a data',
+            onChange: (date) => {
+                document.getElementById('receiptDate').value = date ? date.toISOString().slice(0, 10) : '';
+                ReceiptsDetails._updateRequiredIndicators();
+                ReceiptsDetails._markDirty();
+            },
+        });
+        this._datePicker.mount(document.getElementById('receiptDateContainer'));
 
         // Criar e montar SearchSelects
         this._supplierSelect = createSelect({
@@ -240,38 +298,58 @@ const ReceiptsDetails = {
 
         // Enriquecer itens carregados com tracking_mode do material
         for (const item of this.items) {
-            item.tracking_mode = this._getMaterialTrackingMode(item.material);
+            if (!item.tracking_mode) item.tracking_mode = this._getMaterialTrackingMode(item.material);
         }
 
         if (Receipts.selectedReceipt) {
-            const saveBtn = document.getElementById("saveBtn");
-            if (saveBtn) {
-                saveBtn.textContent = "Editar";
-                saveBtn.onclick = () => this.editReceipt();
-            }
-            document.getElementById("receiptCode").value = "#" + Receipts.selectedReceipt.nature + Receipts.selectedReceipt.id;
-
-            // Define a natureza e atualiza visibilidade dos cards conforme tipo
             const nature = Receipts.selectedReceipt.nature;
-            document.getElementById("receiptNature").value = nature;
-            this.updateFormVisibility(nature);
+            const code = nature
+                ? `#${nature}${Receipts.selectedReceipt.id}`
+                : `#---${Receipts.selectedReceipt.id}`;
+            document.getElementById("receiptCode").value = code;
 
-            const dateId = nature === "P" ? "receiptDateProduction" : "receiptDate";
-            document.getElementById(dateId).value = Receipts.selectedReceipt.date;
+            if (nature) {
+                document.getElementById("receiptNature").value = nature;
+                this._natureToggle?.setValue(nature);
+                this.updateFormVisibility(nature);
+                const date = Receipts.selectedReceipt.date || null;
+                document.getElementById("receiptDate").value = date || '';
+                if (date) this._datePicker?.setValue(new Date(date + 'T00:00:00'));
+            }
             if (Receipts.selectedReceipt.supplier) this._supplierSelect.setValue(Receipts.selectedReceipt.supplier);
             await this.onSupplierChange();
             if (Receipts.selectedReceipt.order_id) this._orderSelect.setValue(Receipts.selectedReceipt.order_id);
             if (Receipts.selectedReceipt.location_id) this._locationSelect?.setValue(Receipts.selectedReceipt.location_id);
         } else {
-            const saveBtn = document.getElementById("saveBtn");
-            if (saveBtn) {
-                saveBtn.textContent = "Salvar";
-                saveBtn.onclick = () => this.save();
+            // Novo recebimento: criar DRAFT no servidor já com valores padrão
+            try {
+                const today = new Date().toISOString().slice(0, 10);
+                const sidebarLoc = AppState.getLocationFilter();
+                const draft = await apiCall(API + "/receipts/draft", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ nature: 'C', date: today, location_id: sidebarLoc || null }),
+                });
+                this._draftReceiptId = draft.id;
+                document.getElementById("receiptCode").value = `#---${draft.id}`;
+
+                document.getElementById('receiptNature').value = 'C';
+                this._natureToggle?.setValue('C');
+                this.updateReceiptCode();
+
+                document.getElementById('receiptDate').value = today;
+                this._datePicker?.setValue(new Date(today + 'T00:00:00'));
+
+                if (sidebarLoc) {
+                    this._locationSelect?.setValue(sidebarLoc);
+                    this._locationSelect?.setDisabled(true);
+                }
+            } catch (e) {
+                console.error("Erro ao criar rascunho:", e);
             }
         }
 
         this._refreshItemsView();
-        this._setNextItemCode();
 
         // Modo somente leitura: desabilita campos e oculta botão de adicionar item
         if (this._isReadOnly()) {
@@ -280,10 +358,14 @@ const ReceiptsDetails = {
             this._supplierSelect?.setDisabled(true);
             this._orderSelect?.setDisabled(true);
             this._locationSelect?.setDisabled(true);
+            this._datePicker?.setDisabled(true);
+            if (this._natureToggle?.el) {
+                this._natureToggle.el.style.pointerEvents = 'none';
+                this._natureToggle.el.style.opacity = '0.6';
+            }
             const addWrapper = document.getElementById('receiptsDetailsAddWrapper');
             if (addWrapper) addWrapper.style.display = 'none';
         } else {
-            // Marca o form como sujo em qualquer alteração de campo (campos nativos restantes)
             document.querySelectorAll('#content input, #content select, #content textarea')
                 .forEach(el => el.addEventListener('change', () => this._markDirty()));
         }
@@ -316,50 +398,55 @@ const ReceiptsDetails = {
 
     // ── Ações Públicas ──
 
-    /** Salva um novo recebimento (mesma validação que editReceipt) */
-    async save() {
+    /** Confirma o recebimento em rascunho: salva cabeçalho e transiciona todos os itens DRAFT */
+    async confirmReceipt(stay = false) {
         const receiptData = this._getReceiptData();
-
-        // Validação de campos obrigatórios — padrão compartilhado com editReceipt()
         const nature = receiptData.nature;
-        if (!nature || !receiptData.date) {
-            alert("Erro: Natureza e Data são obrigatórios.");
-            return;
-        }
+        if (!nature || !receiptData.date) { alert("Erro: Natureza e Data são obrigatórios."); return; }
+        if ((nature === "C" || nature === "S") && !receiptData.supplier) { alert("Erro: Fornecedor é obrigatório para Compra/Retorno."); return; }
+        if (this.items.length === 0) { alert("Erro: Nenhum item lançado."); return; }
 
-        if ((nature === "C" || nature === "S") && !receiptData.supplier) {
-            alert("Erro: Fornecedor é obrigatório para Compra/Retorno.");
-            return;
-        }
-
-        if (this.items.length === 0) {
-            alert("Erro: Nenhum item lançado.");
-            return;
-        }
-
+        const id = this._currentReceiptId();
         try {
-            await apiCall(API + "/receipts", {
-                method: "POST",
+            await apiCall(API + `/receipts/${id}/confirm`, {
+                method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(receiptData)
             });
-
-            await this._saveBagsFromItems(
-                receiptData.id,
-                receiptData.supplier,
-                receiptData.date,
-                receiptData.nature
-            );
-            alert("Recebimento salvo com sucesso");
             this._isDirty = false;
-            showScreen('receipts');
-        } catch (error) {
-            alert("Erro ao salvar recebimento");
+            this._draftReceiptId = null;
+            if (Receipts.selectedReceipt) Receipts.selectedReceipt = { ...Receipts.selectedReceipt, status: 'COMPLETED' };
+            alert("Recebimento confirmado com sucesso");
+            if (stay) {
+                Receipts.selectedReceipt = { ...receiptData, id, status: 'COMPLETED' };
+                showScreen('receipts-details');
+            } else {
+                showScreen('receipts');
+            }
+        } catch (e) {
+            alert("Erro ao confirmar recebimento");
+        }
+    },
+
+    /** Salva apenas o cabeçalho do recebimento sem confirmar — mantém como DRAFT */
+    async saveHeaderOnly() {
+        const receiptData = this._getReceiptData();
+        const id = this._currentReceiptId();
+        if (!id) return;
+        try {
+            await apiCall(API + `/receipts/${id}/header`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(receiptData)
+            });
+            this._isDirty = false;
+        } catch (e) {
+            alert("Erro ao guardar cabeçalho");
         }
     },
 
     /** Atualiza um recebimento existente (mesma validação que save) */
-    async editReceipt() {
+    async editReceipt(stay = false) {
         const receiptData = this._getReceiptData();
 
         // Validação de campos obrigatórios — padrão compartilhado com save()
@@ -437,165 +524,245 @@ const ReceiptsDetails = {
 
             alert("Recebimento atualizado com sucesso");
             this._isDirty = false;
-            showScreen('receipts');
+            if (stay) {
+                showScreen('receipts-details');
+            } else {
+                showScreen('receipts');
+            }
         } catch (error) {
             alert("Erro ao atualizar recebimento");
         }
     },
 
-    /** Abre o dialog de adicionar item ao recebimento */
-    openAddItemDialog(editIndex) {
-        this._editingItemIndex = editIndex ?? null;
+    /** Abre o dialog unificado: formulário de item + data table de itens */
+    openItemsDialog() {
+        this._editingItemIndex = null;
         this._dlgPackagings = [];
-        this._itemDialog?.destroy();
         this._dlgMaterialSelect?.destroy(); this._dlgMaterialSelect = null;
         this._dlgOperatorSelect?.destroy(); this._dlgOperatorSelect = null;
 
-        const nature = document.getElementById("receiptNature").value;
-        const showOperator = nature === "P";
-        const isEdit = this._editingItemIndex !== null;
-        const editItem = isEdit ? this.items[this._editingItemIndex] : null;
-        const isLotEdit = editItem?.tracking_mode === 'lots';
+        const nature = document.getElementById('receiptNature').value;
+        const showOperator = nature === 'P';
+        const readOnly = this._isReadOnly();
 
-        this._itemDialog = createDialog({
-            title: isEdit ? 'Editar Item' : 'Adicionar Item',
+        this._itemsDialog = createDialog({
+            title: 'Itens do Recebimento',
             wide: true,
-            overflowVisible: true,
             bodyHTML: `
-                <div class="receipts-details-dialog-form">
-                    <label id="rdItemCodeLabel" style="display:none">Código
-                        <div id="rdItemCodeMount"></div>
-                    </label>
-                    <div class="receipts-details-dialog-field">Material <span class="required">*</span>
-                        <div class="select-with-btn">
-                            <div id="rdItemMaterialContainer"></div>
-                            <button class="btn-open-tab" onclick="openNewTab('materials')" title="Abrir cadastro de materiais em nova aba">
-                                <span class="material-symbols-outlined">open_in_new</span>
-                            </button>
+                <div class="rd-items-dlg-body">
+                    ${!readOnly ? `
+                    <div class="rd-items-dlg-form">
+                        <div class="rd-items-dlg-fields">
+                            <div id="rdItemCodeWrap" style="display:none">
+                                <span class="rd-dlg-field-label">Código</span>
+                                <div id="rdItemCodeMount"></div>
+                            </div>
+                            <div>
+                                <span class="rd-dlg-field-label">Material <span class="required">*</span></span>
+                                <div class="select-with-btn">
+                                    <div id="rdItemMaterialContainer"></div>
+                                    <button class="btn-open-tab" onclick="openNewTab('materials')" title="Abrir cadastro de materiais em nova aba">
+                                        <span class="material-symbols-outlined">open_in_new</span>
+                                    </button>
+                                </div>
+                            </div>
+                            ${showOperator ? `
+                            <div>
+                                <span class="rd-dlg-field-label">Operador <span class="required">*</span></span>
+                                <div class="select-with-btn">
+                                    <div id="rdItemOperatorContainer"></div>
+                                    <button class="btn-open-tab" onclick="openNewTab('operators')" title="Abrir cadastro de operadores em nova aba">
+                                        <span class="material-symbols-outlined">open_in_new</span>
+                                    </button>
+                                </div>
+                            </div>` : ''}
+                            <div id="rdItemPkgGroup" style="display:none">
+                                <span class="rd-dlg-field-label">Modo de entrada</span>
+                                <select id="rdItemMode" class="dialog-input" onchange="ReceiptsDetails._onDlgModeChange()">
+                                    <option value="qty">Por quantidade</option>
+                                    <option value="pkg">Por embalagem</option>
+                                </select>
+                            </div>
+                            <div id="rdItemQtyWrap">
+                                <span class="rd-dlg-field-label">Quantidade <span class="required">*</span></span>
+                                <div id="rdItemQtyMount"></div>
+                            </div>
+                            <div id="rdItemPkgFields" style="display:none">
+                                <span class="rd-dlg-field-label">Embalagem</span>
+                                <select id="rdItemPkgSelect" class="dialog-input" onchange="ReceiptsDetails._onDlgPkgSelectChange()"></select>
+                                <span class="rd-dlg-field-label" style="margin-top:8px">Qtd. Embalagens <span class="required">*</span></span>
+                                <div id="rdItemPkgCountMount"></div>
+                                <span id="rdItemPkgHint" class="receipts-details-pkg-hint"></span>
+                            </div>
                         </div>
+                        <div class="rd-items-dlg-actions" id="rdDlgFormActions"></div>
                     </div>
-                    ${showOperator ? `
-                    <div class="receipts-details-dialog-field">Operador <span class="required">*</span>
-                        <div class="select-with-btn">
-                            <div id="rdItemOperatorContainer"></div>
-                            <button class="btn-open-tab" onclick="openNewTab('operators')" title="Abrir cadastro de operadores em nova aba">
-                                <span class="material-symbols-outlined">open_in_new</span>
-                            </button>
-                        </div>
-                    </div>` : ''}
-                    <div id="rdItemPkgGroup" style="display:none">
-                        <label>Modo de entrada
-                            <select id="rdItemMode" class="dialog-input" onchange="ReceiptsDetails._onDlgModeChange()">
-                                <option value="qty">Por quantidade</option>
-                                <option value="pkg">Por embalagem</option>
-                            </select>
-                        </label>
-                    </div>
-                    <label id="rdItemQtyLabel">Quantidade <span class="required">*</span>
-                        <div id="rdItemQtyMount"></div>
-                    </label>
-                    <div id="rdItemPkgFields" style="display:none">
-                        <label>Embalagem
-                            <select id="rdItemPkgSelect" class="dialog-input" onchange="ReceiptsDetails._onDlgPkgSelectChange()"></select>
-                        </label>
-                        <label>Qtd. Embalagens <span class="required">*</span>
-                            <div id="rdItemPkgCountMount"></div>
-                            <span id="rdItemPkgHint" class="receipts-details-pkg-hint"></span>
-                        </label>
-                    </div>
-                </div>
-            `,
+                    <hr class="rd-items-dlg-divider">
+                    ` : ''}
+                    <div id="rdItemsTableMount"></div>
+                </div>`,
             actions: [
-                { label: isEdit ? 'Salvar' : 'Adicionar', variant: 'primary', icon: isEdit ? 'check' : 'playlist_add', onClick: () => this._confirmItemDialog() },
-                { label: 'Cancelar', variant: 'secondary', onClick: () => this._itemDialog.close() },
+                { label: 'Fechar', variant: 'secondary', onClick: () => this._itemsDialog?.close() },
             ],
+            onClose: () => {
+                this._dlgMaterialSelect?.destroy(); this._dlgMaterialSelect = null;
+                this._dlgOperatorSelect?.destroy(); this._dlgOperatorSelect = null;
+                this._itemsDataTable?.destroy(); this._itemsDataTable = null;
+                const dlg = this._itemsDialog; this._itemsDialog = null;
+                dlg?.destroy();
+                this._renderItemsWidget();
+            },
         });
-        this._itemDialog.open();
+        this._itemsDialog.open();
 
-        // Mount custom inputs inside dialog
-        const codeInput = createInput({
-            id: 'rdItemCode',
-            type: 'number',
-            placeholder: 'Código',
-            onInput: (_v, e) => ReceiptsDetails.validateItemCode(e.target),
+        // Fix dialog height and delegate scrolling to the table
+        const backdrops = document.querySelectorAll('.dialog-backdrop');
+        backdrops[backdrops.length - 1]?.querySelector('.dialog-panel')?.classList.add('dialog-panel--items-dlg');
+
+        // Montar data table
+        const columns = [
+            {
+                key: 'code',
+                header: 'Código',
+                width: '110px',
+                render: r => {
+                    if (r._isGroup) return `<span class="rd-items-group-badge">${r._count} ${r._count === 1 ? 'item' : 'itens'}</span>`;
+                    if (r._isTotal) return '';
+                    return r.tracking_mode === 'lots' ? String(r.code).padStart(3, '0') : '—';
+                },
+            },
+            {
+                key: 'material',
+                header: 'Material',
+                render: r => {
+                    if (r._isGroup) return `<span class="rd-items-group-name">${_esc(r.material)}</span>`;
+                    if (r._isTotal) return `<span class="rd-items-total-label">Total</span>`;
+                    return '';
+                },
+            },
+            ...(showOperator ? [{
+                key: 'operator',
+                header: 'Operador',
+                render: r => (r._isGroup || r._isTotal) ? '' : _esc(r.operator || '-'),
+            }] : []),
+            {
+                key: 'quantity',
+                header: 'Quantidade',
+                width: '120px',
+                render: r => {
+                    if (r._isGroup) return `<span class="rd-items-group-qty">${r._groupTotal}</span>`;
+                    if (r._isTotal) return `<span class="rd-items-total-qty">${r._grandTotal}</span>`;
+                    return String(r.quantity);
+                },
+            },
+        ];
+        this._itemsDataTable = createDataTable({
+            columns,
+            getRowKey: r => r._isGroup ? `group-${r.material}` : r._isTotal ? 'total' : r._idx,
+            emptyMessage: 'Nenhum item adicionado.',
+            emptyIcon: 'inventory_2',
+            ...(!readOnly ? {
+                onRowClick: r => { if (r._isGroup || r._isTotal) return; ReceiptsDetails.startEditItem(r._idx); },
+                actions: [{
+                    label: 'Remover',
+                    icon: 'delete',
+                    variant: 'destructive',
+                    hidden: r => !!(r._isGroup || r._isTotal),
+                    onClick: r => ReceiptsDetails.deleteItem(r._idx),
+                }],
+            } : {}),
         });
-        document.getElementById('rdItemCodeMount').appendChild(codeInput.el);
+        this._itemsDataTable.mount(document.getElementById('rdItemsTableMount'));
+        this._refreshDlgTable();
 
-        const qtyInput = createInput({
-            id: 'rdItemQty',
-            type: 'number',
-            placeholder: '0,00',
-        });
-        qtyInput.input.step = 'any';
-        qtyInput.input.min = '0.01';
-        document.getElementById('rdItemQtyMount').appendChild(qtyInput.el);
+        if (!readOnly) {
+            const codeInput = createInput({ id: 'rdItemCode', type: 'number', placeholder: 'Código', onInput: (_v, e) => ReceiptsDetails.validateItemCode(e.target) });
+            document.getElementById('rdItemCodeMount').appendChild(codeInput.el);
 
-        const pkgCountInput = createInput({
-            id: 'rdItemPkgCount',
-            type: 'number',
-            placeholder: '0',
-            onInput: () => ReceiptsDetails._onDlgPkgCountChange(),
-        });
-        pkgCountInput.input.step = '1';
-        pkgCountInput.input.min = '1';
-        document.getElementById('rdItemPkgCountMount').appendChild(pkgCountInput.el);
-
-        // Mount material SearchSelect inside dialog
-        this._dlgMaterialSelect = createSelect({
-            placeholder: 'Selecione um material',
-            searchable: true,
-            sections: [{ key: 'material', items: [] }],
-            onChange: () => this._onDlgMaterialChange(),
-        });
-        this._dlgMaterialSelect.mount(document.getElementById('rdItemMaterialContainer'));
-        this._dlgMaterialSelect.setItems('material', this._materialsCache.map(m => ({ value: m.name, label: m.name })));
-
-        // Mount operator SearchSelect if production
-        if (showOperator) {
-            this._dlgOperatorSelect = createSelect({
-                placeholder: 'Selecione um operador',
-                searchable: true,
-                sections: [{ key: 'operator', items: [] }],
+            const qtyInput = createInput({ id: 'rdItemQty', type: 'number', placeholder: '0,00' });
+            qtyInput.input.step = 'any'; qtyInput.input.min = '0.01';
+            qtyInput.input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') { e.preventDefault(); ReceiptsDetails._confirmItemDialog(); }
             });
-            this._dlgOperatorSelect.mount(document.getElementById('rdItemOperatorContainer'));
-            apiCall(API + "/operators").then(ops => {
-                this._dlgOperatorSelect?.setItems('operator', (ops || []).map(o => ({ value: o.name, label: o.name })));
-                if (editItem?.operator) this._dlgOperatorSelect.setValue(editItem.operator);
-            }).catch(() => {});
-        }
+            document.getElementById('rdItemQtyMount').appendChild(qtyInput.el);
 
-        // Pre-fill for edit mode
-        if (editItem) {
-            this._dlgMaterialSelect.setValue(editItem.material);
-            document.getElementById('rdItemQty').value = editItem.quantity;
-            if (isLotEdit) {
-                const codeLabel = document.getElementById('rdItemCodeLabel');
-                if (codeLabel) codeLabel.style.display = '';
-                document.getElementById('rdItemCode').value = editItem.code;
+            const pkgCountInput = createInput({ id: 'rdItemPkgCount', type: 'number', placeholder: '0', onInput: () => ReceiptsDetails._onDlgPkgCountChange() });
+            pkgCountInput.input.step = '1'; pkgCountInput.input.min = '1';
+            document.getElementById('rdItemPkgCountMount').appendChild(pkgCountInput.el);
+
+            this._dlgMaterialSelect = createSelect({
+                placeholder: 'Selecione um material', searchable: true,
+                sections: [{ key: 'material', items: [] }],
+                onChange: () => this._onDlgMaterialChange(),
+            });
+            this._dlgMaterialSelect.mount(document.getElementById('rdItemMaterialContainer'));
+            this._dlgMaterialSelect.setItems('material', this._materialsCache.map(m => ({ value: m.name, label: m.name })));
+
+            if (showOperator) {
+                this._dlgOperatorSelect = createSelect({ placeholder: 'Selecione um operador', searchable: true, sections: [{ key: 'operator', items: [] }] });
+                this._dlgOperatorSelect.mount(document.getElementById('rdItemOperatorContainer'));
+                apiCall(API + '/operators').then(ops => {
+                    this._dlgOperatorSelect?.setItems('operator', (ops || []).map(o => ({ value: o.name, label: o.name })));
+                }).catch(() => {});
             }
-            // Trigger material change to load packagings
-            this._onDlgMaterialChange();
+
+            this._renderDlgFormActions();
         }
     },
 
-    /** Confirma o dialog de item — adiciona ou edita o item */
-    _confirmItemDialog() {
+    /** Renderiza os botões de ação do formulário inline no dialog de itens */
+    _renderDlgFormActions() {
+        const container = document.getElementById('rdDlgFormActions');
+        if (!container) return;
+        container.innerHTML = '';
+        const isEdit = this._editingItemIndex !== null;
+        const addBtn = createButton({
+            label: isEdit ? 'Salvar' : 'Adicionar',
+            variant: 'primary',
+            icon: isEdit ? 'check' : 'add',
+            onClick: () => ReceiptsDetails._confirmItemDialog(),
+        });
+        container.appendChild(addBtn.el);
+        if (isEdit) {
+            const cancelBtn = createButton({
+                label: 'Cancelar',
+                variant: 'secondary',
+                onClick: () => ReceiptsDetails.cancelEditItem(),
+            });
+            container.appendChild(cancelBtn.el);
+        }
+    },
+
+    /** Limpa o formulário inline do dialog de itens */
+    _clearDlgForm() {
+        this._dlgOperatorSelect?.clear?.();
+        const qtyEl = document.getElementById('rdItemQty');
+        if (qtyEl) qtyEl.value = '';
+        const pkgGroup = document.getElementById('rdItemPkgGroup');
+        if (pkgGroup) pkgGroup.style.display = 'none';
+        const pkgFields = document.getElementById('rdItemPkgFields');
+        if (pkgFields) pkgFields.style.display = 'none';
+        const qtyWrap = document.getElementById('rdItemQtyWrap');
+        if (qtyWrap) qtyWrap.style.display = '';
+
+        const isLot = this._getMaterialTrackingMode(this._dlgMaterialSelect?.getValue()) === 'lots';
+        const codeWrap = document.getElementById('rdItemCodeWrap');
+        const codeEl = document.getElementById('rdItemCode');
+        if (codeWrap) codeWrap.style.display = isLot ? '' : 'none';
+        if (codeEl) codeEl.value = isLot ? this._getNextItemCode() : '';
+    },
+
+    /** Confirma o dialog de item — adiciona ou edita o item, persistindo imediatamente em modo DRAFT */
+    async _confirmItemDialog() {
         const material = this._dlgMaterialSelect?.getValue() || '';
         const nature = document.getElementById("receiptNature").value;
         const itemOperator = this._dlgOperatorSelect?.getValue() || '';
         const isLot = this._getMaterialTrackingMode(material) === 'lots';
         const code = document.getElementById("rdItemCode")?.value?.trim() || '';
 
-        if (isLot && !code) {
-            alert("Preencha o código do item");
-            return;
-        }
-        if (!material) {
-            alert("Selecione um material");
-            return;
-        }
+        if (isLot && !code) { alert("Preencha o código do item"); return; }
+        if (!material) { alert("Selecione um material"); return; }
 
-        // Determine quantity based on mode
         const mode = document.getElementById('rdItemMode')?.value || 'qty';
         let quantity;
         if (mode === 'pkg') {
@@ -603,73 +770,77 @@ const ReceiptsDetails = {
             const pkgQty = parseFloat(sel?.selectedOptions[0]?.dataset.qty) || 0;
             const count = parseInt(document.getElementById('rdItemPkgCount')?.value);
             if (!count || count <= 0) { alert('Informe a quantidade de embalagens'); return; }
-            if (pkgQty > 0) {
-                quantity = Math.round(count * pkgQty * 1000) / 1000;
-            } else {
-                // Embalagem sem peso unitário — qty informado manualmente
-                quantity = parseFloat(document.getElementById('rdItemQty')?.value);
-            }
+            quantity = pkgQty > 0 ? Math.round(count * pkgQty * 1000) / 1000 : parseFloat(document.getElementById('rdItemQty')?.value);
         } else {
             quantity = parseFloat(document.getElementById('rdItemQty')?.value);
         }
-
-        if (!quantity || quantity <= 0) {
-            alert("Informe uma quantidade válida");
-            return;
-        }
-
-        if (nature === "P" && !itemOperator) {
-            alert("Selecione o operador do item");
-            return;
-        }
+        if (!quantity || quantity <= 0) { alert("Informe uma quantidade válida"); return; }
+        if (nature === "P" && !itemOperator) { alert("Selecione o operador do item"); return; }
 
         const normalizedCode = isLot
-            ? (() => {
-                if (!/^\d+$/.test(code)) { alert("O código do item deve conter apenas números"); return null; }
-                return Number.parseInt(code, 10);
-            })()
+            ? (() => { if (!/^\d+$/.test(code)) { alert("O código do item deve conter apenas números"); return null; } return Number.parseInt(code, 10); })()
             : this._getNextItemCode();
-
         if (normalizedCode === null) return;
 
-        // Capture packaging info if in pkg mode
-        let packagingId = null;
-        let packagingCount = null;
+        let packagingId = null, packagingCount = null;
         if (mode === 'pkg') {
             const sel = document.getElementById('rdItemPkgSelect');
             packagingId = sel?.value ? parseInt(sel.value) : null;
             packagingCount = parseInt(document.getElementById('rdItemPkgCount')?.value) || null;
         }
 
-        if (this._editingItemIndex !== null) {
-            const origItem = this.items[this._editingItemIndex];
-            this.items[this._editingItemIndex] = {
-                _stockUnitId:    origItem._stockUnitId,
-                _originalStatus: origItem._originalStatus,
-                code:            isLot ? normalizedCode : origItem.code,
-                material,
-                quantity:        Number(quantity),
-                operator:        nature === "P" ? itemOperator : "",
-                tracking_mode:   isLot ? 'lots' : 'simple',
-                packaging_id:    packagingId,
-                packaging_count: packagingCount
-            };
-            this._editingItemIndex = null;
+        const isDraft = this._isDraft();
+        const receiptId = this._currentReceiptId();
+
+        if (isDraft && receiptId) {
+            // Modo DRAFT: persistir imediatamente no servidor
+            try {
+                if (this._editingItemIndex !== null) {
+                    const origItem = this.items[this._editingItemIndex];
+                    if (origItem._stockUnitId) {
+                        // Lote DRAFT: atualiza via PUT
+                        await apiCall(API + `/stock-units/${origItem._stockUnitId}`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ volume_id: normalizedCode, material, weight: Number(quantity), operator: nature === "P" ? itemOperator : null })
+                        });
+                        this.items[this._editingItemIndex] = { ...origItem, code: normalizedCode, material, quantity: Number(quantity), operator: nature === "P" ? itemOperator : "", tracking_mode: 'lots', packaging_id: packagingId, packaging_count: packagingCount };
+                    } else if (origItem._movementId) {
+                        // Simple DRAFT: deleta e recria
+                        await apiCall(API + `/stock-movements/${origItem._movementId}`, { method: "DELETE" });
+                        const mat = this._materialsCache.find(m => m.name === material);
+                        const resp = await apiCall(API + "/stock-movements/entry", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ material_id: mat.id, quantity: Number(quantity), date: new Date().toISOString().slice(0, 10), receipt_id: receiptId, operator: nature === "P" ? itemOperator : null, status: 'DRAFT', location_id: this._locationSelect?.getValue() || null, packaging_id: packagingId, packaging_count: packagingCount }) });
+                        this.items[this._editingItemIndex] = { _movementId: resp.id, _originalStatus: null, code: "", material, quantity: Number(quantity), operator: nature === "P" ? itemOperator : "", tracking_mode: 'simple', packaging_id: packagingId, packaging_count: packagingCount };
+                    }
+                    this._editingItemIndex = null;
+                } else if (isLot) {
+                    const resp = await apiCall(API + "/stock-units", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ receipt_id: receiptId, volume_id: normalizedCode, material, weight: Number(quantity), status: "DRAFT", date_in: new Date().toISOString().slice(0, 10), supplier: this._supplierSelect?.getValue() || null, operator: nature === "P" ? itemOperator : null, location_id: this._locationSelect?.getValue() || null, packaging_id: packagingId, packaging_count: packagingCount }) });
+                    this.items.push({ _stockUnitId: resp.id, _originalStatus: 'DRAFT', code: normalizedCode, material, quantity: Number(quantity), operator: nature === "P" ? itemOperator : "", tracking_mode: 'lots', packaging_id: packagingId, packaging_count: packagingCount });
+                } else {
+                    const mat = this._materialsCache.find(m => m.name === material);
+                    const resp = await apiCall(API + "/stock-movements/entry", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ material_id: mat.id, quantity: Number(quantity), date: new Date().toISOString().slice(0, 10), receipt_id: receiptId, operator: nature === "P" ? itemOperator : null, status: 'DRAFT', location_id: this._locationSelect?.getValue() || null, packaging_id: packagingId, packaging_count: packagingCount }) });
+                    this.items.push({ _movementId: resp.id, _originalStatus: null, code: "", material, quantity: Number(quantity), operator: nature === "P" ? itemOperator : "", tracking_mode: 'simple', packaging_id: packagingId, packaging_count: packagingCount });
+                }
+            } catch (e) {
+                alert("Erro ao salvar item"); return;
+            }
         } else {
-            this.items.push({
-                code:     normalizedCode,
-                material,
-                quantity: Number(quantity),
-                operator: nature === "P" ? itemOperator : "",
-                tracking_mode: isLot ? 'lots' : 'simple',
-                packaging_id:    packagingId,
-                packaging_count: packagingCount
-            });
+            // Modo local (edição de recebimento COMPLETED)
+            if (this._editingItemIndex !== null) {
+                const origItem = this.items[this._editingItemIndex];
+                this.items[this._editingItemIndex] = { _stockUnitId: origItem._stockUnitId, _originalStatus: origItem._originalStatus, code: isLot ? normalizedCode : origItem.code, material, quantity: Number(quantity), operator: nature === "P" ? itemOperator : "", tracking_mode: isLot ? 'lots' : 'simple', packaging_id: packagingId, packaging_count: packagingCount };
+                this._editingItemIndex = null;
+            } else {
+                this.items.push({ code: normalizedCode, material, quantity: Number(quantity), operator: nature === "P" ? itemOperator : "", tracking_mode: isLot ? 'lots' : 'simple', packaging_id: packagingId, packaging_count: packagingCount });
+            }
+            this._markDirty();
         }
 
-        this._markDirty();
-        this._itemDialog.close();
+        this._editingItemIndex = null;
+        this._clearDlgForm();
+        this._renderDlgFormActions();
         this._refreshItemsView();
+        setTimeout(() => document.getElementById('rdItemQty')?.focus(), 0);
     },
 
     /** Reage à mudança de material no dialog — carrega packagings e mostra/esconde código */
@@ -678,10 +849,10 @@ const ReceiptsDetails = {
         if (!selected) return;
 
         const mode = this._getMaterialTrackingMode(selected);
-        const codeLabel = document.getElementById('rdItemCodeLabel');
-        if (codeLabel) {
-            codeLabel.style.display = mode === 'lots' ? '' : 'none';
-            if (mode === 'lots') {
+        const codeWrap = document.getElementById('rdItemCodeWrap');
+        if (codeWrap) {
+            codeWrap.style.display = mode === 'lots' ? '' : 'none';
+            if (mode === 'lots' && this._editingItemIndex === null) {
                 const nextCode = this._getNextItemCode();
                 document.getElementById('rdItemCode').value = nextCode;
             }
@@ -718,24 +889,24 @@ const ReceiptsDetails = {
             // Reset to qty mode
             const modeEl = document.getElementById('rdItemMode');
             if (modeEl) modeEl.value = 'qty';
-            const qtyLabel = document.getElementById('rdItemQtyLabel');
-            if (qtyLabel) qtyLabel.style.display = '';
+            const qtyWrap = document.getElementById('rdItemQtyWrap');
+            if (qtyWrap) qtyWrap.style.display = '';
         }
     },
 
     /** Alterna modo quantidade / embalagem no dialog */
     _onDlgModeChange() {
         const mode = document.getElementById('rdItemMode')?.value;
-        const qtyLabel = document.getElementById('rdItemQtyLabel');
+        const qtyWrap = document.getElementById('rdItemQtyWrap');
         const pkgFields = document.getElementById('rdItemPkgFields');
         if (mode === 'pkg') {
             if (pkgFields) pkgFields.style.display = '';
             // Se embalagem sem peso unitário, mostra qty também
             const sel = document.getElementById('rdItemPkgSelect');
             const hasPkgQty = parseFloat(sel?.selectedOptions[0]?.dataset.qty) > 0;
-            if (qtyLabel) qtyLabel.style.display = hasPkgQty ? 'none' : '';
+            if (qtyWrap) qtyWrap.style.display = hasPkgQty ? 'none' : '';
         } else {
-            if (qtyLabel) qtyLabel.style.display = '';
+            if (qtyWrap) qtyWrap.style.display = '';
             if (pkgFields) pkgFields.style.display = 'none';
         }
     },
@@ -752,8 +923,8 @@ const ReceiptsDetails = {
         // Se estiver em modo embalagem, ajusta visibilidade do campo quantidade
         const mode = document.getElementById('rdItemMode')?.value;
         if (mode === 'pkg') {
-            const qtyLabel = document.getElementById('rdItemQtyLabel');
-            if (qtyLabel) qtyLabel.style.display = qty > 0 ? 'none' : '';
+            const qtyWrap = document.getElementById('rdItemQtyWrap');
+            if (qtyWrap) qtyWrap.style.display = qty > 0 ? 'none' : '';
         }
     },
 
@@ -769,25 +940,44 @@ const ReceiptsDetails = {
 
     /** Remove um item pelo índice */
     deleteItem(index) {
+        const item = this.items[index];
+        if (this._isDraft()) {
+            if (item._stockUnitId) {
+                apiCall(API + `/stock-units/${item._stockUnitId}`, { method: 'DELETE' }).catch(() => {});
+            } else if (item._movementId) {
+                apiCall(API + `/stock-movements/${item._movementId}`, { method: 'DELETE' }).catch(() => {});
+            }
+        }
         if (this._editingItemIndex === index) {
             this._editingItemIndex = null;
         } else if (this._editingItemIndex !== null && this._editingItemIndex > index) {
             this._editingItemIndex -= 1;
         }
         this.items.splice(index, 1);
-        this._setNextItemCode();
         this._refreshItemsView();
     },
 
-    /** Ativa o modo de edição: abre o dialog com os dados do item preenchidos */
+    /** Ativa o modo de edição: preenche o formulário inline no dialog aberto */
     startEditItem(index) {
-        this.openAddItemDialog(index);
+        if (!this._itemsDialog) return;
+        this._editingItemIndex = index;
+        const item = this.items[index];
+        this._dlgMaterialSelect?.setValue(item.material);
+        if (this._dlgOperatorSelect) this._dlgOperatorSelect.setValue(item.operator || '');
+        const codeEl = document.getElementById('rdItemCode');
+        if (codeEl) codeEl.value = item.code || '';
+        const qtyEl = document.getElementById('rdItemQty');
+        if (qtyEl) qtyEl.value = item.quantity || '';
+        const codeWrap = document.getElementById('rdItemCodeWrap');
+        if (codeWrap) codeWrap.style.display = item.tracking_mode === 'lots' ? '' : 'none';
+        this._renderDlgFormActions();
+        this._refreshDlgTable();
     },
-
-    /** Cancela o modo de edição */
     cancelEditItem() {
         this._editingItemIndex = null;
-        this._renderItems();
+        this._clearDlgForm();
+        this._renderDlgFormActions();
+        this._refreshDlgTable();
     },
 
     /** Valida que o campo de código contém apenas dígitos */
@@ -801,98 +991,173 @@ const ReceiptsDetails = {
         showScreen('receipts');
     },
 
-    // ── Renderização ──
-
-    /** Renderiza a tabela de itens do recebimento */
-    _renderItems() {
-        const tbody = document.getElementById("receiptsItemsBody");
-        const nature = document.getElementById("receiptNature")?.value;
-        const showOperatorColumn = nature === "P";
-        tbody.innerHTML = "";
-
-        if (this.items.length === 0) {
-            let cols = 4; // code + material + qty + actions
-            if (showOperatorColumn) cols++;
-            const tr = document.createElement("tr");
-            tr.innerHTML = `<td colspan="${cols}" class="empty-state">Nenhum item adicionado. Clique em Adicionar Item.</td>`;
-            tbody.appendChild(tr);
+    /** Lida com o clique no botão Sair: mostra diálogo adequado antes de navegar */
+    async _exitScreen() {
+        if (this._isDraft()) {
+            const canGo = await new Promise(resolve => {
+                let resolved = false;
+                const done = (val) => { if (!resolved) { resolved = true; resolve(val); } };
+                const dlg = createDialog({
+                    title: 'Recebimento em rascunho',
+                    bodyHTML: '<p>O que deseja fazer com este recebimento?</p>',
+                    closeOnBackdrop: false,
+                    actions: [
+                        { label: 'Abandonar', variant: 'cancel', onClick: async () => {
+                            const id = this._currentReceiptId();
+                            if (id) await apiCall(API + `/receipts/${id}/abandon`, { method: 'PATCH' }).catch(() => {});
+                            done(true); dlg.close();
+                        }},
+                        { label: 'Manter Rascunho', variant: 'secondary', onClick: async () => {
+                            await this.saveHeaderOnly(); done(true); dlg.close();
+                        }},
+                    ],
+                    onClose: () => done(false),
+                });
+                dlg.open();
+            });
+            if (canGo) {
+                this._draftReceiptId = null;
+                this._isDirty = false;
+                this._bypassLeaveCheck = true;
+                showScreen('receipts');
+            }
             return;
         }
+        if (this._isDirty) {
+            if (!confirm('Você tem alterações não salvas. Deseja sair sem salvar?')) return;
+        }
+        this._isDirty = false;
+        this._bypassLeaveCheck = true;
+        showScreen('receipts');
+    },
 
-        // Agrupar por material mantendo a ordem de inserção
-        const groups = new Map();
-        this.items.forEach((item, index) => {
-            if (!groups.has(item.material)) groups.set(item.material, []);
-            groups.get(item.material).push({ item, index });
-        });
+    // ── Renderização ──
 
-        for (const [material, entries] of groups) {
-            const totalQty = entries.reduce((sum, e) => sum + e.item.quantity, 0);
-            const operatorPlaceholder = showOperatorColumn ? '<td class="col-operator"></td>' : '';
-            const itemLabel = entries.length === 1 ? 'item' : 'itens';
-            const groupIsLot = entries[0].item.tracking_mode === 'lots';
+    /** Renderiza o widget de itens: botão tracejado (vazio) ou resumo (com itens) */
+    _renderItemsWidget() {
+        const container = document.getElementById('rdItemsWidget');
+        if (!container) return;
+        const readOnly = this._isReadOnly();
 
-            // Linha de cabeçalho do grupo
-            const groupTr = document.createElement('tr');
-            groupTr.className = 'receipts-details-group-row';
-            groupTr.innerHTML = `
-                <td class="col-code">${groupIsLot ? `<span class="group-badge">${entries.length} ${itemLabel}</span>` : ''}</td>
-                <td class="col-material group-material-name">${!groupIsLot ? `<span class="group-badge">${entries.length} ${itemLabel}</span> ` : ''}${material}</td>
-                ${operatorPlaceholder}
-                <td class="col-qty group-qty-total">${totalQty}</td>
-                <td class="col-actions"></td>
-            `;
-            tbody.appendChild(groupTr);
-
-            // Linhas de cada item do grupo
-            for (const { item, index } of entries) {
-                const isEditing = this._editingItemIndex === index;
-                const readOnly = this._isReadOnly();
-                const isLot = item.tracking_mode === 'lots';
-                const operatorCell = showOperatorColumn
-                    ? `<td class="col-operator">${item.operator || "-"}</td>`
-                    : "";
-                const tr = createTableRow(`
-                    <td class="col-code">${isLot ? item.code : '—'}</td>
-                    <td class="col-material"></td>
-                    ${operatorCell}
-                    <td class="col-qty">${item.quantity}</td>
-                    <td class="col-actions">
-                        ${readOnly ? '' : `<button class="btn-action btn-delete" onclick="event.stopPropagation(); ReceiptsDetails.deleteItem(${index})" title="Remover item">
-                            <span class="material-symbols-outlined">delete</span>
-                        </button>`}
-                    </td>
-                `);
-                if (!readOnly) {
-                    tr.style.cursor = 'pointer';
-                    tr.onclick = () => ReceiptsDetails.startEditItem(index);
-                }
-                if (isEditing) tr.classList.add('receipts-details-item-editing');
-                tbody.appendChild(tr);
+        if (this.items.length === 0) {
+            if (readOnly) {
+                container.innerHTML = `<p class="rd-items-empty">Nenhum item adicionado.</p>`;
+            } else {
+                container.innerHTML = `
+                    <button class="rd-items-dashed-btn" onclick="ReceiptsDetails.openItemsDialog()">
+                        <span class="material-symbols-outlined">add</span>
+                        Adicionar Itens
+                    </button>`;
             }
+        } else {
+            const totalQty = this.items.reduce((sum, i) => sum + i.quantity, 0);
+            const materials = [...new Set(this.items.map(i => i.material))];
+            const matText = materials.length <= 2
+                ? materials.map(m => _esc(m)).join(', ')
+                : materials.slice(0, 2).map(m => _esc(m)).join(', ') + ` +${materials.length - 2} mais`;
+            const count = this.items.length;
+            container.innerHTML = `
+                <div class="rd-items-summary${!readOnly ? ' rd-items-summary--clickable' : ''}" ${!readOnly ? 'onclick="ReceiptsDetails.openItemsDialog()"' : ''}>
+                    <div class="rd-items-summary-left">
+                        <i data-lucide="package-2" class="rd-items-summary-icon rd-items-summary-icon--left"></i>
+                        <div class="rd-items-summary-info">
+                            <span class="rd-items-summary-count">${count} ${count === 1 ? 'item' : 'itens'} · Total: ${totalQty}</span>
+                            <span class="rd-items-summary-materials">${matText}</span>
+                        </div>
+                    </div>
+                    ${!readOnly ? `<i data-lucide="pencil-line" class="rd-items-summary-icon"></i>` : ''}
+                </div>`;
+            if (!readOnly && typeof lucide !== 'undefined') lucide.createIcons({ nameAttr: 'data-lucide', rootNode: container });
         }
     },
 
-    /** Atualiza total e tabela de itens sem recarregar os dados do formulário */
+
+    /** Atualiza o data table do dialog com os itens agrupados por material + linha de total */
+    _refreshDlgTable() {
+        if (!this._itemsDataTable) return;
+
+        const groups = new Map();
+        this.items.forEach((item, idx) => {
+            if (!groups.has(item.material)) groups.set(item.material, []);
+            groups.get(item.material).push({ ...item, _idx: idx });
+        });
+
+        const rows = [];
+        for (const [material, entries] of groups) {
+            const groupTotal = entries.reduce((s, e) => s + e.quantity, 0);
+            rows.push({ _isGroup: true, material, _groupTotal: groupTotal, _count: entries.length });
+            rows.push(...entries);
+        }
+
+        if (this.items.length > 0) {
+            const grandTotal = this.items.reduce((s, i) => s + i.quantity, 0);
+            rows.push({ _isTotal: true, _grandTotal: grandTotal });
+        }
+
+        this._itemsDataTable.setData(rows);
+    },
+
+    /** Atualiza total e widget de itens sem recarregar os dados do formulário */
     _refreshItemsView() {
         const totalQty = this.items.reduce((sum, item) => sum + item.quantity, 0);
-        document.getElementById("receiptQty").textContent = totalQty;
-        this._renderItems();
+        const qtyEl = document.getElementById("receiptQty");
+        if (qtyEl) qtyEl.textContent = totalQty;
+        this._renderItemsWidget();
+        this._refreshDlgTable();
         this._updateHeaderFields();
         this._updateRequiredIndicators();
     },
 
-    /** Define o botão de ação (Salvar / Editar) no header */
-    _setHeaderOptions() {
-        const headerOptions = document.getElementById("headerOptionsContent");
-        const isSaveMode = !Receipts.selectedReceipt;
-        const action = isSaveMode ? 'create' : 'edit';
-        const buttonText = isSaveMode ? "Salvar" : "Editar";
-        const buttonAction = isSaveMode ? "ReceiptsDetails.save()" : "ReceiptsDetails.editReceipt()";
+    /** Renderiza os botões de ação na barra inferior e limpa o header */
+    _renderActionBar() {
+        const bar = document.getElementById('rdActionBar');
+        if (!bar) return;
 
-        headerOptions.innerHTML = hasPermission('procurement', 'receipts', action) ? `
-            <button id="saveBtn" class="btn-primary" onclick="${buttonAction}">${buttonText}</button>
-        ` : '';
+        const headerOptions = document.getElementById('headerOptionsContent');
+        if (headerOptions) headerOptions.innerHTML = '';
+
+        bar.innerHTML = '';
+
+        const inner = document.createElement('div');
+        inner.className = 'rd-action-bar-inner';
+        bar.appendChild(inner);
+
+        const BTN_MIN_W = '6.5rem';
+
+        const exitBtn = createButton({
+            label: 'Sair',
+            variant: 'cancel',
+            onClick: () => ReceiptsDetails._exitScreen(),
+        });
+        exitBtn.el.style.minWidth = BTN_MIN_W;
+        inner.appendChild(exitBtn.el);
+
+        const isDraft = this._isDraft();
+        const isNew = !Receipts.selectedReceipt;
+
+        if (isDraft || isNew) {
+            if (hasPermission('procurement', 'receipts', 'create')) {
+                const confirmBtn = createButton({
+                    label: 'Confirmar',
+                    variant: 'primary',
+                    icon: 'check',
+                    onClick: () => ReceiptsDetails.confirmReceipt(),
+                });
+                confirmBtn.el.style.minWidth = BTN_MIN_W;
+                inner.appendChild(confirmBtn.el);
+            }
+        } else {
+            if (hasPermission('procurement', 'receipts', 'edit')) {
+                const editBtn = createButton({
+                    label: 'Salvar',
+                    variant: 'primary',
+                    icon: 'check',
+                    onClick: () => ReceiptsDetails.editReceipt(),
+                });
+                editBtn.el.style.minWidth = BTN_MIN_W;
+                inner.appendChild(editBtn.el);
+            }
+        }
     },
 
     /** Atualiza os campos exibidos no header conforme natureza selecionada */
@@ -932,58 +1197,52 @@ const ReceiptsDetails = {
 
     /** Oculta/exibe indicadores de campo obrigatório conforme preenchimento */
     _updateRequiredIndicators() {
-        const nature = document.getElementById("receiptNature")?.value;
-        const dateFieldId = nature === "P" ? "receiptDateProduction" : "receiptDate";
-        const nativeFields = ["receiptNature", dateFieldId];
-        nativeFields.forEach(fieldId => {
-            const field = document.getElementById(fieldId);
-            if (!field) return;
-            const label = document.querySelector(`label[for="${fieldId}"]`);
-            if (!label) return;
-            const span = label.querySelector('.required');
-            if (!span) return;
-            span.style.visibility = field.value ? 'hidden' : 'visible';
-        });
-        // Indicador de obrigatório para o SearchSelect de fornecedor (Compra/Retorno)
-        if (nature === "C" || nature === "S") {
-            const supplierLabel = document.querySelector('label[for="receiptSupplier"]');
-            const span = supplierLabel?.querySelector('.required');
-            if (span) span.style.visibility = this._supplierSelect?.getValue() ? 'hidden' : 'visible';
+        const nature = document.getElementById('receiptNature')?.value;
+
+        const reqNature = document.getElementById('reqNature');
+        if (reqNature) reqNature.style.visibility = nature ? 'hidden' : 'visible';
+
+        const dateVal = document.getElementById('receiptDate')?.value;
+        const reqDate = document.getElementById('reqDate');
+        if (reqDate) reqDate.style.visibility = dateVal ? 'hidden' : 'visible';
+
+        if (nature === 'C' || nature === 'S') {
+            const reqSupplier = document.getElementById('reqSupplier');
+            if (reqSupplier) reqSupplier.style.visibility = this._supplierSelect?.getValue() ? 'hidden' : 'visible';
         }
     },
 
-    /** Limpa os botões de ação da barra de header */
+    /** Limpa os botões de ação da barra de header e da barra inferior */
     _clearHeaderOptions() {
         const headerOptions = document.getElementById("headerOptionsContent");
-        headerOptions.innerHTML = "";
+        if (headerOptions) headerOptions.innerHTML = "";
+        const bar = document.getElementById('rdActionBar');
+        if (bar) bar.innerHTML = '';
     },
 
-    /** Exibe/oculta a coluna de operador na tabela de itens */
-    _toggleOperatorColumn(showOperator) {
-        const operatorHeader = document.querySelector(".receipts-details-table thead .col-operator");
-        if (operatorHeader) {
-            operatorHeader.style.display = showOperator ? "" : "none";
-        }
-    },
 
-    /** Controla a visibilidade dos cards conforme a natureza selecionada */
+
+    /** Controla a visibilidade das linhas do formulário conforme a natureza selecionada */
     updateFormVisibility(nature) {
-        const supplierCard = document.getElementById("supplierPurchaseCard");
-        const operatorCard = document.getElementById("operatorProductionCard");
+        const rowSupplier = document.getElementById('rowSupplier');
+        const rowDate     = document.getElementById('rowDate');
+        const rowOrder    = document.getElementById('rowOrder');
 
-        if (nature === "P") {
-            supplierCard.style.display = "none";
-            operatorCard.style.display = "block";
-        } else if (nature === "C" || nature === "S") {
-            supplierCard.style.display = "block";
-            operatorCard.style.display = "none";
+        if (nature === 'P') {
+            if (rowSupplier) rowSupplier.style.display = 'none';
+            if (rowDate)     rowDate.style.display = '';
+            if (rowOrder)    rowOrder.style.display = 'none';
+        } else if (nature === 'C' || nature === 'S') {
+            if (rowSupplier) rowSupplier.style.display = '';
+            if (rowDate)     rowDate.style.display = '';
+            if (rowOrder)    rowOrder.style.display = '';
         } else {
-            supplierCard.style.display = "none";
-            operatorCard.style.display = "none";
+            if (rowSupplier) rowSupplier.style.display = 'none';
+            if (rowDate)     rowDate.style.display = 'none';
+            if (rowOrder)    rowOrder.style.display = 'none';
         }
 
-        this._toggleOperatorColumn(nature === "P");
-        this._renderItems();
+        this._refreshDlgTable();
     },
 
     /** Atualiza o código do recebimento e visibilidade ao mudar a natureza */
@@ -997,27 +1256,28 @@ const ReceiptsDetails = {
         }
         this._lastNature = nature;
 
-        // Atualiza visibilidade dos campos baseado na natureza
         this.updateFormVisibility(nature);
 
         if (!nature) {
-            document.getElementById("receiptCode").value = "";
+            const id = this._currentReceiptId();
+            document.getElementById("receiptCode").value = id ? `#---${id}` : "";
             this._updateHeaderFields();
             return;
         }
 
-        // Se está editando um recebimento existente, mantém o código original
+        // Para rascunhos, o ID já é conhecido — só atualiza o display
+        const id = this._currentReceiptId();
+        if (id) {
+            document.getElementById("receiptCode").value = `#${nature}${id}`;
+            this._updateHeaderFields();
+            return;
+        }
+
+        // Se está editando um recebimento existente COMPLETED, mantém o código original
         if (Receipts.selectedReceipt) {
             document.getElementById("receiptCode").value = `#${nature}${Receipts.selectedReceipt.id}`;
             this._updateHeaderFields();
-            return;
         }
-
-        // Para novos recebimentos, busca o próximo ID disponível
-        this._getNextReceiptId().then(nextId => {
-            document.getElementById("receiptCode").value = `#${nature}${nextId}`;
-            this._updateHeaderFields();
-        });
     },
 
     /** Filtra pedidos ao selecionar fornecedor */
@@ -1098,11 +1358,10 @@ const ReceiptsDetails = {
     /** Obtém os dados do formulário de recebimento */
     _getReceiptData() {
         const nature = document.getElementById("receiptNature").value;
-        const dateFieldId = nature === "P" ? "receiptDateProduction" : "receiptDate";
         const baseData = {
             id: parseInt(document.getElementById("receiptCode").value.slice(2)),
             nature: nature,
-            date: document.getElementById(dateFieldId).value
+            date: document.getElementById("receiptDate").value
         };
 
         if (nature === "P") {
@@ -1186,44 +1445,11 @@ const ReceiptsDetails = {
         }
     },
 
-    /** Obtém o próximo ID para um novo recebimento */
-    async _getNextReceiptId() {
-        try {
-            const receipts = await apiCall(API + "/receipts");
-            if (!receipts || receipts.length === 0) {
-                return 1;
-            }
-
-            // Encontra o maior ID da tabela
-            const maxId = receipts.reduce((max, receipt) => {
-                const id = receipt.id || 0;
-                return id > max ? id : max;
-            }, 0);
-
-            return maxId + 1;
-        } catch (error) {
-            console.error("Erro ao obter próximo ID:", error);
-            return 1;
-        }
-    },
-
     /** Obtém o próximo código de item com base nos itens já adicionados */
     _getNextItemCode() {
-        if (this.items.length === 0) {
-            return 1;
-        }
-
-        // Encontra o maior código numérico entre os itens
-        const maxCode = Math.max(...this.items.map(item => {
-            return parseInt(item.code, 10);
-        }));
-
+        if (this.items.length === 0) return 1;
+        const maxCode = Math.max(...this.items.map(item => parseInt(item.code, 10) || 0));
         return maxCode + 1;
-    },
-
-    /** Define o próximo código de item no campo de entrada (usado no dialog) */
-    _setNextItemCode() {
-        // No-op: código é definido ao abrir o dialog
     },
 
     /**

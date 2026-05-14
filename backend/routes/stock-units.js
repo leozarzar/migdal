@@ -84,7 +84,7 @@ router.get("/", (req, res) => {
     const limitNum  = Math.max(1, parseInt(limit, 10) || 13);
     const offset    = (pageNum - 1) * limitNum;
 
-    let where = 'WHERE 1=1';
+    let where = "WHERE status NOT IN ('DRAFT', 'ABANDONED')";
     const params = [];
 
     if (location_id) {
@@ -375,14 +375,16 @@ router.post("/", requirePermission('inventory', 'stock-units', 'create'), (req, 
             }
             const lotId = this.lastID;
 
-            // Sync: create entry movement
-            db.get(`SELECT id FROM materials WHERE name = ?`, [material], (_, mat) => {
-                const materialId = mat ? mat.id : 0;
-                _insertEntryMovement(lotId, materialId, weight, date_in, receipt_id, operator, location_id);
-                if (status === 'OUT_STOCK' && normalizedDateOut) {
-                    _insertExitMovement(lotId, materialId, weight, normalizedDateOut, receipt_id, operator, deduction_type, location_id);
-                }
-            });
+            // Sync: cria movimento de entrada (pulado para itens em rascunho)
+            if (status !== 'DRAFT') {
+                db.get(`SELECT id FROM materials WHERE name = ?`, [material], (_, mat) => {
+                    const materialId = mat ? mat.id : 0;
+                    _insertEntryMovement(lotId, materialId, weight, date_in, receipt_id, operator, location_id);
+                    if (status === 'OUT_STOCK' && normalizedDateOut) {
+                        _insertExitMovement(lotId, materialId, weight, normalizedDateOut, receipt_id, operator, deduction_type, location_id);
+                    }
+                });
+            }
 
             // Also set material_id on stock_units
             db.run(`UPDATE stock_units SET material_id = (SELECT id FROM materials WHERE name = ?) WHERE id = ?`, [material, lotId]);

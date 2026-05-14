@@ -1,7 +1,230 @@
 
+/* ── Novo padrão flat-white: header, separador, form dois colunas ── */
+
+.receipts-details-container {
+    width: 100%;
+    padding: 24px;
+    padding-bottom: 80px; /* espaço para a action bar fixa */
+}
+
+.rd-content {
+    max-width: 60%;
+    margin: 0 auto;
+}
+
+.rd-header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 6px 0;
+}
+
+.rd-meta {
+    font-size: 13px;
+    color: var(--muted-foreground);
+}
+
+.rd-separator {
+    border-bottom: 1px solid var(--border-components);
+    margin: 16px 0 0 0;
+}
+
+/* ── Seções ── */
+
+.rd-section {
+    margin-top: 28px;
+}
+
+.rd-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 12px 0;
+}
+
+/* ── Form dois colunas ── */
+
+.rd-form-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 32px;
+    padding: 14px 0;
+}
+
+.rd-form-label {
+    width: 200px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-top: 6px;
+}
+
+.rd-field-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--foreground);
+}
+
+.rd-field-name .required {
+    color: #d32f2f;
+    margin-left: 2px;
+}
+
+.rd-field-desc {
+    font-size: 12px;
+    color: var(--muted-foreground);
+}
+
+.rd-form-field {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ── Itens: header com h2 e botão na mesma linha ── */
+
+.receipts-details-items {
+    margin-top: 8px;
+}
+
+.rd-items-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+/* ── Barra de ação fixa no rodapé ── */
+
+.rd-action-bar {
+    position: fixed;
+    bottom: 0;
+    left: 180px; /* largura da sidebar */
+    right: 0;
+    background: var(--background);
+    border-top: 1px solid var(--border-components);
+    padding: 12px 24px;
+    z-index: 50;
+}
+
+.rd-action-bar-inner {
+    max-width: 60%;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
 .receipt-meta {
     margin-top: 10px;
     margin-bottom: 18px;
+}
+
+/* ── Widget de itens ── */
+
+.rd-items-dashed-btn {
+    width: 100%;
+    border: 1px dashed var(--border-components);
+    border-radius: var(--radius-md);
+    background: none;
+    color: var(--foreground);
+    padding: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: border-color 0.15s;
+}
+
+.rd-items-dashed-btn:hover {
+    border-color: var(--border-components-darker);
+}
+
+.rd-items-dashed-btn .material-symbols-outlined {
+    font-size: 18px;
+}
+
+.rd-items-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border: 1px solid var(--border-components);
+    border-radius: var(--radius-md);
+    background: var(--background);
+}
+
+.rd-items-summary-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.rd-items-summary-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--foreground);
+}
+
+.rd-items-summary-materials {
+    font-size: 12px;
+    color: var(--muted-foreground);
+}
+
+.rd-items-summary--clickable {
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.rd-items-summary--clickable:hover {
+    border-color: var(--border-components-darker);
+}
+
+.rd-items-summary-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+}
+
+.rd-items-summary-icon--left {
+    width: 18px;
+    height: 18px;
+    padding: 8px;
+    border: 1px solid var(--border-components);
+    border-radius: var(--radius-md);
+    background: var(--muted);
+    box-sizing: content-box;
+}
+
+.rd-items-summary-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.rd-items-empty {
+    color: var(--muted-foreground);
+    font-size: 13px;
+    margin: 0;
+}
+
+
+.rd-form-field .wcm-dp-wrap,
+.rd-form-field .wcm-dp-trigger {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* togglegroup fica só com o tamanho do seu conteúdo */
+#receiptNatureContainer .wcm-toggle-group {
+    width: fit-content;
 }
 
 #headerOptionsContent {
@@ -207,11 +430,6 @@
 }
 
 /**/
-
-.receipts-details-container {
-    width: 100%;
-    padding: 10px;
-}
 
 
 .receipts-details-header {
@@ -631,4 +849,180 @@
     font-size: 11px;
     color: #94a3b8;
     margin-top: 2px;
+}
+
+#rdItemsTableMount .dt-pagination-wrapper {
+    display: none;
+}
+
+/* ── Dialog de itens: altura fixa e rolagem somente na tabela ── */
+
+.dialog-panel--items-dlg {
+    height: 80vh;
+}
+
+.dialog-panel--items-dlg .dialog-body {
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.rd-items-dlg-body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+#rdItemsTableMount {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#rdItemsTableMount .dt-wrapper {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#rdItemsTableMount .dt-table-container {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+/* Linha de total fixa no rodapé da tabela */
+.dt-row:has(.rd-items-total-label) {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+}
+
+/* ── Linhas de grupo e total no data table de itens ─────────── */
+
+.dt-row:has(.rd-items-group-name) {
+    background-color: var(--muted) !important;
+    cursor: default !important;
+}
+
+.rd-items-group-name {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.rd-items-group-badge {
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--border-components);
+    color: var(--muted-foreground);
+    border-radius: 999px;
+    padding: 1px 7px;
+}
+
+.rd-items-group-qty {
+    font-weight: 700;
+    color: var(--foreground);
+}
+
+.dt-row:has(.rd-items-total-label) td,
+.dt-row:has(.rd-items-total-label):hover td {
+    border-bottom: none !important;
+    background-color: color-mix(in srgb, var(--muted) 40%, var(--border-components) 60%) !important;
+    cursor: default !important;
+}
+
+.dt-row:has(.rd-items-total-label) {
+    border-top: 2px solid var(--border-components) !important;
+}
+
+.rd-items-total-label {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--muted-foreground);
+}
+
+.rd-items-total-qty {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--foreground);
+}
+
+.rd-items-dlg-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.rd-items-dlg-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding-bottom: 16px;
+}
+
+.rd-items-dlg-fields {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.rd-items-dlg-fields > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.rd-dlg-field-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+}
+
+.rd-dlg-field-label .required {
+    color: #dc2626;
+}
+
+.rd-items-dlg-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    align-items: flex-end;
+    padding-bottom: 1px;
+}
+
+.rd-items-dlg-divider {
+    border: none;
+    border-top: 1px solid var(--border-components);
+    margin: 0 0 16px 0;
+}
+
+/* Native selects inside the items dialog match custom component style */
+.dialog-input {
+    height: 2.25rem;
+    padding: 0 8px 0 10px;
+    border: 1px solid var(--border-components);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-family: inherit;
+    background: var(--background);
+    color: var(--foreground);
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: border-color 0.15s;
+    width: 100%;
+}
+
+.dialog-input:hover,
+.dialog-input:focus {
+    border-color: var(--border-components-darker);
 }

@@ -51,6 +51,7 @@ router.get("/", (req, res) => {
          JOIN materials m ON m.id = sm.material_id
          WHERE m.name = ?
            AND sm.type = 'exit'
+           AND sm.status NOT IN ('DRAFT', 'ABANDONED')
            AND sm.date BETWEEN ? AND ?${locFilter}
          GROUP BY DATE(sm.date)
          ORDER BY day`,

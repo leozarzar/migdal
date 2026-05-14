@@ -40,7 +40,7 @@ router.get("/", (req, res) => {
     const limitNum  = Math.max(1, parseInt(limit, 10) || 13);
     const offset    = (pageNum - 1) * limitNum;
 
-    let where = 'WHERE 1=1';
+    let where = "WHERE sm.status NOT IN ('DRAFT', 'ABANDONED')";
     const params = [];
 
     if (location_id) {
@@ -108,7 +108,7 @@ router.get("/balance", (req, res) => {
         FROM stock_movements sm
         JOIN materials m ON m.id = sm.material_id
         LEFT JOIN groups g ON g.id = m.group_id
-        WHERE 1=1
+        WHERE sm.status NOT IN ('DRAFT', 'ABANDONED')
     `;
     const params = [];
 
@@ -143,7 +143,7 @@ router.get("/balance", (req, res) => {
  * Body: { material_id, quantity, date, receipt_id?, operator?, reason?, notes? }
  */
 router.post("/entry", requirePermission('inventory', 'stock-movements', 'create'), async (req, res) => {
-    const { material_id, quantity, date, receipt_id, operator, reason, notes, location_id, packaging_id, packaging_count } = req.body;
+    const { material_id, quantity, date, receipt_id, operator, reason, notes, location_id, packaging_id, packaging_count, status } = req.body;
 
     if (!material_id || !quantity || !date) {
         return res.status(400).json({
@@ -161,9 +161,9 @@ router.post("/entry", requirePermission('inventory', 'stock-movements', 'create'
 
     try {
         const result = await dbRun(
-            `INSERT INTO stock_movements (type, material_id, quantity, date, receipt_id, lot_id, location_id, operator, reason, notes, packaging_id, packaging_count)
-             VALUES ('entry', ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
-            [material_id, quantity, date, receipt_id || null, location_id || null, operator || null, reason || 'purchase', notes || null, packaging_id || null, packaging_count || null]
+            `INSERT INTO stock_movements (type, material_id, quantity, date, receipt_id, lot_id, location_id, operator, reason, notes, packaging_id, packaging_count, status)
+             VALUES ('entry', ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`,
+            [material_id, quantity, date, receipt_id || null, location_id || null, operator || null, reason || 'purchase', notes || null, packaging_id || null, packaging_count || null, status || 'CONFIRMED']
         );
 
         res.json({ success: true, id: result.lastID });
@@ -286,7 +286,7 @@ router.post("/transfer", requirePermission('inventory', 'stock-movements', 'crea
 
 /**
  * DELETE /stock-movements/:id
- * Remove uma movimentação específica.
+ * Remove uma movimentação específica (apenas DRAFT).
  */
 router.delete("/:id", requirePermission('inventory', 'stock-movements', 'delete'), (req, res) => {
     const id = parseInt(req.params.id, 10);
@@ -295,21 +295,15 @@ router.delete("/:id", requirePermission('inventory', 'stock-movements', 'delete'
         return res.status(400).json({ success: false, message: "ID inválido" });
     }
 
-    db.run(`DELETE FROM stock_movements WHERE id = ?`, [id], function (err) {
-        if (err) {
-            return res.status(500).json({
-                success: false,
-                message: "Erro ao deletar movimentação",
-                error: err.message
-            });
-        }
-        if (this.changes === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "Movimentação não encontrada"
-            });
-        }
-        res.json({ success: true, deleted: this.changes });
+    db.get(`SELECT status FROM stock_movements WHERE id = ?`, [id], (err, row) => {
+        if (err) return res.status(500).json({ success: false, message: "Erro ao verificar movimentação", error: err.message });
+        if (!row) return res.status(404).json({ success: false, message: "Movimentação não encontrada" });
+        if (row.status !== 'DRAFT') return res.status(400).json({ success: false, message: "Apenas movimentos em rascunho podem ser deletados por este endpoint" });
+
+        db.run(`DELETE FROM stock_movements WHERE id = ?`, [id], function (err2) {
+            if (err2) return res.status(500).json({ success: false, message: "Erro ao deletar movimentação", error: err2.message });
+            res.json({ success: true, deleted: this.changes });
+        });
     });
 });
 

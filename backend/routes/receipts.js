@@ -32,6 +32,9 @@ db.run(`
 db.run(`ALTER TABLE receipts ADD COLUMN nature TEXT`, () => {});
 db.run(`ALTER TABLE receipts ADD COLUMN operator TEXT`, () => {});
 db.run(`ALTER TABLE receipts ADD COLUMN location_id INTEGER`, () => {});
+db.run(`ALTER TABLE receipts ADD COLUMN status TEXT DEFAULT 'COMPLETED'`, () => {});
+db.run(`ALTER TABLE receipts ADD COLUMN total_qty_snapshot REAL`, () => {});
+db.run(`ALTER TABLE receipts ADD COLUMN created_at TEXT`, () => {});
 
 // ── GET Endpoints ─────────────────────────────────────────────────────────
 
@@ -59,11 +62,13 @@ router.get("/", (req, res) => {
     const selectEnriched = `
         SELECT
             r.*,
-            COALESCE((SELECT SUM(su.weight) FROM stock_units su WHERE su.receipt_id = r.id), 0) as total_qty
+            COALESCE((SELECT SUM(su.weight) FROM stock_units su WHERE su.receipt_id = r.id), 0) +
+            COALESCE((SELECT SUM(sm.quantity) FROM stock_movements sm WHERE sm.receipt_id = r.id AND sm.type = 'entry' AND sm.status IN ('DRAFT', 'ABANDONED')), 0)
+            as total_qty
         FROM receipts r
     `;
 
-    const dataSql = `${selectEnriched} ${where} ORDER BY r.date DESC, r.id DESC${paginated ? ' LIMIT ? OFFSET ?' : ''}`;
+    const dataSql = `${selectEnriched} ${where} ORDER BY COALESCE(r.date, r.created_at) DESC, r.id DESC${paginated ? ' LIMIT ? OFFSET ?' : ''}`;
 
     if (paginated) {
         const countSql = `SELECT COUNT(*) as total FROM receipts r ${where}`;
@@ -93,29 +98,45 @@ router.get("/suppliers", (req, res) => {
 });
 
 /**
- * GET /receipts/items/:id - Lista unidades de estoque de um recebimento
+ * GET /receipts/items/:id - Lista unidades de estoque e movimentos simples em rascunho de um recebimento
  */
 router.get("/items/:id", (req, res) => {
     const { id } = req.params;
 
-    db.all(
-        `SELECT * FROM stock_units
-         WHERE receipt_id = ?`,
-        [id],
-        (err, rows) => {
-            if (err) {
-                return res.status(500).json({
-                    success: false,
-                    message: "Erro ao carregar itens do recebimento",
-                    error: err.message
-                });
+    db.all(`SELECT *, 'stock_unit' as item_type FROM stock_units WHERE receipt_id = ?`, [id], (err, units) => {
+        if (err) return res.status(500).json({ success: false, message: "Erro ao carregar itens do recebimento", error: err.message });
+
+        db.all(
+            `SELECT sm.id, sm.quantity, sm.operator, sm.receipt_id, sm.location_id, sm.packaging_id, sm.packaging_count, sm.date AS date_in, m.name AS material, 'movement' AS item_type
+             FROM stock_movements sm
+             JOIN materials m ON m.id = sm.material_id
+             WHERE sm.receipt_id = ? AND sm.status = 'DRAFT'`,
+            [id],
+            (err2, movements) => {
+                if (err2) return res.status(500).json({ success: false, message: "Erro ao carregar movimentos do recebimento", error: err2.message });
+                res.json([...(units || []), ...(movements || [])]);
             }
-            res.json(rows || []);
-        }
-    );
+        );
+    });
 });
 
 // ── POST Endpoints ────────────────────────────────────────────────────────
+
+/**
+ * POST /receipts/draft - Cria um rascunho de recebimento (sem validações de cabeçalho)
+ * Retorna o ID gerado para que o frontend possa exibir o código e persistir itens imediatamente.
+ */
+router.post("/draft", requirePermission('procurement', 'receipts', 'create'), (req, res) => {
+    const { nature, date, location_id } = req.body || {};
+    db.run(
+        `INSERT INTO receipts (status, created_at, nature, date, location_id) VALUES ('DRAFT', datetime('now'), ?, ?, ?)`,
+        [nature || null, date || null, location_id || null],
+        function(err) {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao criar rascunho", error: err.message });
+            res.json({ id: this.lastID });
+        }
+    );
+});
 
 /**
  * POST /receipts - Cria um novo recebimento
@@ -195,6 +216,89 @@ router.put("/update", requirePermission('procurement', 'receipts', 'edit'), (req
             });
         }
     );
+});
+
+// ── PATCH Endpoints ───────────────────────────────────────────────────────
+
+/**
+ * PATCH /receipts/:id/header - Salva campos do cabeçalho sem validações nem mudança de status
+ */
+router.patch("/:id/header", requirePermission('procurement', 'receipts', 'create'), (req, res) => {
+    const { id } = req.params;
+    const { nature, date, supplier, order_id, location_id } = req.body;
+    db.run(
+        `UPDATE receipts SET nature = ?, date = ?, supplier = ?, order_id = ?, location_id = ? WHERE id = ?`,
+        [nature || null, date || null, supplier || null, order_id || null, location_id || null, id],
+        function(err) {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao salvar cabeçalho", error: err.message });
+            if (location_id !== undefined) {
+                db.run(`UPDATE stock_units SET location_id = ? WHERE receipt_id = ?`, [location_id || null, id]);
+                db.run(`UPDATE stock_movements SET location_id = ? WHERE receipt_id = ?`, [location_id || null, id]);
+            }
+            res.json({ success: true });
+        }
+    );
+});
+
+/**
+ * PATCH /receipts/:id/confirm - Confirma um rascunho: salva cabeçalho e transiciona itens DRAFT
+ */
+router.patch("/:id/confirm", requirePermission('procurement', 'receipts', 'create'), (req, res) => {
+    const { id } = req.params;
+    const { nature, date, supplier, order_id, location_id } = req.body;
+
+    if (!nature || !date) {
+        return res.status(400).json({ success: false, message: "Natureza e data são obrigatórios" });
+    }
+
+    db.run(
+        `UPDATE receipts SET nature = ?, date = ?, supplier = ?, order_id = ?, location_id = ?, status = 'COMPLETED' WHERE id = ?`,
+        [nature, date, supplier || null, order_id || null, location_id || null, id],
+        function(err) {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao confirmar recebimento", error: err.message });
+
+            // Confirmar stock_units DRAFT: atualizar status + criar movimentos de entrada
+            db.all(`SELECT * FROM stock_units WHERE receipt_id = ? AND status = 'DRAFT'`, [id], (err2, units) => {
+                if (err2) return res.status(500).json({ success: false, message: "Erro ao confirmar itens", error: err2.message });
+
+                const locVal = location_id || null;
+                db.run(`UPDATE stock_units SET status = 'IN_STOCK', remaining_weight = weight WHERE receipt_id = ? AND status = 'DRAFT'`, [id]);
+                db.run(`UPDATE stock_units SET location_id = ? WHERE receipt_id = ?`, [locVal, id]);
+                db.run(`UPDATE stock_movements SET location_id = ? WHERE receipt_id = ?`, [locVal, id]);
+
+                for (const su of (units || [])) {
+                    db.get(`SELECT id FROM materials WHERE name = ?`, [su.material], (_, mat) => {
+                        const materialId = mat ? mat.id : 0;
+                        db.run(
+                            `INSERT INTO stock_movements (type, material_id, quantity, date, receipt_id, lot_id, location_id, operator, reason, notes)
+                             VALUES ('entry', ?, ?, ?, ?, ?, ?, ?, 'purchase', NULL)`,
+                            [materialId, su.weight, date, id, su.id, locVal, su.operator || null]
+                        );
+                    });
+                }
+
+                // Confirmar stock_movements DRAFT (itens simples)
+                db.run(`UPDATE stock_movements SET status = 'CONFIRMED', date = ? WHERE receipt_id = ? AND status = 'DRAFT'`, [date, id]);
+
+                res.json({ success: true, message: "Recebimento confirmado com sucesso" });
+            });
+        }
+    );
+});
+
+/**
+ * PATCH /receipts/:id/abandon - Descarta um rascunho e limpa os itens associados
+ */
+router.patch("/:id/abandon", requirePermission('procurement', 'receipts', 'create'), (req, res) => {
+    const { id } = req.params;
+
+    db.run(`UPDATE stock_units SET status = 'ABANDONED' WHERE receipt_id = ? AND status = 'DRAFT'`, [id]);
+    db.run(`UPDATE stock_movements SET status = 'ABANDONED' WHERE receipt_id = ? AND status = 'DRAFT'`, [id]);
+
+    db.run(`UPDATE receipts SET status = 'ABANDONED' WHERE id = ?`, [id], function(err) {
+        if (err) return res.status(500).json({ success: false, message: "Erro ao abandonar recebimento", error: err.message });
+        res.json({ success: true, message: "Recebimento abandonado" });
+    });
 });
 
 // ── DELETE Endpoints ──────────────────────────────────────────────────────

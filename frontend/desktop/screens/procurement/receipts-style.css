@@ -34,6 +34,43 @@
     margin-left: auto;
 }
 
+.receipts-supplier-empty {
+    color: var(--placeholder);
+}
+
+.receipt-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    vertical-align: middle;
+    line-height: 1.6;
+}
+
+.receipt-badge-draft {
+    background: color-mix(in srgb, var(--warning, #f59e0b) 15%, transparent);
+    color: var(--warning, #f59e0b);
+    border: 1px solid color-mix(in srgb, var(--warning, #f59e0b) 35%, transparent);
+}
+
+.receipt-badge-abandoned {
+    background: color-mix(in srgb, var(--placeholder) 12%, transparent);
+    color: var(--placeholder);
+    border: 1px solid color-mix(in srgb, var(--placeholder) 30%, transparent);
+}
+
+.receipt-badge-saved {
+    background: color-mix(in srgb, var(--success, #22c55e) 15%, transparent);
+    color: var(--success, #22c55e);
+    border: 1px solid color-mix(in srgb, var(--success, #22c55e) 35%, transparent);
+}
+
+.code-badge--muted {
+    opacity: 0.4;
+}
+
 @media (max-width: 768px) {
     .receipts-container {
         padding: 16px;

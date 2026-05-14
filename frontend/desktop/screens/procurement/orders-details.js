@@ -516,9 +516,11 @@ const OrdersDetails = {
         const item = this.items[index];
         if (item.type === 'group') {
             this._itemSelect?.setValue(item.group_id);
+            this._lastItemSelection = { type: 'group', id: item.group_id, name: item.group_name || '' };
             document.getElementById('itemQuantity').value = item.group_quantity;
         } else {
             this._itemSelect?.setValue(item.material);
+            this._lastItemSelection = { type: 'material', name: String(item.material) };
             document.getElementById('itemQuantity').value = item.quantity;
         }
         const addBtn = document.getElementById('ordersDetailsAddBtn');
@@ -531,6 +533,7 @@ const OrdersDetails = {
     /** Ativa modo de adição a partir de um ghost row */
     startEditGhost(material) {
         this._itemSelect?.setValue(material);
+        this._lastItemSelection = { type: 'material', name: String(material) };
         document.getElementById('itemQuantity').value = '';
         document.getElementById('itemQuantity').focus();
     },
