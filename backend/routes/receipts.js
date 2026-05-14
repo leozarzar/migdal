@@ -45,7 +45,7 @@ db.run(`ALTER TABLE receipts ADD COLUMN created_at TEXT`, () => {});
  *   Inclui total_qty calculado via subquery em stock_units.
  */
 router.get("/", (req, res) => {
-    const { page, limit, supplier } = req.query;
+    const { page, limit, supplier, status_filter } = req.query;
 
     const paginated = page != null || limit != null;
     const pageNum   = Math.max(1, parseInt(page, 10) || 1);
@@ -57,6 +57,11 @@ router.get("/", (req, res) => {
     if (supplier) {
         where += ` AND r.supplier = ?`;
         params.push(supplier);
+    }
+    if (status_filter === 'active') {
+        where += ` AND r.status IN ('COMPLETED', 'DRAFT')`;
+    } else if (status_filter === 'saved') {
+        where += ` AND r.status = 'COMPLETED'`;
     }
 
     const selectEnriched = `

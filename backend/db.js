@@ -243,6 +243,7 @@ db.serialize(() => {
 			return;
 		}
 	});
+	db.run(`ALTER TABLE company ADD COLUMN logo TEXT`, () => {});
 
 	// ── Legacy Data Migration ─────────────────────────────────────────────────
 	// Migrates rows from the deprecated "bags" table into "stock_units".

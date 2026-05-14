@@ -63,11 +63,13 @@ function createInput(config = {}) {
 
     // Mapeamento Lucide → Material Symbol (nomes de ícone do projeto)
     const ICON_MAP = {
-        Search : 'search',
-        Mail   : 'mail',
-        Lock   : 'lock',
-        User   : 'person',
-        Phone  : 'phone',
+        Search  : 'search',
+        Mail    : 'mail',
+        Lock    : 'lock',
+        User    : 'person',
+        Phone   : 'phone',
+        Arroba  : 'alternate_email',
+        Company : 'domain',
     };
 
     // ── Wrapper ─────────────────────────────────────────────────────────────

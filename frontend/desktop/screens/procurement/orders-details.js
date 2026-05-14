@@ -6,84 +6,78 @@ const OrdersDetails = {
 
     // ── Estado ──
 
-    /** Lista de itens do pedido atual */
     items: [],
-
-    /** Instância do SearchSelect para seleção de material/grupo */
-    _itemSelect: null,
-
-    /** Instância do SearchSelect para seleção de fornecedor */
-    _supplierSelect: null,
-
-    /** Indica se há alterações não salvas */
+    receivedQuantities: {},
+    _ghostItems: [],
+    _groupDetails: {},
+    _groupsCache: [],
     _isDirty: false,
-
-    /** Cache de seleção de item (material ou grupo) */
+    _bypassLeaveCheck: false,
+    _editingItemIndex: null,
     _lastItemSelection: null,
 
-    /** Cache de grupos carregados */
-    _groupsCache: [],
+    // ── Instâncias de componentes ──
 
-    /** Verifica se a tela está em modo somente leitura (sem permissão de edição) */
+    _supplierSelect: null,
+    _statusToggle: null,
+    _datePicker: null,
+    _dueDatePicker: null,
+    _expectedDatePicker: null,
+    _itemsDialog: null,
+    _itemsDataTable: null,
+    _dlgItemSelect: null,
+
     _isReadOnly() {
         if (!Orders.selectedOrder) return false;
         return !hasPermission('procurement', 'orders', 'edit');
     },
 
-    /** Índice do item sendo editado inline (null = nenhum em edição) */
-    _editingItemIndex: null,
-
-    /**
-     * Materiais recebidos vinculados ao pedido mas não presentes em `items`.
-     * Exibidos como linhas fantasma clicáveis.
-     * @type {Array<{material: string, receivedQuantity: number}>}
-     */
-    _ghostItems: [],
-
-    /** Materiais por grupo_id, carregados na render() e usados para calcular ghosts ao deletar */
-    _groupDetails: {},
+    _isFormLocked() {
+        const status = this._statusToggle?.getValue();
+        return status === 'CLOSED' || status === 'CANCELLED' || this._isReadOnly();
+    },
 
     // ── Ciclo de Vida ──
 
-    /** Retorna o template HTML e carrega itens/quantidades recebidas (se editando) */
     async render() {
         this.items = [];
         this.receivedQuantities = {};
-        this._editingItemIndex = null;
         this._ghostItems = [];
         this._groupDetails = {};
-        this._itemSelect?.destroy(); this._itemSelect = null;
-        this._supplierSelect?.destroy(); this._supplierSelect = null;
+        this._editingItemIndex = null;
+        this._lastItemSelection = null;
+        this._supplierSelect?.destroy();        this._supplierSelect = null;
+        this._statusToggle?.destroy();          this._statusToggle = null;
+        this._datePicker?.destroy();            this._datePicker = null;
+        this._dueDatePicker?.destroy();         this._dueDatePicker = null;
+        this._expectedDatePicker?.destroy();    this._expectedDatePicker = null;
+        this._itemsDialog?.destroy();           this._itemsDialog = null;
+        this._itemsDataTable?.destroy();        this._itemsDataTable = null;
+        this._dlgItemSelect?.destroy();         this._dlgItemSelect = null;
 
         if (Orders.selectedOrder) {
             try {
-                // Carrega os itens do pedido selecionado
                 const orderItems = await apiCall(API + `/orders/items/${Orders.selectedOrder.id}`);
                 this.items = orderItems.map(i => {
                     if (i.group_id != null || i.group_quantity != null) {
-                        return { type: 'group', group_id: i.group_id, group_name: i.group_name, group_quantity: i.group_quantity };
+                        return { type: 'group', group_id: i.group_id, group_name: i.group_name, group_quantity: i.group_quantity, receivedQuantity: 0 };
                     }
                     return { type: 'material', material: i.material, quantity: i.quantity, receivedQuantity: 0 };
                 });
 
-                // Carrega os bags vinculados ao pedido para calcular quantidades recebidas
                 const bags = await apiCall(API + `/orders/${Orders.selectedOrder.id}/stock-units`);
                 if (bags && bags.length > 0) {
-                    // Agrupa peso total por material a partir dos bags
                     const materialQuantities = {};
                     bags.forEach(bag => {
-                        const material = bag.material;
-                        materialQuantities[material] = (materialQuantities[material] || 0) + bag.weight;
+                        materialQuantities[bag.material] = (materialQuantities[bag.material] || 0) + bag.weight;
                     });
+                    this.receivedQuantities = materialQuantities;
 
-                    // Atribui a quantidade recebida a cada item do tipo material
                     this.items = this.items.map(item => {
                         if (item.type === 'group') return item;
                         return { ...item, receivedQuantity: materialQuantities[item.material] || 0 };
                     });
-                    this.receivedQuantities = materialQuantities;
 
-                    // Busca os materiais de cada grupo via API para calcular recebido por grupo
                     const groupDetails = {};
                     for (const item of this.items) {
                         if (item.type !== 'group' || groupDetails[item.group_id] !== undefined) continue;
@@ -95,7 +89,7 @@ const OrdersDetails = {
                         }
                     }
                     this._groupDetails = groupDetails;
-                    // Soma as quantidades recebidas dos materiais pertencentes a cada grupo
+
                     this.items = this.items.map(item => {
                         if (item.type !== 'group') return item;
                         const materialNames = groupDetails[item.group_id] || [];
@@ -103,12 +97,8 @@ const OrdersDetails = {
                         return { ...item, receivedQuantity: received };
                     });
 
-                    // Calcula ghost rows: recebidos mas não listados nos itens do pedido
-                    // Exclui materiais já presentes como item direto OU pertencentes a um grupo incluído
                     const orderedMaterials = new Set(this.items.filter(i => i.type === 'material').map(i => i.material));
-                    const groupMaterials = new Set(
-                        Object.values(groupDetails).flat()
-                    );
+                    const groupMaterials = new Set(Object.values(groupDetails).flat());
                     this._ghostItems = Object.entries(materialQuantities)
                         .filter(([mat]) => !orderedMaterials.has(mat) && !groupMaterials.has(mat))
                         .map(([mat, qty]) => ({ material: mat, receivedQuantity: qty }));
@@ -120,25 +110,33 @@ const OrdersDetails = {
 
         return `
         <div class="orders-details-container">
-            <div class="order-header">
-                <h1>Pedido <span id="orderTitleCode">-</span></h1>
-                <div class="order-meta">
-                    <span>Fornecedor: <span id="orderSupplierName">-</span>  |  </span>
-                    <span>Status: <span id="orderStatusLabel">-</span>  |  </span>
-                    <span>Qtd: <span id="orderQty">0</span>  |  </span>
-                    <span>Recebido: <span id="orderReceivedQty">0</span>  |  </span>
-                    <span>Dif %: <span id="orderDiff">-</span></span>
-                </div>
-            </div>
-
-            <div class="orders-details-cards-row">
-                <div class="details-card">
-                    <div class="card-header">
-                        <h2>Informações Básicas</h2>
+            <div class="rd-content">
+                <div class="rd-header">
+                    <h1>Pedido <span id="orderTitleCode"></span><span id="orderDraftBadge" style="margin-left:8px"></span></h1>
+                    <div class="rd-meta">
+                        <span>Fornecedor: <span id="orderSupplierName">-</span>  |  </span>
+                        <span>Status: <span id="orderStatusLabel">-</span>  |  </span>
+                        <span>Qtd: <span id="orderQty">0</span>  |  </span>
+                        <span>Recebido: <span id="orderReceivedQty">0</span>  |  </span>
+                        <span>Dif%: <span id="orderDiff">-</span></span>
                     </div>
-                    <div class="card-content">
-                        <div class="form-group">
-                            <label for="orderSupplier">Fornecedor <span class="required" id="reqSupplier">*</span></label>
+                </div>
+
+                <div class="rd-separator"></div>
+
+                <input type="hidden" id="orderCode">
+                <input type="hidden" id="orderDate">
+                <input type="hidden" id="orderDue">
+                <input type="hidden" id="orderExpected">
+
+                <div class="rd-section">
+                    <h2 class="rd-section-title">Informações Básicas</h2>
+                    <div class="rd-form-row">
+                        <div class="rd-form-label">
+                            <span class="rd-field-name">Fornecedor <span class="required" id="reqSupplier">*</span></span>
+                            <span class="rd-field-desc">Empresa fornecedora dos materiais</span>
+                        </div>
+                        <div class="rd-form-field">
                             <div class="select-with-btn">
                                 <div id="orderSupplierContainer"></div>
                                 <button class="btn-open-tab" onclick="openNewTab('suppliers')" title="Abrir cadastro de fornecedores em nova aba">
@@ -146,121 +144,100 @@ const OrdersDetails = {
                                 </button>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label for="orderStatus">Status</label>
-                            <select id="orderStatus" class="form-control" onchange="OrdersDetails._updateHeaderFields()" disabled>
-                                <option value="OPEN">Aberto</option>
-                                <option value="CLOSED">Fechado</option>
-                                <option value="CANCELLED">Cancelado</option>
-                            </select>
+                    </div>
+                    <div class="rd-form-row">
+                        <div class="rd-form-label">
+                            <span class="rd-field-name">Status</span>
+                            <span class="rd-field-desc">Situação atual do pedido</span>
+                        </div>
+                        <div class="rd-form-field">
+                            <div id="orderStatusContainer"></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="details-card">
-                    <div class="card-header">
-                        <h2>Datas</h2>
+                <div class="rd-section">
+                    <h2 class="rd-section-title">Datas</h2>
+                    <div class="rd-form-row">
+                        <div class="rd-form-label">
+                            <span class="rd-field-name">Data do Pedido <span class="required" id="reqDate">*</span></span>
+                            <span class="rd-field-desc">Data em que o pedido foi emitido</span>
+                        </div>
+                        <div class="rd-form-field">
+                            <div id="orderDateContainer"></div>
+                        </div>
                     </div>
-                    <div class="card-content">
-                        <div class="form-group">
-                            <label for="orderDate">Data do Pedido <span class="required" id="reqDate">*</span></label>
-                            <input type="date" id="orderDate" class="form-control" onchange="OrdersDetails._updateRequiredIndicators()">
+                    <div class="rd-form-row">
+                        <div class="rd-form-label">
+                            <span class="rd-field-name">Prazo Limite</span>
+                            <span class="rd-field-desc">Data máxima para recebimento</span>
                         </div>
-                        <div class="form-group">
-                            <label for="orderExpected">Previsão</label>
-                            <input type="date" id="orderExpected" class="form-control">
+                        <div class="rd-form-field">
+                            <div id="orderDueContainer"></div>
                         </div>
-                        <div class="form-group">
-                            <label for="orderDue">Prazo Limite</label>
-                            <input type="date" id="orderDue" class="form-control">
+                    </div>
+                    <div class="rd-form-row">
+                        <div class="rd-form-label">
+                            <span class="rd-field-name">Previsão</span>
+                            <span class="rd-field-desc">Data prevista de entrega</span>
+                        </div>
+                        <div class="rd-form-field">
+                            <div id="orderExpectedContainer"></div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="orders-details-items">
-                <div class="details-card">
-                    <div class="card-header">
-                        <h2>Itens do Pedido</h2>
-                    </div>
-                    <div class="card-content">
-                        <div class="item-form-section">
-                            <div class="item-form-wrapper">
-                                <div class="orders-details-item-form">
-                                    <div class="select-with-btn">
-                                        <div id="itemSelectContainer"></div>
-                                        <button class="btn-open-tab" onclick="openNewTab('materials')" title="Abrir cadastro de materiais em nova aba">
-                                            <span class="material-symbols-outlined">open_in_new</span>
-                                        </button>
-                                    </div>
-                                    <div id="itemQuantityContainer"></div>
-                                </div>
-                                <div class="item-form-btns">
-                                    <button id="ordersDetailsAddBtn" class="btn-add" onclick="OrdersDetails.addItem()"><span class="material-symbols-outlined">playlist_add</span>Adicionar</button>
-                                    <button id="ordersDetailsCancelEditBtn" class="btn-cancel-edit" onclick="OrdersDetails.cancelEditItem()" style="display:none">Cancelar</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="orders-details-table-container">
-                            <table class="orders-details-table">
-                                <thead>
-                                    <tr>
-                                        <th class="col-material">Material</th>
-                                        <th class="col-qty">Quantidade</th>
-                                        <th class="col-received">Recebido</th>
-                                        <th class="col-actions"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="ordersItemsBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
+                <div class="rd-section">
+                    <h2 class="rd-section-title">Itens do Pedido</h2>
+                    <div id="ordItemsWidget"></div>
                 </div>
             </div>
-        </div>
-        `;
+
+            <div class="rd-action-bar" id="ordActionBar"></div>
+        </div>`;
     },
 
-    /** Marca o formulário como modificado */
     _markDirty() { this._isDirty = true; },
 
-    /** Permite ao router verificar se pode navegar para outra tela */
     async canLeave() {
-        if (!this._isDirty) return true;
-        return confirm('Você tem alterações não salvas. Deseja sair sem salvar?');
+        if (this._bypassLeaveCheck) { this._bypassLeaveCheck = false; return true; }
+        const isNew = !Orders.selectedOrder;
+        if (!isNew && !this._isDirty) return true;
+        return new Promise(resolve => {
+            let resolved = false;
+            const done = (val) => { if (!resolved) { resolved = true; resolve(val); } };
+            const dlg = createDialog({
+                title: isNew ? 'Rascunho não salvo' : 'Alterações não salvas',
+                bodyHTML: isNew
+                    ? '<p>O pedido ainda não foi criado. Se sair agora, o rascunho será perdido.</p>'
+                    : '<p>Você tem alterações não salvas. O que deseja fazer?</p>',
+                closeOnBackdrop: false,
+                actions: [
+                    { label: isNew ? 'Descartar rascunho' : 'Sair sem salvar', variant: 'cancel', onClick: () => { done(true); dlg.close(); } },
+                    { label: 'Continuar editando', variant: 'secondary', onClick: () => { done(false); dlg.close(); } },
+                ],
+                onClose: () => done(false),
+            });
+            dlg.open();
+        });
     },
 
-    /** Inicializa a tela: popula selects, preenche campos do pedido selecionado */
     async load() {
         this._isDirty = false;
-        this._itemSelect = createSelect({
-            placeholder: 'Selecione material ou grupo',
-            searchable: true,
-            sections: [
-                { key: 'material', label: 'Materiais', items: [] },
-                { key: 'group',    label: 'Grupos',    items: [] }
-            ],
-            onChange: (value) => {
-                if (value == null) { this._lastItemSelection = null; return; }
-                const isGroup = typeof value === 'number';
-                if (isGroup) {
-                    const group = this._groupsCache.find(g => g.id === value);
-                    this._lastItemSelection = { type: 'group', id: value, name: group?.name || '' };
-                    const idx = this.items.findIndex(i => i.type === 'group' && i.group_id === value);
-                    if (idx !== -1) { this.startEditItem(idx); return; }
-                } else {
-                    this._lastItemSelection = { type: 'material', name: String(value) };
-                    const idx = this.items.findIndex(i => i.type === 'material' && i.material === value);
-                    if (idx !== -1) { this.startEditItem(idx); return; }
-                }
-            }
-        });
-        this._itemSelect.mount(document.getElementById('itemSelectContainer'));
+        this._renderActionBar();
 
-        this._quantityInput?.destroy();
-        this._quantityInput = createInput({ id: 'itemQuantity', placeholder: 'Quantidade' });
-        document.getElementById('itemQuantityContainer').appendChild(this._quantityInput.el);
+        // Order date picker (sem restrições próprias, mas controla os dependentes)
+        this._datePicker = createDatePicker({
+            placeholder: 'Selecione a data',
+            onChange: (date) => {
+                document.getElementById('orderDate').value = date ? date.toISOString().slice(0, 10) : '';
+                OrdersDetails._remountDueDatePicker();
+                OrdersDetails._remountExpectedDatePicker();
+                OrdersDetails._updateRequiredIndicators();
+                OrdersDetails._markDirty();
+            },
+        });
+        this._datePicker.mount(document.getElementById('orderDateContainer'));
 
         this._supplierSelect = createSelect({
             placeholder: 'Selecione um fornecedor',
@@ -270,157 +247,453 @@ const OrdersDetails = {
         });
         this._supplierSelect.mount(document.getElementById('orderSupplierContainer'));
 
+        this._statusToggle = createToggleGroup({
+            options: [
+                { value: 'OPEN',      label: 'Aberto' },
+                { value: 'CLOSED',    label: 'Fechado' },
+                { value: 'CANCELLED', label: 'Cancelado' },
+            ],
+            onChange: () => {
+                OrdersDetails._updateHeaderFields();
+                OrdersDetails._onStatusChange();
+                OrdersDetails._markDirty();
+            },
+        });
+        this._statusToggle.mount(document.getElementById('orderStatusContainer'));
+
         await this._refreshSelects();
 
-        this._setHeaderOptions();
-        this._updateRequiredIndicators();
-
         if (Orders.selectedOrder) {
+            document.getElementById("orderCode").value = Orders.selectedOrder.id;
             document.getElementById("orderTitleCode").textContent = `#${Orders.selectedOrder.id}`;
             if (Orders.selectedOrder.supplier) this._supplierSelect.setValue(Orders.selectedOrder.supplier);
-            document.getElementById("orderDate").value = Orders.selectedOrder.date;
-            document.getElementById("orderExpected").value = Orders.selectedOrder.expected_date;
-            document.getElementById("orderDue").value = Orders.selectedOrder.due_date;
-            document.getElementById("orderStatus").value = Orders.selectedOrder.status;
-            document.getElementById("orderStatus").disabled = false;
+            this._statusToggle.setValue(Orders.selectedOrder.status || 'OPEN');
+
+            const date = Orders.selectedOrder.date;
+            if (date) {
+                document.getElementById('orderDate').value = date;
+                this._datePicker.setValue(new Date(date + 'T00:00:00'));
+            }
+
+            // Pré-carrega os valores nos hidden inputs antes de recriar os pickers
+            const dueDate = Orders.selectedOrder.due_date;
+            if (dueDate) document.getElementById('orderDue').value = dueDate;
+
+            const expectedDate = Orders.selectedOrder.expected_date;
+            if (expectedDate) document.getElementById('orderExpected').value = expectedDate;
         } else {
             const nextId = await this._getNextOrderCode();
-            document.getElementById("orderTitleCode").textContent = `#${nextId}`;
-            document.getElementById("orderStatus").value = 'OPEN';
-            document.getElementById("orderStatus").disabled = true;
+            document.getElementById("orderCode").value = nextId;
+            document.getElementById("orderDraftBadge").innerHTML = '<span class="receipt-badge receipt-badge-draft">Rascunho</span>';
+            this._statusToggle.setValue('OPEN');
+            // Status imutável para pedidos novos
+            this._statusToggle.el.style.pointerEvents = 'none';
+            this._statusToggle.el.style.opacity = '0.6';
+
+            // Data do pedido começa com a data de hoje
+            const today = new Date().toISOString().slice(0, 10);
+            document.getElementById('orderDate').value = today;
+            this._datePicker.setValue(new Date(today + 'T00:00:00'));
         }
+
+        // Cria/recria pickers de prazo e previsão com as restrições corretas
+        this._remountDueDatePicker();
+        this._remountExpectedDatePicker();
+
+        // Aplica estado de bloqueio (leitura ou status CLOSED)
+        this._applyLockedState();
 
         this._updateHeaderFields();
-
-        // Calcula total de quantidade pedida (materiais + grupos)
-        const totalQty = this.items.reduce((sum, item) => {
-            if (item.type === 'group') return sum + (item.group_quantity || 0);
-            return sum + (item.quantity || 0);
-        }, 0);
-        document.getElementById("orderQty").textContent = totalQty;
-
-        // Calcula total de quantidade recebida via bags
-        const totalReceivedQty = this.items.reduce((sum, item) => {
-            return sum + (item.receivedQuantity || 0);
-        }, 0);
-        document.getElementById("orderReceivedQty").textContent = isNaN(totalReceivedQty) ? '-' : totalReceivedQty;
-
-        // Calcula e exibe o percentual de diferença entre recebido e pedido
-        let diffHtml = '-';
-        if (totalReceivedQty > 0 && totalQty > 0) {
-            const diffPct = Math.round(((totalReceivedQty / totalQty) - 1) * 100);
-            const sign = diffPct >= 0 ? '+' : '';
-            const color = diffPct >= 0 ? '#2e7d32' : '#c62828';
-            diffHtml = `<span style="color:${color};font-weight:600">${sign}${diffPct}%</span>`;
-        }
-        document.getElementById("orderDiff").innerHTML = diffHtml;
-
-        this._renderItems();
-
-        // Modo somente leitura: desabilita campos e oculta formulário de itens
-        if (this._isReadOnly()) {
-            document.querySelectorAll('#content input, #content select, #content textarea')
-                .forEach(el => el.disabled = true);
-            this._itemSelect?.setDisabled(true);
-            this._supplierSelect?.setDisabled(true);
-            const formWrapper = document.querySelector('.item-form-wrapper');
-            if (formWrapper) formWrapper.style.display = 'none';
-        } else {
-            // Marca o form como sujo em qualquer alteração de campo
-            document.querySelectorAll('#content input, #content select, #content textarea')
-                .forEach(el => el.addEventListener('change', () => this._markDirty()));
-        }
+        this._refreshItemsView();
     },
 
     async _refreshSelects() {
-        if (!this._itemSelect || !this._supplierSelect) return;
+        if (!this._supplierSelect) return;
         try {
-            const [materials, suppliers, groups] = await Promise.all([
-                apiCall(API + "/materials"),
+            const [suppliers, groups] = await Promise.all([
                 apiCall(API + "/suppliers"),
                 apiCall(API + "/groups").catch(() => [])
             ]);
-            this._itemSelect.setItems('material', (materials || []).map(m => ({ value: m.name, label: m.name })));
-            this._groupsCache = groups || [];
-            this._itemSelect.setItems('group',    (groups   || []).map(g => ({ value: g.id,   label: g.name })));
             this._supplierSelect.setItems('supplier', (suppliers || []).map(s => ({ value: s.name, label: s.name })));
-        } catch (e) { /* falha silenciosa em background */ }
+            this._groupsCache = groups || [];
+        } catch (e) { /* falha silenciosa */ }
     },
 
     async onTabFocus() { await this._refreshSelects(); },
 
+    // ── Pickers dependentes ──
+
+    /** Recria o picker de Prazo Limite com minDate = dia seguinte ao Data do Pedido */
+    _remountDueDatePicker() {
+        const orderDateStr = document.getElementById('orderDate')?.value;
+        const locked = this._isFormLocked();
+
+        let minDate = null;
+        if (orderDateStr) {
+            minDate = new Date(orderDateStr + 'T00:00:00');
+            minDate.setDate(minDate.getDate() + 1);
+        }
+
+        // Preserva valor atual se ainda válido, senão limpa
+        const currentDueStr = document.getElementById('orderDue')?.value;
+        let restoreDate = null;
+        if (!orderDateStr) {
+            document.getElementById('orderDue').value = '';
+        } else if (currentDueStr) {
+            const currentDue = new Date(currentDueStr + 'T00:00:00');
+            if (currentDue >= minDate) {
+                restoreDate = currentDue;
+            } else {
+                document.getElementById('orderDue').value = '';
+            }
+        }
+
+        this._dueDatePicker?.destroy(); this._dueDatePicker = null;
+
+        this._dueDatePicker = createDatePicker({
+            placeholder: 'Selecione a data',
+            disabled: !orderDateStr || locked,
+            minDate,
+            onChange: (date) => {
+                document.getElementById('orderDue').value = date ? date.toISOString().slice(0, 10) : '';
+                OrdersDetails._remountExpectedDatePicker();
+                OrdersDetails._markDirty();
+            },
+        });
+        this._dueDatePicker.mount(document.getElementById('orderDueContainer'));
+        if (restoreDate) this._dueDatePicker.setValue(restoreDate);
+    },
+
+    /** Recria o picker de Previsão com minDate = Data do Pedido e maxDate = Prazo Limite */
+    _remountExpectedDatePicker() {
+        const orderDateStr = document.getElementById('orderDate')?.value;
+        const dueDateStr = document.getElementById('orderDue')?.value;
+        const locked = this._isFormLocked();
+
+        const minDate = orderDateStr ? new Date(orderDateStr + 'T00:00:00') : null;
+        const maxDate = dueDateStr ? new Date(dueDateStr + 'T00:00:00') : null;
+
+        const currentExpStr = document.getElementById('orderExpected')?.value;
+        let restoreDate = null;
+        if (!orderDateStr || !dueDateStr) {
+            document.getElementById('orderExpected').value = '';
+        } else if (currentExpStr) {
+            const expDate = new Date(currentExpStr + 'T00:00:00');
+            const valid = (!minDate || expDate >= minDate) && (!maxDate || expDate <= maxDate);
+            if (valid) restoreDate = expDate;
+            else document.getElementById('orderExpected').value = '';
+        }
+
+        this._expectedDatePicker?.destroy(); this._expectedDatePicker = null;
+
+        this._expectedDatePicker = createDatePicker({
+            placeholder: 'Selecione a data',
+            disabled: !orderDateStr || !dueDateStr || locked,
+            minDate,
+            maxDate,
+            onChange: (date) => {
+                document.getElementById('orderExpected').value = date ? date.toISOString().slice(0, 10) : '';
+                OrdersDetails._markDirty();
+            },
+        });
+        this._expectedDatePicker.mount(document.getElementById('orderExpectedContainer'));
+        if (restoreDate) this._expectedDatePicker.setValue(restoreDate);
+    },
+
+    /** Aplica o estado de bloqueio global (status CLOSED ou somente leitura) */
+    _applyLockedState() {
+        const locked = this._isFormLocked();
+        const readOnly = this._isReadOnly();
+
+        this._supplierSelect?.setDisabled(locked);
+        this._datePicker?.setDisabled(locked);
+
+        if (readOnly && this._statusToggle?.el) {
+            this._statusToggle.el.style.pointerEvents = 'none';
+            this._statusToggle.el.style.opacity = '0.6';
+        }
+    },
+
+    /** Reage à mudança de status: bloqueia/desbloqueia campos conforme necessário */
+    _onStatusChange() {
+        this._applyLockedState();
+        this._remountDueDatePicker();
+        this._remountExpectedDatePicker();
+        this._renderItemsWidget();
+    },
+
     // ── Ações Públicas ──
 
-    /** Salva um novo pedido */
     async save() {
         const orderData = this._getOrderData();
-
-        if (!isAllFieldsFilled(orderData)) {
-            alert("Erro: Campo sem preenchimento.");
+        if (!orderData.supplier || !orderData.date) {
+            alert("Erro: Fornecedor e Data do Pedido são obrigatórios.");
             return;
         }
-
         if (this.items.length === 0) {
-            alert("Erro: Nenhum item lançado.");
+            alert("Erro: Adicione pelo menos um item ao pedido.");
             return;
         }
-
         try {
             const response = await apiCall(API + "/orders", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(orderData)
             });
-
             await this._saveOrderItems(response.id);
             this._isDirty = false;
-            alert("Pedido salvo com sucesso");
+            showToast("Pedido salvo com sucesso", "success");
             showScreen('orders');
         } catch (error) {
             alert("Erro ao salvar pedido");
         }
     },
 
-    /** Atualiza um pedido existente */
     async editOrder() {
         const orderData = this._getOrderData();
-
-        if (!isAllFieldsFilled(orderData)) {
-            alert("Erro: Campo sem preenchimento.");
+        if (!orderData.supplier || !orderData.date) {
+            alert("Erro: Fornecedor e Data do Pedido são obrigatórios.");
             return;
         }
-
         if (this.items.length === 0) {
-            alert("Erro: Nenhum item lançado.");
+            alert("Erro: O pedido deve ter pelo menos um item.");
             return;
         }
-
         try {
             await apiCall(API + "/orders/update", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(orderData)
             });
-
             await apiCall(API + "/orders/items", {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id: orderData.id })
             });
-
             await this._saveOrderItems(orderData.id);
             this._isDirty = false;
-            alert("Pedido atualizado com sucesso");
+            showToast("Pedido atualizado com sucesso", "success");
             showScreen('orders');
         } catch (error) {
             alert("Erro ao atualizar pedido");
         }
     },
 
-    /** Adiciona ou atualiza um item (material ou grupo) no pedido */
+    cancel() {
+        showScreen('orders');
+    },
+
+    async _exitScreen() {
+        const isNew = !Orders.selectedOrder;
+        if (isNew || this._isDirty) {
+            const canGo = await new Promise(resolve => {
+                let resolved = false;
+                const done = (val) => { if (!resolved) { resolved = true; resolve(val); } };
+                const dlg = createDialog({
+                    title: isNew ? 'Rascunho não salvo' : 'Alterações não salvas',
+                    bodyHTML: isNew
+                        ? '<p>O pedido ainda não foi criado. Se sair agora, o rascunho será perdido.</p>'
+                        : '<p>Você tem alterações não salvas. O que deseja fazer?</p>',
+                    closeOnBackdrop: false,
+                    actions: [
+                        { label: isNew ? 'Descartar rascunho' : 'Sair sem salvar', variant: 'cancel', onClick: () => { done(true); dlg.close(); } },
+                        { label: 'Continuar editando', variant: 'secondary', onClick: () => { done(false); dlg.close(); } },
+                    ],
+                    onClose: () => done(false),
+                });
+                dlg.open();
+            });
+            if (!canGo) return;
+        }
+        this._isDirty = false;
+        this._bypassLeaveCheck = true;
+        showScreen('orders');
+    },
+
+    // ── Dialog de Itens ──
+
+    openItemsDialog() {
+        this._editingItemIndex = null;
+        this._lastItemSelection = null;
+        this._dlgItemSelect?.destroy(); this._dlgItemSelect = null;
+
+        const readOnly = this._isReadOnly();
+
+        this._itemsDialog = createDialog({
+            title: 'Itens do Pedido',
+            wide: true,
+            bodyHTML: `
+                <div class="rd-items-dlg-body">
+                    ${!readOnly ? `
+                    <div class="rd-items-dlg-form">
+                        <div class="rd-items-dlg-fields">
+                            <div>
+                                <span class="rd-dlg-field-label">Material ou Grupo <span class="required">*</span></span>
+                                <div class="select-with-btn">
+                                    <div id="ordDlgItemContainer"></div>
+                                    <button class="btn-open-tab" onclick="openNewTab('materials')" title="Abrir cadastro de materiais em nova aba">
+                                        <span class="material-symbols-outlined">open_in_new</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <span class="rd-dlg-field-label">Quantidade <span class="required">*</span></span>
+                                <div id="ordDlgQtyMount"></div>
+                            </div>
+                        </div>
+                        <div class="rd-items-dlg-actions" id="ordDlgFormActions"></div>
+                    </div>
+                    <hr class="rd-items-dlg-divider">
+                    ` : ''}
+                    <div id="ordItemsTableMount"></div>
+                </div>`,
+            actions: [
+                { label: 'Fechar', variant: 'secondary', onClick: () => this._itemsDialog?.close() },
+            ],
+            onClose: () => {
+                this._dlgItemSelect?.destroy(); this._dlgItemSelect = null;
+                this._itemsDataTable?.destroy(); this._itemsDataTable = null;
+                const dlg = this._itemsDialog; this._itemsDialog = null;
+                dlg?.destroy();
+                this._renderItemsWidget();
+            },
+        });
+        this._itemsDialog.open();
+
+        const backdrops = document.querySelectorAll('.dialog-backdrop');
+        backdrops[backdrops.length - 1]?.querySelector('.dialog-panel')?.classList.add('dialog-panel--items-dlg');
+
+        const columns = [
+            {
+                key: 'material',
+                header: 'Material',
+                render: r => {
+                    if (r._isTotal) return `<span class="rd-items-total-label">Total</span>`;
+                    if (r._isGhost) return `<span class="ord-ghost-name">${_esc(r.material)}</span>`;
+                    if (r.type === 'group') return `<span class="ord-group-badge">Grupo</span> ${_esc(r.group_name)}`;
+                    return _esc(r.material);
+                },
+            },
+            {
+                key: 'quantity',
+                header: 'Quantidade',
+                width: '120px',
+                render: r => {
+                    if (r._isTotal) return `<span class="rd-items-total-qty">${r._grandTotal}</span>`;
+                    if (r._isGhost) return '—';
+                    if (r.type === 'group') return String(r.group_quantity);
+                    return String(r.quantity);
+                },
+            },
+            {
+                key: 'received',
+                header: 'Recebido',
+                width: '120px',
+                render: r => {
+                    if (r._isTotal) return '';
+                    if (r._isGhost) return String(r.receivedQuantity);
+                    return r.receivedQuantity ? String(r.receivedQuantity) : '—';
+                },
+            },
+        ];
+
+        this._itemsDataTable = createDataTable({
+            columns,
+            getRowKey: r => r._isTotal ? 'total' : r._isGhost ? `ghost-${r.material}` : `item-${r._idx}`,
+            emptyMessage: 'Nenhum item adicionado.',
+            emptyIcon: 'inventory_2',
+            ...(!readOnly ? {
+                onRowClick: r => {
+                    if (r._isTotal) return;
+                    if (r._isGhost) { OrdersDetails._startEditGhostInDialog(r.material); return; }
+                    OrdersDetails.startEditItem(r._idx);
+                },
+                actions: [{
+                    label: 'Remover',
+                    icon: 'delete',
+                    variant: 'destructive',
+                    hidden: r => !!(r._isTotal || r._isGhost),
+                    onClick: r => OrdersDetails.deleteItem(r._idx),
+                }],
+            } : {}),
+        });
+        this._itemsDataTable.mount(document.getElementById('ordItemsTableMount'));
+        this._refreshDlgTable();
+
+        if (!readOnly) {
+            const qtyInput = createInput({ id: 'ordDlgQty', type: 'number', placeholder: '0' });
+            qtyInput.input.min = '0.01';
+            qtyInput.input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') { e.preventDefault(); OrdersDetails.addItem(); }
+            });
+            document.getElementById('ordDlgQtyMount').appendChild(qtyInput.el);
+
+            this._dlgItemSelect = createSelect({
+                placeholder: 'Selecione material ou grupo',
+                searchable: true,
+                sections: [
+                    { key: 'material', label: 'Materiais', items: [] },
+                    { key: 'group',    label: 'Grupos',    items: [] },
+                ],
+                onChange: (value) => {
+                    if (value == null) { OrdersDetails._lastItemSelection = null; return; }
+                    const isGroup = typeof value === 'number';
+                    if (isGroup) {
+                        const group = OrdersDetails._groupsCache.find(g => g.id === value);
+                        OrdersDetails._lastItemSelection = { type: 'group', id: value, name: group?.name || '' };
+                        const idx = OrdersDetails.items.findIndex(i => i.type === 'group' && i.group_id === value);
+                        if (idx !== -1) { OrdersDetails.startEditItem(idx); return; }
+                    } else {
+                        OrdersDetails._lastItemSelection = { type: 'material', name: String(value) };
+                        const idx = OrdersDetails.items.findIndex(i => i.type === 'material' && i.material === value);
+                        if (idx !== -1) { OrdersDetails.startEditItem(idx); return; }
+                    }
+                }
+            });
+            this._dlgItemSelect.mount(document.getElementById('ordDlgItemContainer'));
+
+            apiCall(API + "/materials").then(materials => {
+                OrdersDetails._dlgItemSelect?.setItems('material', (materials || []).map(m => ({ value: m.name, label: m.name })));
+            }).catch(() => {});
+            this._dlgItemSelect.setItems('group', this._groupsCache.map(g => ({ value: g.id, label: g.name })));
+
+            this._renderDlgFormActions();
+        }
+    },
+
+    _renderDlgFormActions() {
+        const container = document.getElementById('ordDlgFormActions');
+        if (!container) return;
+        container.innerHTML = '';
+        const isEdit = this._editingItemIndex !== null;
+        const addBtn = createButton({
+            label: isEdit ? 'Salvar' : 'Adicionar',
+            variant: 'primary',
+            icon: isEdit ? 'check' : 'add',
+            onClick: () => OrdersDetails.addItem(),
+        });
+        container.appendChild(addBtn.el);
+        if (isEdit) {
+            const cancelBtn = createButton({
+                label: 'Cancelar',
+                variant: 'secondary',
+                onClick: () => OrdersDetails.cancelEditItem(),
+            });
+            container.appendChild(cancelBtn.el);
+        }
+    },
+
+    _clearDlgForm() {
+        this._dlgItemSelect?.clear();
+        this._lastItemSelection = null;
+        const qtyEl = document.getElementById('ordDlgQty');
+        if (qtyEl) qtyEl.value = '';
+    },
+
     addItem() {
         const selected = this._lastItemSelection;
-        const quantity = document.getElementById("itemQuantity").value;
+        const qtyEl = document.getElementById('ordDlgQty');
+        const quantity = qtyEl?.value;
 
         if (!selected || !quantity) {
             alert("Preencha todos os campos do item");
@@ -428,7 +701,6 @@ const OrdersDetails = {
         }
 
         if (this._editingItemIndex !== null) {
-            // Modo edição: atualiza item existente no índice
             const orig = this.items[this._editingItemIndex];
             if (orig.type === 'group') {
                 this.items[this._editingItemIndex] = { ...orig, group_quantity: Number(quantity) };
@@ -436,41 +708,40 @@ const OrdersDetails = {
                 this.items[this._editingItemIndex] = { ...orig, quantity: Number(quantity) };
             }
             this._editingItemIndex = null;
-            this._restoreAddBtn();
         } else {
             if (selected.type === 'group') {
                 this.items.push({
                     type: 'group',
                     group_id: Number(selected.id),
                     group_name: selected.name,
-                    group_quantity: Number(quantity)
+                    group_quantity: Number(quantity),
+                    receivedQuantity: 0,
                 });
             } else {
-                // Verificar se ghost: preservar receivedQuantity
                 const ghost = this._ghostItems.find(g => g.material === selected.name);
-                const newItem = {
+                this.items.push({
                     type: 'material',
                     material: selected.name,
                     quantity: Number(quantity),
-                    receivedQuantity: ghost ? ghost.receivedQuantity : 0
-                };
-                this.items.push(newItem);
-                // Remover da lista de ghosts
+                    receivedQuantity: ghost ? ghost.receivedQuantity : 0,
+                });
                 this._ghostItems = this._ghostItems.filter(g => g.material !== selected.name);
             }
         }
 
-        document.getElementById("itemQuantity").value = '';
-        if (this._itemSelect) this._itemSelect.clear();
+        this._clearDlgForm();
+        this._renderDlgFormActions();
         this._refreshItemsView();
+        this._refreshDlgTable();
         this._markDirty();
+        setTimeout(() => document.getElementById('ordDlgQty')?.focus(), 0);
     },
 
-    /** Remove um item pelo índice */
     deleteItem(index) {
         if (this._editingItemIndex === index) {
             this._editingItemIndex = null;
-            this._restoreAddBtn();
+            this._clearDlgForm();
+            this._renderDlgFormActions();
         } else if (this._editingItemIndex !== null && this._editingItemIndex > index) {
             this._editingItemIndex -= 1;
         }
@@ -478,9 +749,7 @@ const OrdersDetails = {
         const removed = this.items[index];
         this.items.splice(index, 1);
 
-        // Recomputa ghosts após remoção
         if (removed.type === 'material') {
-            // Material removido com recebimento: promove a ghost se não coberto por grupo restante
             if ((removed.receivedQuantity || 0) > 0) {
                 const groupMaterialsNow = new Set(
                     this.items.filter(i => i.type === 'group')
@@ -491,7 +760,6 @@ const OrdersDetails = {
                 }
             }
         } else if (removed.type === 'group') {
-            // Grupo removido: verifica quais materiais do grupo devem virar ghosts
             const materialsOfGroup = this._groupDetails[removed.group_id] || [];
             const orderedMaterialsNow = new Set(this.items.filter(i => i.type === 'material').map(i => i.material));
             const groupMaterialsNow = new Set(
@@ -507,141 +775,121 @@ const OrdersDetails = {
         }
 
         this._refreshItemsView();
+        this._refreshDlgTable();
         this._markDirty();
     },
 
-    /** Ativa modo de edição inline para o item no índice indicado */
     startEditItem(index) {
+        if (!this._itemsDialog) return;
         this._editingItemIndex = index;
         const item = this.items[index];
         if (item.type === 'group') {
-            this._itemSelect?.setValue(item.group_id);
+            this._dlgItemSelect?.setValue(item.group_id);
             this._lastItemSelection = { type: 'group', id: item.group_id, name: item.group_name || '' };
-            document.getElementById('itemQuantity').value = item.group_quantity;
+            const qtyEl = document.getElementById('ordDlgQty');
+            if (qtyEl) qtyEl.value = item.group_quantity;
         } else {
-            this._itemSelect?.setValue(item.material);
+            this._dlgItemSelect?.setValue(item.material);
             this._lastItemSelection = { type: 'material', name: String(item.material) };
-            document.getElementById('itemQuantity').value = item.quantity;
+            const qtyEl = document.getElementById('ordDlgQty');
+            if (qtyEl) qtyEl.value = item.quantity;
         }
-        const addBtn = document.getElementById('ordersDetailsAddBtn');
-        if (addBtn) addBtn.innerHTML = '<span class="material-symbols-outlined">stylus</span>Editar Item';
-        const cancelBtn = document.getElementById('ordersDetailsCancelEditBtn');
-        if (cancelBtn) cancelBtn.style.display = '';
-        this._renderItems();
+        this._renderDlgFormActions();
+        this._refreshDlgTable();
     },
 
-    /** Ativa modo de adição a partir de um ghost row */
-    startEditGhost(material) {
-        this._itemSelect?.setValue(material);
-        this._lastItemSelection = { type: 'material', name: String(material) };
-        document.getElementById('itemQuantity').value = '';
-        document.getElementById('itemQuantity').focus();
-    },
-
-    /** Cancela o modo de edição e restaura o formulário */
     cancelEditItem() {
         this._editingItemIndex = null;
-        this._restoreAddBtn();
-        this._itemSelect?.clear();
-        document.getElementById('itemQuantity').value = '';
-        this._renderItems();
+        this._clearDlgForm();
+        this._renderDlgFormActions();
+        this._refreshDlgTable();
     },
 
-    /** Restaura o botão de adicionar e oculta o botão cancelar */
-    _restoreAddBtn() {
-        const addBtn = document.getElementById('ordersDetailsAddBtn');
-        if (addBtn) addBtn.innerHTML = '<span class="material-symbols-outlined">playlist_add</span>Adicionar';
-        const cancelBtn = document.getElementById('ordersDetailsCancelEditBtn');
-        if (cancelBtn) cancelBtn.style.display = 'none';
-    },
-
-    /** Volta para a tela de pedidos */
-    cancel() {
-        showScreen('orders');
+    _startEditGhostInDialog(material) {
+        this._dlgItemSelect?.setValue(material);
+        this._lastItemSelection = { type: 'material', name: String(material) };
+        const qtyEl = document.getElementById('ordDlgQty');
+        if (qtyEl) { qtyEl.value = ''; qtyEl.focus(); }
+        this._editingItemIndex = null;
+        this._renderDlgFormActions();
     },
 
     // ── Renderização ──
 
-    /** Renderiza a tabela de itens do pedido */
-    _renderItems() {
-        const tbody = document.getElementById("ordersItemsBody");
-        tbody.innerHTML = "";
+    _renderItemsWidget() {
+        const container = document.getElementById('ordItemsWidget');
+        if (!container) return;
+        const readOnly = this._isFormLocked();
 
         if (this.items.length === 0 && this._ghostItems.length === 0) {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `<td colspan="4" class="empty-state">Nenhum item adicionado. Preencha o formulário acima e clique em Adicionar.</td>`;
-            tbody.appendChild(tr);
+            if (readOnly) {
+                container.innerHTML = `<p class="rd-items-empty">Nenhum item adicionado.</p>`;
+            } else {
+                container.innerHTML = `
+                    <button class="rd-items-dashed-btn" onclick="OrdersDetails.openItemsDialog()">
+                        <span class="material-symbols-outlined">add</span>
+                        Adicionar Itens
+                    </button>`;
+            }
             return;
         }
 
-        this.items.forEach((item, index) => {
-            const isEditing = this._editingItemIndex === index;
-            const readOnly = this._isReadOnly();
-            let tr;
-            if (item.type === 'group') {
-                tr = createTableRow(`
-                    <td><span class="item-group-badge">Grupo</span> ${item.group_name}</td>
-                    <td class="col-qty">${item.group_quantity}</td>
-                    <td class="col-received">${item.receivedQuantity || ''}</td>
-                    <td class="orders-details-col-actions">
-                        ${readOnly ? '' : `<button class="btn-action btn-delete" onclick="event.stopPropagation(); OrdersDetails.deleteItem(${index})" title="Remover item">
-                            <span class="material-symbols-outlined">delete</span>
-                        </button>`}
-                    </td>
-                `);
-            } else {
-                tr = createTableRow(`
-                    <td>${item.material}</td>
-                    <td class="col-qty">${item.quantity}</td>
-                    <td class="col-received">${item.receivedQuantity || ''}</td>
-                    <td class="orders-details-col-actions">
-                        ${readOnly ? '' : `<button class="btn-action btn-delete" onclick="event.stopPropagation(); OrdersDetails.deleteItem(${index})" title="Remover item">
-                            <span class="material-symbols-outlined">delete</span>
-                        </button>`}
-                    </td>
-                `);
-            }
-            if (!readOnly) {
-                tr.style.cursor = 'pointer';
-                tr.onclick = () => OrdersDetails.startEditItem(index);
-            }
-            if (isEditing) tr.classList.add('orders-details-item-editing');
-            tbody.appendChild(tr);
-        });
-
-        // Ghost rows: recebidos mas não pedidos
-        for (const ghost of this._ghostItems) {
-            const tr = createTableRow(`
-                <td class="orders-details-ghost-name">${ghost.material}</td>
-                <td class="col-qty">—</td>
-                <td class="col-received">${ghost.receivedQuantity}</td>
-                <td class="orders-details-col-actions"></td>
-            `);
-            tr.classList.add('orders-details-ghost-row');
-            if (!this._isReadOnly()) {
-                tr.title = 'Material recebido mas não adicionado ao pedido. Clique para adicionar.';
-                tr.onclick = () => OrdersDetails.startEditGhost(ghost.material);
-            }
-            tbody.appendChild(tr);
-        }
-    },
-
-    /** Atualiza resumo do header e tabela de itens sem recarregar o formulário */
-    _refreshItemsView() {
-        // Calcula total de quantidade pedida (materiais + grupos)
         const totalQty = this.items.reduce((sum, item) => {
             if (item.type === 'group') return sum + (item.group_quantity || 0);
             return sum + (item.quantity || 0);
         }, 0);
-        document.getElementById("orderQty").textContent = totalQty;
+        const count = this.items.length;
+        const names = this.items.map(i => i.type === 'group' ? i.group_name : i.material);
+        const matText = names.length <= 2
+            ? names.map(n => _esc(n)).join(', ')
+            : names.slice(0, 2).map(n => _esc(n)).join(', ') + ` +${names.length - 2} mais`;
 
-        // Calcula total de quantidade recebida via bags
-        const totalReceivedQty = this.items.reduce((sum, item) => {
-            return sum + (item.receivedQuantity || 0);
+        container.innerHTML = `
+            <div class="rd-items-summary${!readOnly ? ' rd-items-summary--clickable' : ''}" ${!readOnly ? 'onclick="OrdersDetails.openItemsDialog()"' : ''}>
+                <div class="rd-items-summary-left">
+                    <i data-lucide="package-2" class="rd-items-summary-icon rd-items-summary-icon--left"></i>
+                    <div class="rd-items-summary-info">
+                        <span class="rd-items-summary-count">${count} ${count === 1 ? 'item' : 'itens'} · Total: ${totalQty}</span>
+                        <span class="rd-items-summary-materials">${matText}</span>
+                    </div>
+                </div>
+                ${!readOnly ? `<i data-lucide="pencil-line" class="rd-items-summary-icon"></i>` : ''}
+            </div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons({ nameAttr: 'data-lucide', rootNode: container });
+    },
+
+    _refreshDlgTable() {
+        if (!this._itemsDataTable) return;
+        const rows = [];
+        this.items.forEach((item, idx) => {
+            rows.push({ ...item, _idx: idx });
+        });
+        for (const ghost of this._ghostItems) {
+            rows.push({ ...ghost, _isGhost: true });
+        }
+        if (this.items.length > 0) {
+            const grandTotal = this.items.reduce((sum, item) => {
+                if (item.type === 'group') return sum + (item.group_quantity || 0);
+                return sum + (item.quantity || 0);
+            }, 0);
+            rows.push({ _isTotal: true, _grandTotal: grandTotal });
+        }
+        this._itemsDataTable.setData(rows);
+    },
+
+    _refreshItemsView() {
+        const totalQty = this.items.reduce((sum, item) => {
+            if (item.type === 'group') return sum + (item.group_quantity || 0);
+            return sum + (item.quantity || 0);
         }, 0);
-        document.getElementById("orderReceivedQty").textContent = isNaN(totalReceivedQty) ? '-' : totalReceivedQty;
+        const totalReceivedQty = this.items.reduce((sum, item) => sum + (item.receivedQuantity || 0), 0);
 
-        // Calcula e exibe o percentual de diferença entre recebido e pedido
+        const qtyEl = document.getElementById('orderQty');
+        if (qtyEl) qtyEl.textContent = totalQty;
+
+        const recvEl = document.getElementById('orderReceivedQty');
+        if (recvEl) recvEl.textContent = isNaN(totalReceivedQty) ? '-' : totalReceivedQty;
+
         let diffHtml = '-';
         if (totalReceivedQty > 0 && totalQty > 0) {
             const diffPct = Math.round(((totalReceivedQty / totalQty) - 1) * 100);
@@ -649,71 +897,98 @@ const OrdersDetails = {
             const color = diffPct >= 0 ? '#2e7d32' : '#c62828';
             diffHtml = `<span style="color:${color};font-weight:600">${sign}${diffPct}%</span>`;
         }
-        document.getElementById("orderDiff").innerHTML = diffHtml;
+        const diffEl = document.getElementById('orderDiff');
+        if (diffEl) diffEl.innerHTML = diffHtml;
 
-        this._renderItems();
+        this._renderItemsWidget();
     },
 
-    /** Define o botão de ação (Salvar / Editar) no header */
-    _setHeaderOptions() {
-        const headerOptions = document.getElementById("headerOptionsContent");
+    _renderActionBar() {
+        const bar = document.getElementById('ordActionBar');
+        if (!bar) return;
+
+        const headerOptions = document.getElementById('headerOptionsContent');
+        if (headerOptions) headerOptions.innerHTML = '';
+
+        bar.innerHTML = '';
+        const inner = document.createElement('div');
+        inner.className = 'rd-action-bar-inner';
+        bar.appendChild(inner);
+
+        const BTN_MIN_W = '6.5rem';
+
+        const exitBtn = createButton({
+            label: 'Sair',
+            variant: 'cancel',
+            onClick: () => OrdersDetails._exitScreen(),
+        });
+        exitBtn.el.style.minWidth = BTN_MIN_W;
+        inner.appendChild(exitBtn.el);
+
         const isEditing = !!Orders.selectedOrder;
-        const action = isEditing ? 'edit' : 'create';
-        headerOptions.innerHTML = hasPermission('procurement', 'orders', action)
-            ? `<button class="btn-primary" onclick="OrdersDetails.${isEditing ? 'editOrder' : 'save'}()">${isEditing ? 'Editar' : 'Salvar'}</button>`
-            : '';
+        if (isEditing) {
+            if (hasPermission('procurement', 'orders', 'edit')) {
+                const saveBtn = createButton({
+                    label: 'Salvar',
+                    variant: 'primary',
+                    icon: 'check',
+                    onClick: () => OrdersDetails.editOrder(),
+                });
+                saveBtn.el.style.minWidth = BTN_MIN_W;
+                inner.appendChild(saveBtn.el);
+            }
+        } else {
+            if (hasPermission('procurement', 'orders', 'create')) {
+                const createBtn = createButton({
+                    label: 'Criar Pedido',
+                    variant: 'primary',
+                    icon: 'check',
+                    onClick: () => OrdersDetails.save(),
+                });
+                createBtn.el.style.minWidth = BTN_MIN_W;
+                inner.appendChild(createBtn.el);
+            }
+        }
     },
 
-    /** Atualiza os textos de fornecedor e status exibidos no header */
     _updateHeaderFields() {
-        const statusEl = document.getElementById("orderStatus");
-        const supplierName = this._supplierSelect?.getValue();
-        const statusText = statusEl?.options[statusEl.selectedIndex]?.text;
+        const supplierName = this._supplierSelect?.getValue() || '-';
+        const statusLabels = { 'OPEN': 'Aberto', 'CLOSED': 'Fechado', 'CANCELLED': 'Cancelado' };
+        const statusText = statusLabels[this._statusToggle?.getValue()] || '-';
 
-        const supplierNameEl = document.getElementById("orderSupplierName");
-        const statusLabelEl = document.getElementById("orderStatusLabel");
-
-        if (supplierNameEl) supplierNameEl.textContent = supplierName || '-';
-        if (statusLabelEl) statusLabelEl.textContent = statusText || '-';
+        const supplierEl = document.getElementById('orderSupplierName');
+        const statusEl = document.getElementById('orderStatusLabel');
+        if (supplierEl) supplierEl.textContent = supplierName;
+        if (statusEl) statusEl.textContent = statusText;
 
         this._updateRequiredIndicators();
     },
 
-    /** Oculta/exibe indicadores de campo obrigatório conforme preenchimento */
     _updateRequiredIndicators() {
-        const dateEl = document.getElementById("orderDate");
-        const reqSupplier = document.getElementById("reqSupplier");
-        const reqDate = document.getElementById("reqDate");
-
-        if (reqSupplier) reqSupplier.style.display = this._supplierSelect?.getValue() ? 'none' : '';
-        if (reqDate) reqDate.style.display = (dateEl?.value) ? 'none' : '';
+        const reqSupplier = document.getElementById('reqSupplier');
+        const reqDate = document.getElementById('reqDate');
+        if (reqSupplier) reqSupplier.style.visibility = this._supplierSelect?.getValue() ? 'hidden' : 'visible';
+        if (reqDate) reqDate.style.visibility = document.getElementById('orderDate')?.value ? 'hidden' : 'visible';
     },
 
     // ── Utilitários Privados ──
 
-    /** Obtém os dados do formulário de pedido */
     _getOrderData() {
-        const titleCode = document.getElementById("orderTitleCode").textContent;
         return {
-            id: titleCode.replace('#', '').trim(),
+            id: document.getElementById("orderCode").value,
             supplier: this._supplierSelect?.getValue() || '',
             date: document.getElementById("orderDate").value,
-            expected_date: document.getElementById("orderExpected").value,
             due_date: document.getElementById("orderDue").value,
-            status: document.getElementById("orderStatus").value
+            expected_date: document.getElementById("orderExpected").value,
+            status: this._statusToggle?.getValue() || 'OPEN',
         };
     },
 
-    /** Salva todos os itens do pedido via API */
     async _saveOrderItems(orderId) {
         for (const item of this.items) {
-            let itemData;
-            if (item.type === 'group') {
-                itemData = { order_id: orderId, group_id: item.group_id, group_quantity: item.group_quantity };
-            } else {
-                itemData = { order_id: orderId, material: item.material, quantity: item.quantity };
-            }
-
+            const itemData = item.type === 'group'
+                ? { order_id: orderId, group_id: item.group_id, group_quantity: item.group_quantity }
+                : { order_id: orderId, material: item.material, quantity: item.quantity };
             try {
                 await apiCall(API + "/orders/items", {
                     method: "POST",
@@ -726,27 +1001,13 @@ const OrdersDetails = {
         }
     },
 
-    /** Obtém o próximo ID de pedido disponível */
     async _getNextOrderCode() {
         try {
             const orders = await apiCall(API + "/orders");
-            if (!orders || orders.length === 0) {
-                return 1;
-            }
-
-            // Encontra o maior ID entre os pedidos
-            const maxId = Math.max(...orders.map(order => order.id));
-
-            return maxId + 1;
+            if (!orders || orders.length === 0) return 1;
+            return Math.max(...orders.map(o => o.id)) + 1;
         } catch (error) {
-            console.error("Erro ao obter próximo código:", error);
             return 1;
         }
-    },
-
-    /** Define o código do pedido no campo com formato #XX baseado no ID */
-    async _setOrderCode() {
-        const nextId = await this._getNextOrderCode();
-        document.getElementById("orderCode").value = `#${nextId}`;
     },
 };

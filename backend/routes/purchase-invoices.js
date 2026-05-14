@@ -246,7 +246,17 @@ router.get("/print/:id", (req, res) => {
             db.all(`SELECT * FROM purchase_invoice_items WHERE invoice_id = ? ORDER BY item_number`, [id], (err2, items) => {
                 if (err2) return res.status(500).send("<h1>Erro ao carregar itens</h1>");
 
-                const itemRows = (items || []).map(item => `
+                db.get(`SELECT * FROM company LIMIT 1`, [], (err3, company) => {
+                    if (err3) company = {};
+                    _renderPrint(res, invoice, items || [], company || {});
+                });
+            });
+        }
+    );
+});
+
+function _renderPrint(res, invoice, items, company) {
+                const itemRows = items.map(item => `
                     <tr>
                         <td class="center">${String(item.item_number).padStart(2, '0')}</td>
                         <td>${_esc(item.description)}</td>
@@ -281,7 +291,7 @@ router.get("/print/:id", (req, res) => {
   .doc-header { display: flex; border: 1px solid #000; margin-bottom: 4px; }
   .doc-header .company { flex: 1; padding: 6px; border-right: 1px solid #000; }
   .doc-header .nci-info { width: 180px; padding: 6px; border-right: 1px solid #000; text-align: center; }
-  .doc-header .logo-area { width: 140px; padding: 6px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: bold; border: 3px solid #e74c3c; color: #e74c3c; }
+  .doc-header .logo-area { width: 140px; padding: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .section { border: 1px solid #000; margin-bottom: 4px; }
   .section-title { background: #f0f0f0; font-weight: bold; padding: 3px 6px; border-bottom: 1px solid #000; font-size: 9px; }
   .section-body { padding: 4px 6px; }
@@ -328,18 +338,21 @@ router.get("/print/:id", (req, res) => {
   <!-- Cabeçalho NCI -->
   <div class="doc-header">
     <div class="company">
-      <div style="font-weight:bold;font-size:11px">ICASA INDÚSTRIA DE PLÁSTICOS EIRELI</div>
-      <div style="margin-top:4px;font-size:9px">AV. CÍCERO BATISTA DE OLIVEIRA, 2.980</div>
-      <div style="font-size:9px">ALPES SUÍÇOS – GRAVATÁ – PE</div>
-      <div style="font-size:9px">CEP: 55.645-000 – FONE: (81) 3533-0512</div>
+      <div style="font-weight:bold;font-size:11px">${_esc(company.name || '')}</div>
+      ${company.address ? `<div style="margin-top:4px;font-size:9px">${_esc(company.address)}${company.neighborhood ? ' – ' + _esc(company.neighborhood) : ''}</div>` : ''}
+      ${(company.city || company.state) ? `<div style="font-size:9px">${[company.city, company.state].filter(Boolean).map(_esc).join(' – ')}</div>` : ''}
+      ${(company.cep || company.phone) ? `<div style="font-size:9px">${company.cep ? 'CEP: ' + _esc(company.cep) : ''}${company.cep && company.phone ? ' – ' : ''}${company.phone ? 'FONE: ' + _esc(company.phone) : ''}</div>` : ''}
     </div>
     <div class="nci-info">
       <div style="font-weight:bold">NCI</div>
-      <div>NOTA DE CONTROLE ICASA</div>
+      <div>NOTA DE CONTROLE INTERNA</div>
       <div style="font-weight:bold;font-size:12px">Nº ${_esc(invoice.number)}</div>
       <div style="margin-top:6px;font-size:9px">0 – ENTRADA</div>
     </div>
-    <div class="logo-area">ICASA<br><span style="font-size:9px;font-weight:normal">PLÁSTICOS</span></div>
+    <div class="logo-area">${company.logo
+      ? `<img src="${company.logo}" alt="Logo" style="max-width:100%;max-height:100%;object-fit:contain;">`
+      : `<span style="font-size:14px;font-weight:bold;text-align:center;word-break:break-word">${_esc(company.name || '')}</span>`
+    }</div>
   </div>
 
   <!-- Remetente -->
@@ -440,9 +453,6 @@ router.get("/print/:id", (req, res) => {
 
                 res.setHeader('Content-Type', 'text/html; charset=utf-8');
                 res.send(html);
-            });
-        }
-    );
-});
+}
 
 module.exports = router;

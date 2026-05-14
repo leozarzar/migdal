@@ -9,6 +9,7 @@ const Orders = {
 
     selectedOrder: null,
     _supplierSelect: null,
+    _statusFilter: null,
     _dataTable: null,
     _newBtn: null,
 
@@ -17,6 +18,7 @@ const Orders = {
     render() {
         this.selectedOrder = null;
         this._supplierSelect?.destroy(); this._supplierSelect = null;
+        this._statusFilter?.destroy();   this._statusFilter = null;
         this._dataTable?.destroy(); this._dataTable = null;
         this._newBtn?.destroy(); this._newBtn = null;
         return `
@@ -25,6 +27,7 @@ const Orders = {
                 <div class="orders-filters-icon-wrap">
                     <span class="material-symbols-outlined orders-filters-icon">filter_list</span>
                 </div>
+                <div id="ordersStatusFilterContainer"></div>
                 <div id="ordersSupplierContainer" class="orders-filter-select-wrap"></div>
                 <div id="ordersNewBtnContainer" class="orders-filters-actions"></div>
             </div>
@@ -35,6 +38,16 @@ const Orders = {
 
     async load() {
         this._mountNewButton();
+
+        this._statusFilter = createToggleGroup({
+            options: [
+                { value: 'open', label: 'Abertos' },
+                { value: 'all',  label: 'Todos'   },
+            ],
+            value: 'open',
+            onChange: () => this._fetchPage(1),
+        });
+        this._statusFilter.mount(document.getElementById('ordersStatusFilterContainer'));
 
         if (!this._supplierSelect) {
             this._supplierSelect = createSelect({
@@ -167,6 +180,8 @@ const Orders = {
 
     async _fetchPage(page = 1, sortKey = '', sortDir = null) {
         const params = new URLSearchParams({ page, limit: 13 });
+        const statusFilter = this._statusFilter?.getValue() || 'open';
+        if (statusFilter !== 'all') params.set('status_filter', statusFilter);
         const supplier = this._supplierSelect?.getValue();
         if (supplier) {
             params.set('supplier', supplier);

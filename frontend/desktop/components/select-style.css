@@ -245,10 +245,11 @@
 }
 
 .wcm-sel-option-check {
-    font-size: 14px;
+    font-size: 15px !important;
     color: var(--interactive-hover);
     margin-left: auto;
     flex-shrink: 0;
+    opacity: 0.6;
 }
 
 .wcm-sel-option-dot {

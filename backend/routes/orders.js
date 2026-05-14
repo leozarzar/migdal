@@ -53,7 +53,7 @@ db.run(`ALTER TABLE order_items ADD COLUMN group_quantity REAL`, () => {});
  *   Inclui total_qty (order_items) e received_qty (stock_units) calculados via subquery.
  */
 router.get("/", (req, res) => {
-    const { page, limit, supplier } = req.query;
+    const { page, limit, supplier, status_filter } = req.query;
 
     const paginated = page != null || limit != null;
     const pageNum   = Math.max(1, parseInt(page, 10) || 1);
@@ -65,6 +65,9 @@ router.get("/", (req, res) => {
     if (supplier) {
         where += ` AND o.supplier = ?`;
         params.push(supplier);
+    }
+    if (status_filter === 'open') {
+        where += ` AND o.status = 'OPEN'`;
     }
 
     const selectEnriched = `

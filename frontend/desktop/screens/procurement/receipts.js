@@ -9,6 +9,7 @@ const Receipts = {
 
     selectedReceipt: null,
     _supplierSelect: null,
+    _statusFilter: null,
     _dataTable: null,
     _newBtn: null,
 
@@ -17,6 +18,7 @@ const Receipts = {
     render() {
         this.selectedReceipt = null;
         this._supplierSelect?.destroy(); this._supplierSelect = null;
+        this._statusFilter?.destroy();   this._statusFilter = null;
         this._dataTable?.destroy(); this._dataTable = null;
         this._newBtn?.destroy(); this._newBtn = null;
         return `
@@ -25,6 +27,7 @@ const Receipts = {
                 <div class="receipts-filters-icon-wrap">
                     <span class="material-symbols-outlined receipts-filters-icon">filter_list</span>
                 </div>
+                <div id="receiptsStatusFilterContainer"></div>
                 <div id="receiptsSupplierContainer" class="receipts-filter-select-wrap"></div>
                 <div id="receiptsNewBtnContainer" class="receipts-filters-actions"></div>
             </div>
@@ -35,6 +38,17 @@ const Receipts = {
 
     async load() {
         this._mountNewButton();
+
+        this._statusFilter = createToggleGroup({
+            options: [
+                { value: 'active', label: 'Ativos' },
+                { value: 'saved',  label: 'Salvos' },
+                { value: 'all',    label: 'Todos'  },
+            ],
+            value: 'active',
+            onChange: () => this._fetchPage(1),
+        });
+        this._statusFilter.mount(document.getElementById('receiptsStatusFilterContainer'));
 
         if (!this._supplierSelect) {
             this._supplierSelect = createSelect({
@@ -159,6 +173,8 @@ const Receipts = {
 
     async _fetchPage(page = 1, sortKey = '', sortDir = null) {
         const params = new URLSearchParams({ page, limit: 13 });
+        const statusFilter = this._statusFilter?.getValue() || 'active';
+        if (statusFilter !== 'all') params.set('status_filter', statusFilter);
         const supplier = this._supplierSelect?.getValue();
         if (supplier) {
             params.set('supplier', supplier);

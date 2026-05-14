@@ -93,4 +93,41 @@ router.put('/:id', (req, res) => {
     );
 });
 
+// ── POST /company/logo ────────────────────────────────────────────────────
+
+const LOGO_DATA_URL_RE = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
+const MAX_LOGO_BYTES   = 3 * 1024 * 1024;
+
+router.post('/logo', (req, res) => {
+    if (!req.user || !req.user.isAdmin) {
+        return res.status(403).json({ success: false, message: 'Apenas administradores podem alterar o logo.' });
+    }
+
+    const logo = (req.body && req.body.logo) || '';
+    if (typeof logo !== 'string' || !LOGO_DATA_URL_RE.test(logo)) {
+        return res.status(400).json({ success: false, message: 'Formato de imagem inválido. Use PNG, JPEG ou WebP.' });
+    }
+    if (Buffer.byteLength(logo, 'utf8') > MAX_LOGO_BYTES) {
+        return res.status(400).json({ success: false, message: 'Logo muito grande. Máximo 3 MB.' });
+    }
+
+    db.run(`UPDATE company SET logo = ? WHERE id = (SELECT id FROM company LIMIT 1)`, [logo], function (err) {
+        if (err) return res.status(500).json({ success: false, message: 'Erro ao salvar logo.', error: err.message });
+        res.json({ success: true, logo });
+    });
+});
+
+// ── DELETE /company/logo ──────────────────────────────────────────────────
+
+router.delete('/logo', (req, res) => {
+    if (!req.user || !req.user.isAdmin) {
+        return res.status(403).json({ success: false, message: 'Apenas administradores podem remover o logo.' });
+    }
+
+    db.run(`UPDATE company SET logo = NULL WHERE id = (SELECT id FROM company LIMIT 1)`, [], function (err) {
+        if (err) return res.status(500).json({ success: false, message: 'Erro ao remover logo.', error: err.message });
+        res.json({ success: true });
+    });
+});
+
 module.exports = router;

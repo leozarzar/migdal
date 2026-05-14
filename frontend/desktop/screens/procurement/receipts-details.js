@@ -114,7 +114,7 @@ const ReceiptsDetails = {
         <div class="receipts-details-container">
             <div class="rd-content">
                 <div class="rd-header">
-                    <h1>Recebimento <span id="receiptTitleCode"></span></h1>
+                    <h1>Recebimento <span id="receiptTitleCode"></span><span id="receiptStatusBadge" style="margin-left:8px"></span></h1>
                     <div class="rd-meta">
                         <span id="receiptMetaSupplier" style="display:none">Fornecedor: <span id="receiptSupplierName"></span>  |  </span>
                         <span id="receiptMetaOrder" style="display:none">Pedido: <span id="receiptOrderNumber"></span>  |  </span>
@@ -231,7 +231,21 @@ const ReceiptsDetails = {
             });
         }
         if (!this._isDirty) return true;
-        return confirm('Você tem alterações não salvas. Deseja sair sem salvar?');
+        return new Promise(resolve => {
+            let resolved = false;
+            const done = (val) => { if (!resolved) { resolved = true; resolve(val); } };
+            const dlg = createDialog({
+                title: 'Alterações não salvas',
+                bodyHTML: '<p>Você tem alterações não salvas. O que deseja fazer?</p>',
+                closeOnBackdrop: false,
+                actions: [
+                    { label: 'Sair sem salvar', variant: 'cancel', onClick: () => { done(true); dlg.close(); } },
+                    { label: 'Continuar editando', variant: 'secondary', onClick: () => { done(false); dlg.close(); } },
+                ],
+                onClose: () => done(false),
+            });
+            dlg.open();
+        });
     },
 
     /** Inicializa a tela: cria SearchSelects, popula dados e preenche campos do recebimento selecionado */
@@ -351,6 +365,18 @@ const ReceiptsDetails = {
 
         this._refreshItemsView();
 
+        // Badge de status no título
+        const statusBadge = document.getElementById('receiptStatusBadge');
+        if (statusBadge) {
+            if (this._isDraft()) {
+                statusBadge.innerHTML = '<span class="receipt-badge receipt-badge-draft">Rascunho</span>';
+            } else if (Receipts.selectedReceipt?.status === 'ABANDONED') {
+                statusBadge.innerHTML = '<span class="receipt-badge receipt-badge-abandoned">Abandonado</span>';
+            } else {
+                statusBadge.innerHTML = '';
+            }
+        }
+
         // Modo somente leitura: desabilita campos e oculta botão de adicionar item
         if (this._isReadOnly()) {
             document.querySelectorAll('#content input, #content select, #content textarea')
@@ -416,7 +442,7 @@ const ReceiptsDetails = {
             this._isDirty = false;
             this._draftReceiptId = null;
             if (Receipts.selectedReceipt) Receipts.selectedReceipt = { ...Receipts.selectedReceipt, status: 'COMPLETED' };
-            alert("Recebimento confirmado com sucesso");
+            showToast("Recebimento confirmado com sucesso", "success");
             if (stay) {
                 Receipts.selectedReceipt = { ...receiptData, id, status: 'COMPLETED' };
                 showScreen('receipts-details');
@@ -522,7 +548,7 @@ const ReceiptsDetails = {
                 newItems
             );
 
-            alert("Recebimento atualizado com sucesso");
+            showToast("Recebimento atualizado com sucesso", "success");
             this._isDirty = false;
             if (stay) {
                 showScreen('receipts-details');
@@ -1024,7 +1050,22 @@ const ReceiptsDetails = {
             return;
         }
         if (this._isDirty) {
-            if (!confirm('Você tem alterações não salvas. Deseja sair sem salvar?')) return;
+            const canGo = await new Promise(resolve => {
+                let resolved = false;
+                const done = (val) => { if (!resolved) { resolved = true; resolve(val); } };
+                const dlg = createDialog({
+                    title: 'Alterações não salvas',
+                    bodyHTML: '<p>Você tem alterações não salvas. O que deseja fazer?</p>',
+                    closeOnBackdrop: false,
+                    actions: [
+                        { label: 'Sair sem salvar', variant: 'cancel', onClick: () => { done(true); dlg.close(); } },
+                        { label: 'Continuar editando', variant: 'secondary', onClick: () => { done(false); dlg.close(); } },
+                    ],
+                    onClose: () => done(false),
+                });
+                dlg.open();
+            });
+            if (!canGo) return;
         }
         this._isDirty = false;
         this._bypassLeaveCheck = true;
