@@ -114,7 +114,13 @@ const ReceiptsDetails = {
         <div class="receipts-details-container">
             <div class="rd-content">
                 <div class="rd-header">
-                    <h1>Recebimento <span id="receiptTitleCode"></span><span id="receiptStatusBadge" style="margin-left:8px"></span></h1>
+                    <div class="rd-header-row">
+                        <h1>Recebimento <span id="receiptTitleCode"></span><span id="receiptStatusBadge" style="margin-left:8px"></span></h1>
+                        <button id="rdCopyBtn" class="rd-copy-btn" type="button" title="Copiar resumo" style="display:none" onclick="ReceiptsDetails.copySummary()">
+                            <span class="material-symbols-outlined">content_copy</span>
+                            <span>Copiar</span>
+                        </button>
+                    </div>
                     <div class="rd-meta">
                         <span id="receiptMetaSupplier" style="display:none">Fornecedor: <span id="receiptSupplierName"></span>  |  </span>
                         <span id="receiptMetaOrder" style="display:none">Pedido: <span id="receiptOrderNumber"></span>  |  </span>
@@ -376,6 +382,10 @@ const ReceiptsDetails = {
                 statusBadge.innerHTML = '';
             }
         }
+
+        // Botão de copiar: só aparece quando o recebimento não é rascunho
+        const copyBtn = document.getElementById('rdCopyBtn');
+        if (copyBtn) copyBtn.style.display = this._isDraft() ? 'none' : '';
 
         // Modo somente leitura: desabilita campos e oculta botão de adicionar item
         if (this._isReadOnly()) {
@@ -1017,6 +1027,62 @@ const ReceiptsDetails = {
         showScreen('receipts');
     },
 
+    /** Copia para a área de transferência um resumo do recebimento formatado para WhatsApp */
+    async copySummary() {
+        try {
+            const text = this._buildWhatsappSummary();
+            await navigator.clipboard.writeText(text);
+            showToast('Resumo copiado para a área de transferência.', 'success');
+        } catch (e) {
+            showToast('Não foi possível copiar o resumo.', 'danger');
+        }
+    },
+
+    /** Monta o texto plano do resumo (formato amigável ao WhatsApp). */
+    _buildWhatsappSummary() {
+        const r = Receipts.selectedReceipt || {};
+        const code = `#${r.nature || '-'}${r.id || ''}`;
+        const dateStr = r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
+        const supplier = this._supplierSelect?.getValue() || r.supplier || '';
+        const orderId = this._orderSelect?.getValue() || r.order_id || '';
+
+        const natureLabels = { C: 'Compra', P: 'Produção', S: 'Retorno' };
+        const natureLabel = natureLabels[r.nature] || '';
+
+        const lines = [];
+        lines.push(`*Recebimento ${code}*`);
+        if (natureLabel) lines.push(`Tipo: ${natureLabel}`);
+        lines.push(`Data: ${dateStr}`);
+        if (supplier) lines.push(`Fornecedor: ${supplier}`);
+        if (orderId)  lines.push(`Pedido: #${orderId}`);
+
+        lines.push('');
+        lines.push('*Itens:*');
+
+        const byMaterial = new Map();
+        for (const it of this.items) {
+            const name = it.material || '-';
+            byMaterial.set(name, (byMaterial.get(name) || 0) + Number(it.quantity || 0));
+        }
+
+        if (byMaterial.size === 0) {
+            lines.push('(sem itens)');
+        } else {
+            const uoms = new Set();
+            let total = 0;
+            for (const [name, qty] of byMaterial) {
+                const uom = this._materialsCache.find(m => m.name === name)?.unit_of_measure || '';
+                if (uom) uoms.add(uom);
+                total += Number(qty || 0);
+                lines.push(`• ${name} — ${_fmtQtyPlain(qty)}${uom ? ' ' + uom : ''}`);
+            }
+            const totalUom = uoms.size === 1 ? ' ' + [...uoms][0] : '';
+            lines.push('');
+            lines.push(`Total: ${_fmtQtyPlain(total)}${totalUom}`);
+        }
+        return lines.join('\n');
+    },
+
     /** Lida com o clique no botão Sair: mostra diálogo adequado antes de navegar */
     async _exitScreen() {
         if (this._isDraft()) {
@@ -1504,3 +1570,11 @@ const ReceiptsDetails = {
     },
 
 };
+
+/** Formata quantidade omitindo decimais quando o valor é inteiro. */
+function _fmtQtyPlain(v) {
+    const n = Number(v || 0);
+    return Number.isInteger(n)
+        ? n.toLocaleString('pt-BR')
+        : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}

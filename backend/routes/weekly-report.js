@@ -80,12 +80,14 @@ async function collectWeekData() {
 
     // ── Pedidos ───────────────────────────────────────────────────────────
     const [ordersThisWeek, ordersPrevWeek, overdueOrders] = await Promise.all([
-        dbAll(`SELECT id, code, supplier, status, due_date, expected_date FROM orders
-               WHERE date BETWEEN ? AND ?`, [weekStart, weekEnd]),
+        dbAll(`SELECT o.id, o.code, COALESCE(s.name, o.supplier) AS supplier, o.status, o.due_date, o.expected_date
+                 FROM orders o LEFT JOIN suppliers s ON s.id = o.supplier_id
+                WHERE o.date BETWEEN ? AND ?`, [weekStart, weekEnd]),
         dbAll(`SELECT id, status FROM orders
                WHERE date BETWEEN ? AND ?`, [prevStart, weekStart]),
-        dbAll(`SELECT id, code, supplier, expected_date FROM orders
-               WHERE expected_date < ? AND status = 'OPEN'`, [weekEnd]),
+        dbAll(`SELECT o.id, o.code, COALESCE(s.name, o.supplier) AS supplier, o.expected_date
+                 FROM orders o LEFT JOIN suppliers s ON s.id = o.supplier_id
+                WHERE o.expected_date < ? AND o.status = 'OPEN'`, [weekEnd]),
     ]);
 
     const ordersData = {
@@ -106,10 +108,11 @@ async function collectWeekData() {
 
     // ── Recebimentos ──────────────────────────────────────────────────────
     const [receiptsThisWeek, receiptsPrevWeek] = await Promise.all([
-        dbAll(`SELECT r.id, r.supplier, r.nature,
+        dbAll(`SELECT r.id, COALESCE(s.name, r.supplier) AS supplier, r.nature,
                       COALESCE(SUM(sm.quantity), 0) as total_weight,
                       COUNT(sm.id) as unit_count
                FROM receipts r
+               LEFT JOIN suppliers s ON s.id = r.supplier_id
                LEFT JOIN stock_movements sm ON sm.receipt_id = r.id AND sm.type = 'entry'
                WHERE r.date BETWEEN ? AND ?
                GROUP BY r.id`, [weekStart, weekEnd]),

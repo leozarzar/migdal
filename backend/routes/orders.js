@@ -43,6 +43,24 @@ db.run(`
 
 db.run(`ALTER TABLE order_items ADD COLUMN group_id INTEGER`, () => {});
 db.run(`ALTER TABLE order_items ADD COLUMN group_quantity REAL`, () => {});
+db.run(`ALTER TABLE orders ADD COLUMN supplier_id INTEGER`, () => {
+    // Backfill: tenta resolver supplier_id a partir do nome (apenas onde estiver NULL)
+    db.run(`
+        UPDATE orders
+           SET supplier_id = (SELECT id FROM suppliers WHERE name = orders.supplier)
+         WHERE supplier_id IS NULL AND supplier IS NOT NULL AND supplier != ''
+    `, () => {});
+});
+
+// Helper: resolve supplier_id a partir do nome quando não enviado (compat com frontend)
+function _resolveSupplierId(body, cb) {
+    if (body.supplier_id != null && body.supplier_id !== '') return cb(null, Number(body.supplier_id));
+    if (!body.supplier) return cb(null, null);
+    db.get(`SELECT id FROM suppliers WHERE name = ?`, [body.supplier], (err, row) => {
+        if (err) return cb(err);
+        cb(null, row ? row.id : null);
+    });
+}
 
 // ── GET Endpoints ─────────────────────────────────────────────────────────
 
@@ -63,7 +81,7 @@ router.get("/", (req, res) => {
     let where = 'WHERE 1=1';
     const params = [];
     if (supplier) {
-        where += ` AND o.supplier = ?`;
+        where += ` AND (COALESCE(s.name, o.supplier) = ?)`;
         params.push(supplier);
     }
     if (status_filter === 'open') {
@@ -72,7 +90,8 @@ router.get("/", (req, res) => {
 
     const selectEnriched = `
         SELECT
-            o.*,
+            o.id, o.code, o.date, o.due_date, o.expected_date, o.status, o.supplier_id,
+            COALESCE(s.name, o.supplier) AS supplier,
             COALESCE((
                 SELECT SUM(CASE WHEN oi.group_id IS NOT NULL THEN oi.group_quantity ELSE oi.quantity END)
                 FROM order_items oi WHERE oi.order_id = o.id
@@ -88,12 +107,13 @@ router.get("/", (req, res) => {
                 FROM receipts r WHERE CAST(r.order_id AS INTEGER) = o.id
             ) as lead_time
         FROM orders o
+        LEFT JOIN suppliers s ON s.id = o.supplier_id
     `;
 
     const dataSql = `${selectEnriched} ${where} ORDER BY o.date DESC, o.id DESC${paginated ? ' LIMIT ? OFFSET ?' : ''}`;
 
     if (paginated) {
-        const countSql = `SELECT COUNT(*) as total FROM orders o ${where}`;
+        const countSql = `SELECT COUNT(*) as total FROM orders o LEFT JOIN suppliers s ON s.id = o.supplier_id ${where}`;
         db.get(countSql, params, (err, countRow) => {
             if (err) return res.status(500).json({ success: false, message: "Erro ao carregar pedidos", error: err.message });
             db.all(dataSql, [...params, limitNum, offset], (err2, rows) => {
@@ -113,10 +133,18 @@ router.get("/", (req, res) => {
  * GET /orders/suppliers - Lista distinta de fornecedores em pedidos (para filtro).
  */
 router.get("/suppliers", (req, res) => {
-    db.all("SELECT DISTINCT supplier FROM orders WHERE supplier IS NOT NULL AND supplier != '' ORDER BY supplier", [], (err, rows) => {
-        if (err) return res.status(500).json({ success: false, message: "Erro ao carregar fornecedores", error: err.message });
-        res.json((rows || []).map(r => r.supplier));
-    });
+    db.all(
+        `SELECT DISTINCT COALESCE(s.name, o.supplier) AS supplier
+           FROM orders o
+           LEFT JOIN suppliers s ON s.id = o.supplier_id
+          WHERE COALESCE(s.name, o.supplier) IS NOT NULL AND COALESCE(s.name, o.supplier) != ''
+          ORDER BY supplier`,
+        [],
+        (err, rows) => {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar fornecedores", error: err.message });
+            res.json((rows || []).map(r => r.supplier));
+        }
+    );
 });
 
 /**
@@ -126,7 +154,8 @@ router.get("/:id", (req, res) => {
     const { id } = req.params;
     const selectEnriched = `
         SELECT
-            o.*,
+            o.id, o.code, o.date, o.due_date, o.expected_date, o.status, o.supplier_id,
+            COALESCE(s.name, o.supplier) AS supplier,
             COALESCE((
                 SELECT SUM(CASE WHEN oi.group_id IS NOT NULL THEN oi.group_quantity ELSE oi.quantity END)
                 FROM order_items oi WHERE oi.order_id = o.id
@@ -142,6 +171,7 @@ router.get("/:id", (req, res) => {
                 FROM receipts r WHERE CAST(r.order_id AS INTEGER) = o.id
             ) as lead_time
         FROM orders o
+        LEFT JOIN suppliers s ON s.id = o.supplier_id
     `;
     db.get(`${selectEnriched} WHERE o.id = ?`, [id], (err, row) => {
         if (err) return res.status(500).json({ success: false, message: "Erro ao carregar pedido", error: err.message });
@@ -209,21 +239,24 @@ router.get("/:id/stock-units", (req, res) => {
 router.post("/", requirePermission('procurement', 'orders', 'create'), (req, res) => {
     const { date, supplier, due_date, expected_date, status } = req.body;
 
-    db.run(
-        `INSERT INTO orders (date, supplier, due_date, expected_date, status)
-        VALUES (?, ?, ?, ?, ?)`,
-        [date, supplier, due_date, expected_date, status],
-        function (err) {
-            if (err) {
-                return res.status(500).json({
-                    success: false,
-                    message: "Erro ao criar pedido",
-                    error: err.message
-                });
+    _resolveSupplierId(req.body, (resErr, supplierId) => {
+        if (resErr) return res.status(500).json({ success: false, message: "Erro ao resolver fornecedor", error: resErr.message });
+        db.run(
+            `INSERT INTO orders (date, supplier, supplier_id, due_date, expected_date, status)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+            [date, supplier, supplierId, due_date, expected_date, status],
+            function (err) {
+                if (err) {
+                    return res.status(500).json({
+                        success: false,
+                        message: "Erro ao criar pedido",
+                        error: err.message
+                    });
+                }
+                res.json({ id: this.lastID });
             }
-            res.json({ id: this.lastID });
-        }
-    );
+        );
+    });
 });
 
 /**
@@ -257,26 +290,29 @@ router.post("/items", requirePermission('procurement', 'orders', 'edit'), (req, 
 router.put("/update", requirePermission('procurement', 'orders', 'edit'), (req, res) => {
     const { id, date, supplier, due_date, expected_date, status } = req.body;
 
-    db.run(
-        `UPDATE orders
-         SET date = ?, supplier = ?, due_date = ?, expected_date = ?, status = ?
-         WHERE id = ?`,
-        [date, supplier, due_date, expected_date, status, id],
-        function (err) {
-            if (err) {
-                return res.status(500).json({ 
-                    success: false, 
-                    message: "Erro ao atualizar pedido",
-                    error: err.message 
+    _resolveSupplierId(req.body, (resErr, supplierId) => {
+        if (resErr) return res.status(500).json({ success: false, message: "Erro ao resolver fornecedor", error: resErr.message });
+        db.run(
+            `UPDATE orders
+             SET date = ?, supplier = ?, supplier_id = ?, due_date = ?, expected_date = ?, status = ?
+             WHERE id = ?`,
+            [date, supplier, supplierId, due_date, expected_date, status, id],
+            function (err) {
+                if (err) {
+                    return res.status(500).json({
+                        success: false,
+                        message: "Erro ao atualizar pedido",
+                        error: err.message
+                    });
+                }
+                res.json({
+                    success: true,
+                    message: "Pedido atualizado com sucesso",
+                    updated: this.changes
                 });
             }
-            res.json({ 
-                success: true, 
-                message: "Pedido atualizado com sucesso",
-                updated: this.changes 
-            });
-        }
-    );
+        );
+    });
 });
 
 // ── DELETE Endpoints ──────────────────────────────────────────────────────

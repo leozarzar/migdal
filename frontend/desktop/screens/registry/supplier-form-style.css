@@ -1,0 +1,91 @@
+/* ════════════════════════════════════════════════════════════════
+   SUPPLIER FORM — tela de cadastro detalhado de fornecedor
+   ════════════════════════════════════════════════════════════════ */
+
+.sf-container {
+    width: 100%;
+    padding: 0;
+    padding-bottom: 80px;
+}
+
+/* ── Cabeçalho fixo no topo ──────────────────────────────────── */
+
+.sf-sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--background);
+    padding: 16px 24px 0;
+}
+
+.sf-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-components);
+}
+
+.sf-header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.sf-tabs-row {
+    margin-top: 4px;
+}
+
+.sf-body {
+    padding: 8px 24px 24px;
+}
+
+/* ── Painéis de aba ──────────────────────────────────────────── */
+
+.sf-panel {
+    display: none;
+}
+
+.sf-panel--active {
+    display: block;
+}
+
+/* ── Par de campos lado a lado ──────────────────────────────── */
+
+.sf-field-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+/* ── Tabela de produtos: colunas específicas ────────────────── */
+
+.pif-editor-table .sf-col-um {
+    width: 80px;
+    text-align: left;
+    color: var(--muted-foreground);
+    font-size: 12px;
+}
+
+.sf-cell-um {
+    color: var(--muted-foreground);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* ── Label "dias após emissão" ───────────────────────────────── */
+
+.sf-cell-days-label {
+    color: var(--muted-foreground);
+    font-size: 12px;
+}
+
+/* ── Responsive ───────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .sf-sticky-header { padding: 12px 16px; }
+    .sf-body { padding: 8px 16px 16px; }
+    .sf-field-pair { grid-template-columns: 1fr; }
+}

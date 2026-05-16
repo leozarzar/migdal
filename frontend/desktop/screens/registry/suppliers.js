@@ -1,32 +1,28 @@
 /**
  * ── suppliers.js ──
  * Tela de cadastro de fornecedores.
- * Permite listar, adicionar, editar e deletar fornecedores.
+ * Lista, importa e remove fornecedores. A criação/edição
+ * detalhada ocorre na tela SupplierForm.
  */
 const Suppliers = {
 
     // ── Estado ──
 
     _dataTable: null,
-    _dialog: null,
     _newBtn: null,
     _importBtn: null,
     _searchInput: null,
-    _nameInput: null,
-    _editingId: null,
     _importDialog: null,
+    selectedSupplier: null,
 
     // ── Ciclo de Vida ──
 
     render() {
-        this._dataTable?.destroy();   this._dataTable   = null;
-        this._dialog?.destroy();      this._dialog      = null;
-        this._newBtn?.destroy();      this._newBtn      = null;
-        this._importBtn?.destroy();   this._importBtn   = null;
-        this._searchInput?.destroy(); this._searchInput = null;
+        this._dataTable?.destroy();    this._dataTable    = null;
+        this._newBtn?.destroy();       this._newBtn       = null;
+        this._importBtn?.destroy();    this._importBtn    = null;
+        this._searchInput?.destroy();  this._searchInput  = null;
         this._importDialog?.destroy(); this._importDialog = null;
-        this._nameInput  = null;
-        this._editingId  = null;
         return `
         <div class="suppliers-container">
             <div class="suppliers-filters">
@@ -53,12 +49,14 @@ const Suppliers = {
             document.getElementById('suppliersSearchContainer').appendChild(this._searchInput.el);
         }
 
-        if (!this._dialog) this._dialog = this._createDialog();
-
         if (!this._dataTable) {
             this._dataTable = createDataTable({
                 columns: [
-                    { key: 'name', header: 'Nome', sortable: true, render: r => r.name },
+                    { key: 'name',          header: 'Nome',            sortable: true, render: r => r.name },
+                    { key: 'business_name', header: 'Nome Empresarial',sortable: true, render: r => r.business_name || '' },
+                    { key: 'tax_id',        header: 'CNPJ/CPF',                       render: r => r.tax_id || '' },
+                    { key: 'city',          header: 'Cidade',           sortable: true, render: r => [r.city, r.state].filter(Boolean).join(' / ') },
+                    { key: 'phone',         header: 'Telefone',                        render: r => r.phone || '' },
                 ],
                 getRowKey: r => r.id,
                 pageSize: 13,
@@ -67,7 +65,7 @@ const Suppliers = {
                     {
                         label: 'Editar', icon: 'edit',
                         hidden: () => !hasPermission('registry', 'suppliers', 'edit'),
-                        onClick: r => this.openDialog(r),
+                        onClick: r => this.openEdit(r),
                     },
                     {
                         label: 'Excluir', icon: 'delete', variant: 'destructive',
@@ -75,6 +73,9 @@ const Suppliers = {
                         onClick: r => this.deleteSupplier(r.id),
                     },
                 ],
+                onRowClick: r => {
+                    if (hasPermission('registry', 'suppliers', 'edit')) this.openEdit(r);
+                },
                 emptyMessage: 'Nenhum fornecedor cadastrado.',
                 emptyIcon: 'store',
             });
@@ -106,58 +107,14 @@ const Suppliers = {
 
     // ── Ações Públicas ──
 
-    openDialog(supplier = null) {
-        this._editingId = supplier?.id ?? null;
-        this._dialog.setTitle(supplier ? 'Editar Fornecedor' : 'Novo Fornecedor');
-        if (this._nameInput) this._nameInput.setValue(supplier?.name ?? '');
-        this._dialog.open();
-        setTimeout(() => this._nameInput?.input.focus(), 50);
+    openNew() {
+        this.selectedSupplier = null;
+        showScreen('supplier-form');
     },
 
-    async saveSupplier() {
-        const action = this._editingId ? 'edit' : 'create';
-        if (!hasPermission('registry', 'suppliers', action)) return;
-
-        const name = this._nameInput?.getValue().trim();
-
-        if (!name) {
-            alert('Digite o nome do fornecedor');
-            return;
-        }
-
-        try {
-            if (this._editingId) {
-                await apiCall(API + `/suppliers/${this._editingId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name }),
-                });
-            } else {
-                const locationId = this._getActiveLocationId();
-                if (!window.AppUser?.isAdmin && !locationId) {
-                    alert('Selecione uma localização na barra lateral antes de cadastrar.');
-                    return;
-                }
-                try {
-                    await apiCall(API + '/suppliers', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name, location_id: locationId }),
-                    });
-                } catch (error) {
-                    if (error.status === 409 && error.data?.conflict) {
-                        this._dialog.close();
-                        this._handleConflict(error.data.existing, locationId);
-                        return;
-                    }
-                    throw error;
-                }
-            }
-            this._dialog.close();
-            this.load();
-        } catch (error) {
-            alert(error.message || 'Erro ao salvar fornecedor');
-        }
+    openEdit(supplier) {
+        this.selectedSupplier = supplier;
+        showScreen('supplier-form');
     },
 
     async deleteSupplier(id) {
@@ -272,67 +229,7 @@ const Suppliers = {
         }
     },
 
-    _handleConflict(existing, locationId) {
-        const dlg = createDialog({
-            title: 'Fornecedor já existe',
-            subtitle: 'Um fornecedor com esse nome já existe no catálogo global. Deseja vinculá-lo à sua localização?',
-            bodyHTML: `
-                <div class="suppliers-conflict-info">
-                    <p><strong>${existing.name}</strong></p>
-                </div>
-            `,
-            actions: [
-                {
-                    label: 'Vincular à minha localização',
-                    variant: 'primary',
-                    onClick: async () => {
-                        try {
-                            await apiCall(API + `/suppliers/${existing.id}/link`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ location_id: locationId }),
-                            });
-                            dlg.close();
-                            dlg.destroy();
-                            Suppliers.load();
-                        } catch (e) {
-                            alert(e.message || 'Erro ao vincular fornecedor');
-                        }
-                    },
-                },
-                {
-                    label: 'Cancelar',
-                    variant: 'cancel',
-                    onClick: () => { dlg.close(); dlg.destroy(); },
-                },
-            ],
-        });
-        dlg.open();
-    },
-
     // ── Privado ──
-
-    _createDialog() {
-        const dlg = createDialog({
-            title: '',
-            closeOnBackdrop: true,
-            bodyHTML: `
-                <div class="dialog-field">
-                    <label>Nome <span class="required">*</span></label>
-                    <div id="supplierNameMount"></div>
-                </div>
-            `,
-            actions: [
-                { label: 'Salvar', variant: 'primary', icon: 'save', onClick: () => Suppliers.saveSupplier() },
-                { label: 'Cancelar', variant: 'cancel', onClick: () => dlg.close() },
-            ],
-        });
-
-        this._nameInput = createInput({ id: 'supplierName', placeholder: 'Nome do fornecedor' });
-        document.getElementById('supplierNameMount').appendChild(this._nameInput.el);
-
-        return dlg;
-    },
 
     _mountButtons() {
         const headerOptions = document.getElementById('headerOptionsContent');
@@ -356,7 +253,7 @@ const Suppliers = {
             label: 'Novo Fornecedor',
             variant: 'primary',
             icon: 'add',
-            onClick: () => this.openDialog(),
+            onClick: () => this.openNew(),
         });
         container.appendChild(this._newBtn.el);
     },

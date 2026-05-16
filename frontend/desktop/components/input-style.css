@@ -76,6 +76,22 @@
     padding-left: 32px;
 }
 
+.wcm-input-prefix {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 1;
+    font-size: 13px;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+}
+
+.wcm-input--with-prefix {
+    padding-left: 28px;
+}
+
 /* Estado de erro */
 .wcm-input--error {
     border-color: var(--destructive);

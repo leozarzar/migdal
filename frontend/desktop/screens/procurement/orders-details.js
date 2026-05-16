@@ -11,6 +11,7 @@ const OrdersDetails = {
     _ghostItems: [],
     _groupDetails: {},
     _groupsCache: [],
+    _materialsCache: [],
     _isDirty: false,
     _bypassLeaveCheck: false,
     _editingItemIndex: null,
@@ -112,7 +113,13 @@ const OrdersDetails = {
         <div class="orders-details-container">
             <div class="rd-content">
                 <div class="rd-header">
-                    <h1>Pedido <span id="orderTitleCode"></span><span id="orderDraftBadge" style="margin-left:8px"></span></h1>
+                    <div class="rd-header-row">
+                        <h1>Pedido <span id="orderTitleCode"></span><span id="orderDraftBadge" style="margin-left:8px"></span></h1>
+                        <button id="ordCopyBtn" class="rd-copy-btn" type="button" title="Copiar resumo" style="display:none" onclick="OrdersDetails.copySummary()">
+                            <span class="material-symbols-outlined">content_copy</span>
+                            <span>Copiar</span>
+                        </button>
+                    </div>
                     <div class="rd-meta">
                         <span>Fornecedor: <span id="orderSupplierName">-</span>  |  </span>
                         <span>Status: <span id="orderStatusLabel">-</span>  |  </span>
@@ -262,6 +269,9 @@ const OrdersDetails = {
         this._statusToggle.mount(document.getElementById('orderStatusContainer'));
 
         await this._refreshSelects();
+
+        const copyBtn = document.getElementById('ordCopyBtn');
+        if (copyBtn) copyBtn.style.display = Orders.selectedOrder ? '' : 'none';
 
         if (Orders.selectedOrder) {
             document.getElementById("orderCode").value = Orders.selectedOrder.id;
@@ -481,6 +491,72 @@ const OrdersDetails = {
 
     cancel() {
         showScreen('orders');
+    },
+
+    /** Copia para a área de transferência um resumo do pedido formatado para WhatsApp */
+    async copySummary() {
+        try {
+            if (!this._materialsCache || this._materialsCache.length === 0) {
+                try { this._materialsCache = await apiCall(API + '/materials') || []; }
+                catch { this._materialsCache = []; }
+            }
+            const text = this._buildWhatsappSummary();
+            await navigator.clipboard.writeText(text);
+            showToast('Resumo copiado para a área de transferência.', 'success');
+        } catch (e) {
+            showToast('Não foi possível copiar o resumo.', 'danger');
+        }
+    },
+
+    _buildWhatsappSummary() {
+        const o = Orders.selectedOrder || {};
+        const supplier = this._supplierSelect?.getValue() || o.supplier || '';
+        const statusLabels = { 'OPEN': 'Aberto', 'CLOSED': 'Fechado', 'CANCELLED': 'Cancelado' };
+        const status = statusLabels[this._statusToggle?.getValue() || o.status] || '';
+
+        const fmtDate = v => v ? new Date(v + 'T00:00:00').toLocaleDateString('pt-BR') : '';
+        const dateStr     = fmtDate(o.date || document.getElementById('orderDate')?.value);
+        const dueStr      = fmtDate(o.due_date || document.getElementById('orderDue')?.value);
+        const expectedStr = fmtDate(o.expected_date || document.getElementById('orderExpected')?.value);
+
+        const matCache = this._materialsCache || [];
+        const uomOf = name => matCache.find(m => m.name === name)?.unit_of_measure || '';
+
+        const lines = [];
+        lines.push(`*Pedido #${o.id || ''}*`);
+        if (dateStr)     lines.push(`Data: ${dateStr}`);
+        if (dueStr)      lines.push(`Prazo: ${dueStr}`);
+        if (expectedStr) lines.push(`Previsão: ${expectedStr}`);
+        if (supplier)    lines.push(`Fornecedor: ${supplier}`);
+        if (status)      lines.push(`Status: ${status}`);
+
+        lines.push('');
+        lines.push('*Itens:*');
+        if (!this.items.length) {
+            lines.push('(sem itens)');
+        } else {
+            const uoms = new Set();
+            let total = 0;
+            for (const it of this.items) {
+                if (it.type === 'group') {
+                    const name = it.group_name || `Grupo #${it.group_id}`;
+                    const qty = Number(it.group_quantity || 0);
+                    total += qty;
+                    lines.push(`• ${name} — ${_fmtQtyPlain(qty)}`);
+                } else {
+                    const name = it.material || '-';
+                    const uom = uomOf(name);
+                    if (uom) uoms.add(uom);
+                    const qty = Number(it.quantity || 0);
+                    total += qty;
+                    lines.push(`• ${name} — ${_fmtQtyPlain(qty)}${uom ? ' ' + uom : ''}`);
+                }
+            }
+            const totalUom = uoms.size === 1 ? ' ' + [...uoms][0] : '';
+            lines.push('');
+            lines.push(`Total: ${_fmtQtyPlain(total)}${totalUom}`);
+        }
+        return lines.join('\n');
     },
 
     async _exitScreen() {

@@ -105,10 +105,11 @@ router.post("/generate", async (req, res) => {
 
         // ── Pedidos atrasados (somente abertos) ───────────────────────────
         const overdue = await dbAll(
-            `SELECT id, code, supplier, expected_date FROM orders
-             WHERE expected_date IS NOT NULL AND expected_date != ''
-               AND expected_date < ?
-               AND status = 'OPEN'`,
+            `SELECT o.id, o.code, COALESCE(s.name, o.supplier) AS supplier, o.expected_date
+               FROM orders o LEFT JOIN suppliers s ON s.id = o.supplier_id
+              WHERE o.expected_date IS NOT NULL AND o.expected_date != ''
+                AND o.expected_date < ?
+                AND o.status = 'OPEN'`,
             [today]
         );
         for (const o of overdue) {
@@ -121,10 +122,11 @@ router.post("/generate", async (req, res) => {
 
         // ── Pedidos que vencem amanhã (somente abertos) ───────────────────
         const dueSoon = await dbAll(
-            `SELECT id, code, supplier, due_date FROM orders
-             WHERE due_date IS NOT NULL AND due_date != ''
-               AND due_date = ?
-               AND status = 'OPEN'`,
+            `SELECT o.id, o.code, COALESCE(s.name, o.supplier) AS supplier, o.due_date
+               FROM orders o LEFT JOIN suppliers s ON s.id = o.supplier_id
+              WHERE o.due_date IS NOT NULL AND o.due_date != ''
+                AND o.due_date = ?
+                AND o.status = 'OPEN'`,
             [tomorrow]
         );
         for (const o of dueSoon) {

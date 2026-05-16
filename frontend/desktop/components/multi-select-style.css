@@ -1,0 +1,186 @@
+/* ── Multi Select ─────────────────────────────────────────────────────────── */
+
+.wcm-msel {
+    position: relative;
+    width: 100%;
+}
+
+/* ── Trigger ─────────────────────────────────────────────────────────────── */
+
+.wcm-msel-trigger {
+    width: 100%;
+    min-height: 2.25rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px 4px 10px;
+    background: var(--background);
+    border: 1px solid var(--border-components);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    text-align: left;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+
+.wcm-msel-trigger:hover {
+    border-color: var(--border-components-darker);
+}
+
+.wcm-msel-trigger--open,
+.wcm-msel-trigger--open:hover {
+    border-color: var(--border-components-darker);
+}
+
+.wcm-msel-trigger--disabled,
+.wcm-msel-trigger--disabled:hover {
+    background: var(--muted);
+    border-color: var(--border-components);
+    color: var(--placeholder);
+    cursor: not-allowed;
+}
+
+/* ── Content (chips + placeholder) ───────────────────────────────────────── */
+
+.wcm-msel-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.wcm-msel-placeholder {
+    color: var(--placeholder);
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+/* ── Chips ───────────────────────────────────────────────────────────────── */
+
+.wcm-msel-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 6px 0 8px;
+    background: var(--border-components);
+    border-radius: 6px;
+    color: var(--secondary-text);
+    font-size: 12px;
+    font-weight: 500;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.wcm-msel-chip-label {
+    line-height: 1;
+}
+
+.wcm-msel-chip-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border: none;
+    background: transparent;
+    color: var(--border-components-darkest);
+    cursor: pointer;
+    padding: 0;
+    border-radius: 50%;
+    transition: background-color 0.1s, color 0.1s;
+    flex-shrink: 0;
+}
+
+.wcm-msel-chip-remove:hover {
+    background: var(--border-components-darker);
+    color: var(--primary);
+}
+
+.wcm-msel-chip-remove .material-symbols-outlined {
+    font-size: 12px;
+}
+
+/* ── Chevron ─────────────────────────────────────────────────────────────── */
+
+.wcm-msel-chevron {
+    display: inline-flex;
+    align-items: center;
+    font-size: 16px;
+    color: var(--border-components-darkest);
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 6px;
+}
+
+.wcm-msel-trigger--open .wcm-msel-chevron {
+    transform: rotate(180deg);
+}
+
+/* ── Dropdown (portal) ───────────────────────────────────────────────────── */
+
+.wcm-msel-dropdown {
+    background: var(--background);
+    border: 1px solid var(--border-components);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    overflow: hidden;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+/* ── Opções ──────────────────────────────────────────────────────────────── */
+
+.wcm-msel-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--foreground);
+    cursor: pointer;
+    transition: background-color 0.1s;
+    user-select: none;
+}
+
+.wcm-msel-option:hover {
+    background: var(--muted);
+}
+
+.wcm-msel-option--selected {
+    background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.wcm-msel-option--selected:hover {
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.wcm-msel-option-cb {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    accent-color: var(--primary);
+    pointer-events: none;
+}
+
+.wcm-msel-option-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Empty ───────────────────────────────────────────────────────────────── */
+
+.wcm-msel-empty {
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--muted-foreground);
+    text-align: center;
+}

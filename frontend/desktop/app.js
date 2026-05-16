@@ -82,6 +82,7 @@ const MODULE_REGISTRY = {
             receipts:          { title: 'Recebimentos',  module: Receipts,        icon: 'move_to_inbox',  actions: ['view', 'create', 'edit', 'delete'] },
             'receipt-details': { title: 'Detalhes',      module: ReceiptsDetails, parent: 'receipts', hidden: true },
             'purchase-invoices': { title: 'Faturas de Compras', module: PurchaseInvoices, icon: 'receipt_long', actions: ['view', 'create', 'delete'] },
+            'purchase-invoice-form': { title: 'Nova Fatura', module: PurchaseInvoiceForm, parent: 'purchase-invoices', hidden: true },
         }
     },
     registry: {
@@ -92,6 +93,7 @@ const MODULE_REGISTRY = {
             materials:           { title: 'Materiais',       module: Materials,        icon: 'category',  actions: ['view', 'create', 'edit', 'delete'] },
             'material-details':  { title: 'Material',        module: MaterialsDetails, parent: 'materials', hidden: true },
             suppliers:        { title: 'Fornecedores',    module: Suppliers,     icon: 'store',     actions: ['view', 'create', 'edit', 'delete'] },
+            'supplier-form':  { title: 'Fornecedor',      module: SupplierForm,  parent: 'suppliers', hidden: true },
             operators:        { title: 'Operadores',      module: Operators,     icon: 'badge',     actions: ['view', 'create', 'edit', 'delete'] },
             groups:           { title: 'Grupos',          module: Groups,        icon: 'folder',    actions: ['view', 'create', 'edit', 'delete'] },
             'groups-details': { title: 'Grupo',           module: GroupsDetails, parent: 'groups', hidden: true },

@@ -54,6 +54,7 @@ function createInput(config = {}) {
         name         = undefined,
         autocomplete = undefined,
         className    = '',
+        prefix       = null,
         maxLength    = undefined,
         onInput      = null,
         onChange     = null,
@@ -86,6 +87,15 @@ function createInput(config = {}) {
         el.appendChild(iconEl);
     }
 
+    // ── Prefixo ──────────────────────────────────────────────────────────────
+
+    if (prefix) {
+        const prefixEl = document.createElement('span');
+        prefixEl.className = 'wcm-input-prefix';
+        prefixEl.textContent = prefix;
+        el.appendChild(prefixEl);
+    }
+
     // ── Input ────────────────────────────────────────────────────────────────
 
     const input = document.createElement('input');
@@ -102,7 +112,8 @@ function createInput(config = {}) {
 
     const classes = [
         'wcm-input',
-        icon ? 'wcm-input--with-icon' : '',
+        icon   ? 'wcm-input--with-icon'   : '',
+        prefix ? 'wcm-input--with-prefix' : '',
         className,
     ];
     input.className = classes.filter(Boolean).join(' ');

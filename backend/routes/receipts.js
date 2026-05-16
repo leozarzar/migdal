@@ -35,6 +35,24 @@ db.run(`ALTER TABLE receipts ADD COLUMN location_id INTEGER`, () => {});
 db.run(`ALTER TABLE receipts ADD COLUMN status TEXT DEFAULT 'COMPLETED'`, () => {});
 db.run(`ALTER TABLE receipts ADD COLUMN total_qty_snapshot REAL`, () => {});
 db.run(`ALTER TABLE receipts ADD COLUMN created_at TEXT`, () => {});
+db.run(`ALTER TABLE receipts ADD COLUMN supplier_id INTEGER`, () => {
+    // Backfill: tenta resolver supplier_id a partir do nome (apenas onde estiver NULL)
+    db.run(`
+        UPDATE receipts
+           SET supplier_id = (SELECT id FROM suppliers WHERE name = receipts.supplier)
+         WHERE supplier_id IS NULL AND supplier IS NOT NULL AND supplier != ''
+    `, () => {});
+});
+
+// Helper: resolve supplier_id a partir do nome quando não enviado (compat com frontend)
+function _resolveSupplierId(body, cb) {
+    if (body.supplier_id != null && body.supplier_id !== '') return cb(null, Number(body.supplier_id));
+    if (!body.supplier) return cb(null, null);
+    db.get(`SELECT id FROM suppliers WHERE name = ?`, [body.supplier], (err, row) => {
+        if (err) return cb(err);
+        cb(null, row ? row.id : null);
+    });
+}
 
 // ── GET Endpoints ─────────────────────────────────────────────────────────
 
@@ -55,7 +73,8 @@ router.get("/", (req, res) => {
     let where = 'WHERE 1=1';
     const params = [];
     if (supplier) {
-        where += ` AND r.supplier = ?`;
+        // Aceita filtro por nome: bate via supplier_id (resolvido na hora) ou pelo texto legado
+        where += ` AND (COALESCE(s.name, r.supplier) = ?)`;
         params.push(supplier);
     }
     if (status_filter === 'active') {
@@ -66,17 +85,21 @@ router.get("/", (req, res) => {
 
     const selectEnriched = `
         SELECT
-            r.*,
+            r.id, r.code, r.nature, r.date, r.order_id, r.operator,
+            r.location_id, r.status, r.total_qty_snapshot, r.created_at,
+            r.supplier_id,
+            COALESCE(s.name, r.supplier) AS supplier,
             COALESCE((SELECT SUM(su.weight) FROM stock_units su WHERE su.receipt_id = r.id), 0) +
             COALESCE((SELECT SUM(sm.quantity) FROM stock_movements sm WHERE sm.receipt_id = r.id AND sm.type = 'entry' AND sm.status IN ('DRAFT', 'ABANDONED')), 0)
             as total_qty
         FROM receipts r
+        LEFT JOIN suppliers s ON s.id = r.supplier_id
     `;
 
     const dataSql = `${selectEnriched} ${where} ORDER BY COALESCE(r.date, r.created_at) DESC, r.id DESC${paginated ? ' LIMIT ? OFFSET ?' : ''}`;
 
     if (paginated) {
-        const countSql = `SELECT COUNT(*) as total FROM receipts r ${where}`;
+        const countSql = `SELECT COUNT(*) as total FROM receipts r LEFT JOIN suppliers s ON s.id = r.supplier_id ${where}`;
         db.get(countSql, params, (err, countRow) => {
             if (err) return res.status(500).json({ success: false, message: "Erro ao carregar recebimentos", error: err.message });
             db.all(dataSql, [...params, limitNum, offset], (err2, rows) => {
@@ -96,10 +119,18 @@ router.get("/", (req, res) => {
  * GET /receipts/suppliers - Lista distinta de fornecedores em recebimentos (para filtro).
  */
 router.get("/suppliers", (req, res) => {
-    db.all("SELECT DISTINCT supplier FROM receipts WHERE supplier IS NOT NULL AND supplier != '' ORDER BY supplier", [], (err, rows) => {
-        if (err) return res.status(500).json({ success: false, message: "Erro ao carregar fornecedores", error: err.message });
-        res.json((rows || []).map(r => r.supplier));
-    });
+    db.all(
+        `SELECT DISTINCT COALESCE(s.name, r.supplier) AS supplier
+           FROM receipts r
+           LEFT JOIN suppliers s ON s.id = r.supplier_id
+          WHERE COALESCE(s.name, r.supplier) IS NOT NULL AND COALESCE(s.name, r.supplier) != ''
+          ORDER BY supplier`,
+        [],
+        (err, rows) => {
+            if (err) return res.status(500).json({ success: false, message: "Erro ao carregar fornecedores", error: err.message });
+            res.json((rows || []).map(r => r.supplier));
+        }
+    );
 });
 
 /**
@@ -112,7 +143,7 @@ router.get("/items/:id", (req, res) => {
         if (err) return res.status(500).json({ success: false, message: "Erro ao carregar itens do recebimento", error: err.message });
 
         db.all(
-            `SELECT sm.id, sm.quantity, sm.operator, sm.receipt_id, sm.location_id, sm.packaging_id, sm.packaging_count, sm.date AS date_in, m.name AS material, 'movement' AS item_type
+            `SELECT sm.id, sm.quantity, sm.operator, sm.receipt_id, sm.location_id, sm.packaging_id, sm.packaging_count, sm.date AS date_in, m.id AS material_id, m.name AS material, 'movement' AS item_type
              FROM stock_movements sm
              JOIN materials m ON m.id = sm.material_id
              WHERE sm.receipt_id = ? AND sm.status = 'DRAFT'`,
@@ -157,26 +188,29 @@ router.post("/", requirePermission('procurement', 'receipts', 'create'), (req, r
         });
     }
 
-    db.run(
-        `INSERT INTO receipts (code, nature, date, supplier, order_id, operator, location_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [code, nature, date, supplier || null, order_id || null, operator || null, location_id || null],
-        function (err) {
-            if (err) {
-                return res.status(500).json({
-                    success: false,
-                    message: "Erro ao salvar recebimento",
-                    error: err.message
+    _resolveSupplierId(req.body, (resErr, supplierId) => {
+        if (resErr) return res.status(500).json({ success: false, message: "Erro ao resolver fornecedor", error: resErr.message });
+        db.run(
+            `INSERT INTO receipts (code, nature, date, supplier, supplier_id, order_id, operator, location_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [code, nature, date, supplier || null, supplierId, order_id || null, operator || null, location_id || null],
+            function (err) {
+                if (err) {
+                    return res.status(500).json({
+                        success: false,
+                        message: "Erro ao salvar recebimento",
+                        error: err.message
+                    });
+                }
+                res.json({
+                    success: true,
+                    message: "Recebimento salvo com sucesso",
+                    id: this.lastID,
+                    code: code
                 });
             }
-            res.json({
-                success: true,
-                message: "Recebimento salvo com sucesso",
-                id: this.lastID,
-                code: code
-            });
-        }
-    );
+        );
+    });
 });
 
 // ── PUT Endpoints ─────────────────────────────────────────────────────────
@@ -195,11 +229,13 @@ router.put("/update", requirePermission('procurement', 'receipts', 'edit'), (req
         });
     }
 
-    db.run(
+    _resolveSupplierId(req.body, (resErr, supplierId) => {
+        if (resErr) return res.status(500).json({ success: false, message: "Erro ao resolver fornecedor", error: resErr.message });
+        db.run(
         `UPDATE receipts
-         SET nature = ?, date = ?, supplier = ?, order_id = ?, operator = ?, location_id = ?
+         SET nature = ?, date = ?, supplier = ?, supplier_id = ?, order_id = ?, operator = ?, location_id = ?
          WHERE id = ?`,
-        [nature, date, supplier || null, order_id || null, operator || null, location_id || null, id],
+        [nature, date, supplier || null, supplierId, order_id || null, operator || null, location_id || null, id],
         function (err) {
             if (err) {
                 return res.status(500).json({
@@ -221,6 +257,7 @@ router.put("/update", requirePermission('procurement', 'receipts', 'edit'), (req
             });
         }
     );
+    });
 });
 
 // ── PATCH Endpoints ───────────────────────────────────────────────────────
@@ -231,18 +268,21 @@ router.put("/update", requirePermission('procurement', 'receipts', 'edit'), (req
 router.patch("/:id/header", requirePermission('procurement', 'receipts', 'create'), (req, res) => {
     const { id } = req.params;
     const { nature, date, supplier, order_id, location_id } = req.body;
-    db.run(
-        `UPDATE receipts SET nature = ?, date = ?, supplier = ?, order_id = ?, location_id = ? WHERE id = ?`,
-        [nature || null, date || null, supplier || null, order_id || null, location_id || null, id],
-        function(err) {
-            if (err) return res.status(500).json({ success: false, message: "Erro ao salvar cabeçalho", error: err.message });
-            if (location_id !== undefined) {
-                db.run(`UPDATE stock_units SET location_id = ? WHERE receipt_id = ?`, [location_id || null, id]);
-                db.run(`UPDATE stock_movements SET location_id = ? WHERE receipt_id = ?`, [location_id || null, id]);
+    _resolveSupplierId(req.body, (resErr, supplierId) => {
+        if (resErr) return res.status(500).json({ success: false, message: "Erro ao resolver fornecedor", error: resErr.message });
+        db.run(
+            `UPDATE receipts SET nature = ?, date = ?, supplier = ?, supplier_id = ?, order_id = ?, location_id = ? WHERE id = ?`,
+            [nature || null, date || null, supplier || null, supplierId, order_id || null, location_id || null, id],
+            function(err) {
+                if (err) return res.status(500).json({ success: false, message: "Erro ao salvar cabeçalho", error: err.message });
+                if (location_id !== undefined) {
+                    db.run(`UPDATE stock_units SET location_id = ? WHERE receipt_id = ?`, [location_id || null, id]);
+                    db.run(`UPDATE stock_movements SET location_id = ? WHERE receipt_id = ?`, [location_id || null, id]);
+                }
+                res.json({ success: true });
             }
-            res.json({ success: true });
-        }
-    );
+        );
+    });
 });
 
 /**
@@ -256,9 +296,11 @@ router.patch("/:id/confirm", requirePermission('procurement', 'receipts', 'creat
         return res.status(400).json({ success: false, message: "Natureza e data são obrigatórios" });
     }
 
+    _resolveSupplierId(req.body, (resErr, supplierId) => {
+    if (resErr) return res.status(500).json({ success: false, message: "Erro ao resolver fornecedor", error: resErr.message });
     db.run(
-        `UPDATE receipts SET nature = ?, date = ?, supplier = ?, order_id = ?, location_id = ?, status = 'COMPLETED' WHERE id = ?`,
-        [nature, date, supplier || null, order_id || null, location_id || null, id],
+        `UPDATE receipts SET nature = ?, date = ?, supplier = ?, supplier_id = ?, order_id = ?, location_id = ?, status = 'COMPLETED' WHERE id = ?`,
+        [nature, date, supplier || null, supplierId, order_id || null, location_id || null, id],
         function(err) {
             if (err) return res.status(500).json({ success: false, message: "Erro ao confirmar recebimento", error: err.message });
 
@@ -289,6 +331,7 @@ router.patch("/:id/confirm", requirePermission('procurement', 'receipts', 'creat
             });
         }
     );
+    });
 });
 
 /**

@@ -18,6 +18,44 @@
     margin: 0 0 6px 0;
 }
 
+.rd-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.rd-header-row h1 {
+    margin-bottom: 0;
+}
+
+.rd-copy-btn {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--border-components);
+    border-radius: var(--radius-md, 6px);
+    background: var(--background, white);
+    color: var(--foreground, #1a1a1a);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.rd-copy-btn:hover {
+    background: var(--muted, #f4f6f8);
+    border-color: var(--border-components-darker, #cbd5e1);
+}
+
+.rd-copy-btn .material-symbols-outlined {
+    font-size: 18px;
+}
+
 .rd-meta {
     font-size: 13px;
     color: var(--muted-foreground);
